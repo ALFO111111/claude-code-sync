@@ -88,9 +88,11 @@ jobs:
           New-Item -ItemType Directory dist | Out-Null
           Copy-Item build/bin/claude-code-sync.exe dist/claude-code-sync.exe
           Compress-Archive -Path build/bin/claude-code-sync.exe, LICENSE, README.md, README_EN.md -DestinationPath "dist/claude-code-sync-$v-windows-amd64.zip"
-          Get-ChildItem dist | ForEach-Object {
+          # 先算完全部校验值再写文件：边遍历 dist 边往 dist 里写的话，会读到正在写的 SHA256SUMS.txt，报"被占用"
+          $sums = Get-ChildItem dist -File | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
-          } | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          }
+          $sums | Out-File dist/SHA256SUMS.txt -Encoding ascii
 
       - name: Release notes from CHANGELOG
         shell: bash
