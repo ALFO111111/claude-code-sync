@@ -1,0 +1,16 @@
+claude-code-sync.exe
+.test/
+*.test
+debug_*.go
+frontend/node_modules/
+frontend/wailsjs/
+frontend/dist/*
+!frontend/dist/.gitkeep
+build/bin/
+
+# 本机专用的 Claude Code 项目说明（含个人环境信息），只留在本地，不进仓库
+CLAUDE.md
+CLAUDE.local.md
+.claude/settings.local.json
+# 开发过程中的设计笔记（AI 工作记录），只留在本地
+docs/superpowers/

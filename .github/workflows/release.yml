@@ -1,0 +1,114 @@
+# 发布：推送 v 开头的标签（如 v0.1.0、v0.2.0-beta.1）时自动构建、（可选）签名、发布到 GitHub Releases。
+#
+#   1. CHANGELOG.md 里把 [Unreleased] 改成 [0.1.0] - 日期，提交
+#   2. git tag v0.1.0 && git push origin v0.1.0
+#
+# 代码签名（SignPath，开源项目免费）：在仓库 Settings → Secrets and variables → Actions 里配置
+#   secret   SIGNPATH_API_TOKEN
+#   variable SIGNPATH_ORGANIZATION_ID / SIGNPATH_PROJECT_SLUG / SIGNPATH_POLICY_SLUG
+# 没配置时跳过签名，照常发布未签名的 exe。申请步骤见 docs/code-signing.md。
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # 创建 Release、上传文件
+  actions: read   # SignPath 读取构建产物
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Version from tag
+        id: ver
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          # exe 文件属性里的版本号只能是纯数字 x.y.z，去掉 -beta.1 之类的后缀
+          echo "numeric=$(echo "$v" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: go test ./...
+
+      - name: Install Wails CLI (same version as go.mod)
+        shell: bash
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+
+      - name: Build
+        shell: bash
+        run: |
+          # 版本号写进 exe 文件属性（右键 → 属性 → 详细信息）
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('wails.json'));j.info.productVersion='${{ steps.ver.outputs.numeric }}';fs.writeFileSync('wails.json',JSON.stringify(j,null,2)+'\n')"
+          wails build -clean -trimpath -ldflags "-X main.version=${{ steps.ver.outputs.version }}"
+
+      - name: Upload unsigned exe
+        id: unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: claude-code-sync-unsigned
+          path: build/bin/claude-code-sync.exe
+
+      - name: Sign (SignPath)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600 # release-signing 要人工批准，留足时间
+          output-artifact-directory: signed
+
+      - name: Use signed exe
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        shell: bash
+        run: cp signed/claude-code-sync.exe build/bin/claude-code-sync.exe
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item build/bin/claude-code-sync.exe dist/claude-code-sync.exe
+          Compress-Archive -Path build/bin/claude-code-sync.exe, LICENSE, README.md, README_EN.md -DestinationPath "dist/claude-code-sync-$v-windows-amd64.zip"
+          Get-ChildItem dist | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Out-File dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: Release notes from CHANGELOG
+        shell: bash
+        run: |
+          # 取 CHANGELOG.md 里 "## [版本号]" 到下一个 "## [" 之间的内容
+          awk -v ver="${{ steps.ver.outputs.version }}" '
+            index($0, "## [" ver "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > release-notes.md
+          echo "--- release notes ---"; cat release-notes.md
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          body_path: release-notes.md
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/claude-code-sync.exe
+            dist/claude-code-sync-${{ steps.ver.outputs.version }}-windows-amd64.zip
+            dist/SHA256SUMS.txt

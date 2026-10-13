@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "claude-code-sync",
+  "outputfilename": "claude-code-sync",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "./frontend",
+  "author": {
+    "name": "ALFO111111"
+  },
+  "info": {
+    "companyName": "ALFO111111",
+    "productName": "claude-code-sync",
+    "productVersion": "0.0.0",
+    "copyright": "Copyright (c) 2026 ALFO111111. MIT License.",
+    "comments": "Sync Claude Code sessions across machines, end-to-end encrypted. Unofficial, not affiliated with Anthropic."
+  }
+}

@@ -1,0 +1,51 @@
+name: 问题反馈 / Bug report
+description: 同步出错、界面异常、会话不对等 / Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！**如果担心数据丢失，先别继续操作，备份 `%USERPROFILE%\.claude` 再说。**
+        Thanks for reporting! **If you're worried about data loss, stop and back up `%USERPROFILE%\.claude` first.**
+        安全问题请走 [SECURITY.md](https://github.com/ALFO111111/claude-code-sync/blob/HEAD/SECURITY.md)，不要公开提交。 / Security issues: see SECURITY.md, don't file them publicly.
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: "`claude-code-sync version` 的输出 / output of `claude-code-sync version`"
+      placeholder: claude-code-sync 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 系统 / OS
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: storage
+    attributes:
+      label: 云端存储 / Storage provider
+      options:
+        - 阿里云 OSS / Alibaba Cloud OSS
+        - 腾讯云 COS / Tencent Cloud COS
+        - Cloudflare R2
+        - AWS S3
+        - MinIO
+        - 其他 / Other
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么 / What happened
+      description: 你做了什么、期望什么、实际看到什么 / What you did, what you expected, what you saw
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志 / Log
+      description: |
+        程序“日志”页或 `%USERPROFILE%\.claude-code-sync\sync.log` 里相关的几行。**贴之前请删掉路径里的用户名、项目名等隐私信息。**
+        Relevant lines from the Logs page or `%USERPROFILE%\.claude-code-sync\sync.log`. **Remove user names, project names and other private info first.**
+      render: text

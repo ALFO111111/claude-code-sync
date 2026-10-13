@@ -1,0 +1,168 @@
+# 上线前测试方案：确保不会弄丢本地会话
+
+> 核心思路：**先备份 → 在副本上彩排 → 再上真实环境 → 每一步都用脚本对比"同步前后"**。
+> 任何一步对比结果是红色，就停下来，备份还在，什么都没丢。
+
+## 0. 先吃颗定心丸：这个工具会对本地会话做什么
+
+已经在代码里逐行确认过（`internal/engine/transfer.go`）：
+
+- **从不删除** `~/.claude/projects` 下的任何文件。程序里唯一的删除操作，是清理它自己 14 天前的备份目录。
+- 只有下面 4 种情况会往本地**写**文件：
+
+| 情况 | 写入内容 | 会不会丢东西 |
+|---|---|---|
+| 本地没改过、云端有新版本 | 用云端新版替换 | 不会：旧版就是上次同步的内容，云端新版包含它 |
+| 两边都改了同一个会话，一边是另一边的子集 | 用记录更多的那份 | 不会：多的那份包含少的那份的每一条记录 |
+| 两边各自聊了不同的内容 | 本地那份不动，**另存一个新会话** | 不会：两份都保留 |
+| MEMORY.md 两边都改了 | 两边的行合在一起 | 不会：取并集 |
+
+- 其他文件（非会话）两边都改了：**本机优先**，云端那份放进 `~/.claude-code-sync/backup/`。
+- Claude Code 自己清理掉的旧会话，不会被拉回来。
+- `~/.claude/settings.json` 只会被加两条 hooks（`SessionStart`、`Stop`），你原有的配置一个字都不动。
+
+下面的测试就是要**用你自己的真实数据亲眼确认**上面这些话。
+
+## 1. 准备
+
+- 两台电脑都 `git pull` 拿到最新代码，`scripts\` 目录里有两个检查脚本：
+  - `snapshot.ps1`：给会话目录拍"快照"（记下每个文件的指纹）
+  - `compare.ps1`：对比两次快照，**少了文件、少了对话记录都会标红**
+- 下面的命令都在**项目根目录**打开 PowerShell 执行。
+- 如果 PowerShell 提示"禁止运行脚本"，先执行一次：`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+## 2. 第一道保险：完整备份（每台电脑、每个阶段开始前都做）
+
+先**关掉所有 Claude Code 窗口**（不然正在聊的会话文件会一直变），然后：
+
+```powershell
+$BK = "D:\ccs-backup\claude-$(Get-Date -Format yyyyMMdd-HHmm)"
+robocopy "$env:USERPROFILE\.claude" $BK /E /R:1 /W:1 /NFL /NDL
+"备份在: $BK"
+```
+
+**万一要恢复**（先关掉 Claude Code，并在托盘里退出 claude-code-sync）：
+
+```powershell
+robocopy "D:\ccs-backup\claude-xxxx" "$env:USERPROFILE\.claude" /MIR
+```
+
+`/MIR` 会让 `.claude` 变得和备份**一模一样**（同步拉下来的新文件也会被删掉，回到备份那一刻）。
+
+## 3. 阶段 A：沙箱彩排（电脑 A，完全不碰真实会话）
+
+用环境变量把程序指向一份**会话副本**，真实的 `~/.claude` 一个字节都不会动。沙箱模式下程序也不会安装 hooks 和定时任务。
+
+```powershell
+$S = "D:\ccs-sandbox"
+robocopy "$env:USERPROFILE\.claude" "$S\claude" /E /R:1 /W:1 /NFL /NDL      # 复制一份
+.\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\A-before.csv"
+
+$env:CLAUDE_CODE_SYNC_HOME = "$S\app"     # 本工具的数据放沙箱
+$env:CLAUDE_CONFIG_DIR     = "$S\claude"  # 会话目录指向副本
+.\claude-code-sync.exe                     # 只有从这个窗口启动的才是沙箱
+```
+
+1. 走完向导（存储填正式的 bucket 就行，彩排完会清空）。完成后首页显示"同步完成"。
+2. 首页会提示"沙箱模式，不安装自动同步"，这是**正常**的。
+3. 托盘图标右键 → **退出**。然后对比：
+
+```powershell
+.\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\A-after.csv"
+.\scripts\compare.ps1 -Before "$S\A-before.csv" -After "$S\A-after.csv"
+```
+
+**预期**：删除 0、修改 0、新增 0（第一台设备云端是空的，只会上传，本地一点都不动）。
+
+4. 打开存储服务商的控制台（如阿里云 OSS、Cloudflare R2），看 `v1/` 下多了文件。随便下载一个用记事本打开，应该是乱码，开头是 `CCS1`（说明加密了）。
+
+## 4. 阶段 B：双设备彩排（电脑 B，这是最关键的一步）
+
+电脑 B 上做同样的沙箱，**用同一个口令**。这一步会把 A 的会话拉到 B 的副本里，和 B 自己的会话混在一起，正好是以后真实使用时最容易出问题的场景。
+
+```powershell
+$S = "D:\ccs-sandbox"
+robocopy "$env:USERPROFILE\.claude" "$S\claude" /E /R:1 /W:1 /NFL /NDL
+robocopy "$S\claude\projects" "$S\B-orig-projects" /E /R:1 /W:1 /NFL /NDL  # 再留一份原样，用来逐条核对
+.\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\B-before.csv"
+
+$env:CLAUDE_CODE_SYNC_HOME = "$S\app"
+$env:CLAUDE_CONFIG_DIR     = "$S\claude"
+.\claude-code-sync.exe
+```
+
+走完向导（同一个口令）→ 等首页"同步完成" → 到"项目绑定"页看看，有没有需要认领的项目（普通文件夹项目要手动认领，git 项目会自动对上）→ 认领完再点一次"立即同步" → 托盘退出。
+
+```powershell
+.\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\B-after.csv"
+.\scripts\compare.ps1 -Before "$S\B-before.csv" -After "$S\B-after.csv" `
+    -OldDir "$S\B-orig-projects" -NewDir "$S\claude\projects"
+```
+
+**预期**：
+- 删除 = 0（**必须**）
+- 新增 = A 那边拉过来的会话
+- 修改：如果有，每一个都要显示"旧记录全部还在 ✓"
+
+**可选，验证拉过来的会话能不能接着用**（还是在这个设置了环境变量的窗口里）：
+
+```powershell
+cd <某个两台电脑都有的 git 项目目录>
+claude --resume
+```
+
+列表里应该能看到 A 上聊过的会话。打开一个问"我们刚才在做什么"，它应该答得上来，而且里面的文件路径是 **B 电脑上的路径**。（如果要求重新登录，就是副本里缺登录信息，登录一下就好，不影响测试。）
+
+然后回到**电脑 A**，用阶段 A 那个沙箱再同步一次（同样先设好两个环境变量再启动），把 B 的会话拉过来，再跑一次 snapshot 加 compare，预期同样是删除 0。
+
+## 5. 彩排收尾
+
+1. 两台电脑托盘都退出，删掉 `D:\ccs-sandbox`。
+2. **在存储服务商的控制台把 `v1/` 整个目录删掉**。彩排时上传的设备信息如果留着，正式使用时会多出两台"幽灵设备"。
+3. 关掉设置过环境变量的 PowerShell 窗口（环境变量只在那个窗口里有效，关掉就没了）。
+
+## 6. 阶段 C：真实环境，电脑 A
+
+1. 关掉 Claude Code，**按第 2 节做备份**，记下备份目录。
+2. 拍快照：
+   ```powershell
+   .\scripts\snapshot.ps1 -Dir "$env:USERPROFILE\.claude\projects" -Out D:\ccs-check\A-before.csv
+   ```
+3. **新开一个** PowerShell 窗口，或者直接双击 exe（确保没设沙箱环境变量）→ 走向导 → 等"同步完成"。
+4. 首页**不应该**出现"自动同步没有就绪"。
+5. 对比：
+   ```powershell
+   .\scripts\snapshot.ps1 -Dir "$env:USERPROFILE\.claude\projects" -Out D:\ccs-check\A-after.csv
+   .\scripts\compare.ps1 -Before D:\ccs-check\A-before.csv -After D:\ccs-check\A-after.csv
+   ```
+   预期：删除 0、修改 0、新增 0。
+6. 看一眼自动同步装上了没有：
+   - `~/.claude/settings.json` 里多了两条带 `hook-event` 的命令
+   - "任务计划程序"里有一个 `ClaudeCodeSync` 任务
+
+## 7. 阶段 D：真实环境，电脑 B
+
+1. 关掉 Claude Code，备份（第 2 节），拍快照 `B-before.csv`。
+2. 双击 exe → 向导（同一个口令）→ 等"同步完成" → "项目绑定"页认领需要的项目 → 再同步一次。
+3. 对比（`-OldDir` 填刚才备份里的 `projects` 目录）：
+   ```powershell
+   .\scripts\snapshot.ps1 -Dir "$env:USERPROFILE\.claude\projects" -Out D:\ccs-check\B-after.csv
+   .\scripts\compare.ps1 -Before D:\ccs-check\B-before.csv -After D:\ccs-check\B-after.csv `
+       -OldDir "D:\ccs-backup\claude-xxxx\projects" -NewDir "$env:USERPROFILE\.claude\projects"
+   ```
+   预期：删除 0；修改的文件都"旧记录全部还在 ✓"。
+4. `claude --resume` 打开一个 A 上聊过的会话，确认能接着聊。
+5. 回到电脑 A：先备份，再点"立即同步"把 B 的会话拉过来，再对比一次。
+
+## 8. 第一周的日常观察
+
+- 每天看一眼首页的"失败"数字，有问题去"日志"页看原因。
+- **备份至少留一周**再删。
+- 两台电脑都接着聊了**同一个**会话的话，会多出一份"分叉"的会话，这是故意的（两份都保留，宁可多不可少）。
+
+## 9. 出问题怎么办
+
+1. **急停**：托盘退出，然后运行 `.\claude-code-sync.exe uninstall`。它会删掉 hooks 和定时任务，之后不会再自动同步。注意：再打开图形界面会重新装上，排查清楚之前先别打开。
+2. **看现场**：`~/.claude-code-sync/sync.log` 是同步日志；`~/.claude-code-sync/backup/` 是被覆盖掉的云端版本。
+3. **恢复**：按第 2 节用 `robocopy ... /MIR` 从备份恢复。
+4. 把 `compare.ps1` 的输出和 `sync.log` 发给我。

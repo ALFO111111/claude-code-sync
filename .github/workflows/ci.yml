@@ -1,0 +1,46 @@
+# 每次推送 / PR：格式、静态检查、全部测试、前端文字检查和构建。
+# 测试全部在临时目录里跑（云端用本地文件夹或内存假 S3 代替），不需要任何密钥。
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend (i18n check + build)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check-i18n
+          npm run build
+
+      - name: gofmt
+        shell: bash
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "需要 gofmt / not gofmt-ed:"; echo "$unformatted"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...

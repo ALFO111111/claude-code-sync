@@ -1,0 +1,9 @@
+# 仓库里统一 LF 换行（gofmt 只认 LF；不同电脑的 core.autocrlf 设置不一样也不受影响）
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.exe binary
+
+# bat 必须 CRLF，否则 cmd 解析出错
+*.bat text eol=crlf
