@@ -240,7 +240,7 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 
 ## Code signing policy
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). (Application in progress; releases are unsigned until it's approved.)
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). (Application in progress; releases are unsigned until it's approved.)
 
 - Committers and reviewers: [ALFO111111](https://github.com/ALFO111111)
 - Approvers: [ALFO111111](https://github.com/ALFO111111)

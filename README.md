@@ -50,7 +50,7 @@ claude-code-sync 专门解决这个问题：
 到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync.exe`，放到一个**固定的位置**，比如 `%LOCALAPPDATA%\Programs\claude-code-sync\`。自动同步会记住 exe 的路径；以后挪了位置也没关系，打开一次程序就会自动改过来。
 
 > [!IMPORTANT]
-> 代码签名正在申请中（见下方[代码签名策略](#代码签名策略)），获批前发布的 exe 没有签名。第一次双击时 Windows 可能提示“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行** 即可。
+> 代码签名正在申请中（见下方[代码签名策略](#code-signing-policy)），获批前发布的 exe 没有签名。第一次双击时 Windows 可能提示“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行** 即可。
 > 不放心的话可以用 Releases 里的 `SHA256SUMS.txt` 核对文件，或者[自己从源码编译](CONTRIBUTING.md)。
 
 ## 5 分钟上手
@@ -244,9 +244,9 @@ claude-code-sync version
 - 程序只和**你自己配置的**对象存储通信，没有任何遥测、统计或其他网络请求。
 - 发现安全问题请看 [SECURITY.md](SECURITY.md)，不要直接发公开 issue。
 
-## 代码签名策略
+## Code signing policy
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).（正在申请中，获批前发布的 exe 没有签名。）
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).（正在申请中，获批前发布的 exe 没有签名。）
 
 - 提交者与审核者（Committers and reviewers）：[ALFO111111](https://github.com/ALFO111111)
 - 签名批准人（Approvers）：[ALFO111111](https://github.com/ALFO111111)
