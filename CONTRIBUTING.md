@@ -77,9 +77,7 @@ frontend/src/           Vue 3：api/ 调后端，i18n/ 界面文字，views/ 页
 
 1. 在 `CHANGELOG.md` 把 `## [Unreleased]` 改成 `## [0.x.y] - 日期`，在上面再留一个空的 `## [Unreleased]`，提交
 2. `git tag v0.x.y && git push origin v0.x.y`
-3. GitHub Actions 自动测试、构建、（配置了的话）签名，然后发布到 Releases，说明取自 CHANGELOG 对应的那一节
-
-代码签名的申请和配置见 [docs/code-signing.md](docs/code-signing.md)。
+3. GitHub Actions 自动测试、构建，然后发布到 Releases，说明取自 CHANGELOG 对应的那一节
 
 ---
 
@@ -155,6 +153,4 @@ frontend/src/           Vue 3: api/ calls the backend, i18n/ UI text, views/ pag
 
 1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [0.x.y] - date`, add a fresh empty `## [Unreleased]` above it, commit
 2. `git tag v0.x.y && git push origin v0.x.y`
-3. GitHub Actions tests, builds, signs (if configured) and publishes the release, using that CHANGELOG section as the notes
-
-Code signing setup: see [docs/code-signing.md](docs/code-signing.md).
+3. GitHub Actions tests, builds and publishes the release, using that CHANGELOG section as the notes

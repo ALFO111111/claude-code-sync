@@ -50,8 +50,8 @@ claude-code-sync 专门解决这个问题：
 到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync.exe`，放到一个**固定的位置**，比如 `%LOCALAPPDATA%\Programs\claude-code-sync\`。自动同步会记住 exe 的路径；以后挪了位置也没关系，打开一次程序就会自动改过来。
 
 > [!IMPORTANT]
-> 代码签名正在申请中（见下方[代码签名策略](#code-signing-policy)），获批前发布的 exe 没有签名。第一次双击时 Windows 可能提示“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行** 即可。
-> 不放心的话可以用 Releases 里的 `SHA256SUMS.txt` 核对文件，或者[自己从源码编译](CONTRIBUTING.md)。
+> exe 没有做代码签名（个人开源项目，签名证书的费用承担不起）。第一次双击时 Windows 可能弹出“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行** 即可。这只是 Windows 对未购买签名证书的软件的通用提示，不代表软件有问题。
+> 不放心的话可以：用 Releases 里的 `SHA256SUMS.txt` 核对文件、审计源码，或者[自己从源码编译](CONTRIBUTING.md)。
 
 ## 5 分钟上手
 
@@ -243,15 +243,6 @@ claude-code-sync version
 - 会话内容在本机加密后才上传：口令经 Argon2id 推导出 256 位密钥，内容 gzip 压缩后用 AES-256-GCM 加密，对象路径作为附加数据防止调包。
 - 程序只和**你自己配置的**对象存储通信，没有任何遥测、统计或其他网络请求。
 - 发现安全问题请看 [SECURITY.md](SECURITY.md)，不要直接发公开 issue。
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).（正在申请中，获批前发布的 exe 没有签名。）
-
-- 提交者与审核者（Committers and reviewers）：[ALFO111111](https://github.com/ALFO111111)
-- 签名批准人（Approvers）：[ALFO111111](https://github.com/ALFO111111)
-
-隐私声明（Privacy policy）：This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. 本程序只会把数据传到用户自己配置的对象存储，除此之外不向任何网络系统发送信息。
 
 ## 参与开发
 
