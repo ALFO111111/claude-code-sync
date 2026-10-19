@@ -125,8 +125,10 @@ func GitIdentity(cwd string) (pid, top string, ok bool) {
 	}
 	top = filepath.Clean(filepath.FromSlash(top))
 	pid = "git:" + NormalizeRemote(url)
-	if rel, err := filepath.Rel(top, filepath.Clean(cwd)); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
-		pid += "#" + filepath.ToSlash(rel)
+	// 子目录直接问 git，不拿 top 和 cwd 自己算：git 给的 top 是长文件名，cwd 可能是短文件名
+	// （C:\Users\RUNNER~1\...），两种写法一比就认不出是子目录了
+	if sub, _ := runGit(cwd, "rev-parse", "--show-prefix"); strings.Trim(sub, "/") != "" {
+		pid += "#" + strings.Trim(sub, "/")
 	}
 	return pid, top, true
 }

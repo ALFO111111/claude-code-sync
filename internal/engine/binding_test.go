@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
 	"github.com/ALFO111111/claude-code-sync/internal/project"
 	"github.com/ALFO111111/claude-code-sync/internal/testutil"
 )
@@ -92,14 +91,22 @@ func TestAutoBindGitSubdirectory(t *testing.T) {
 
 	e := b.sync(t, Options{})
 	bd := e.st.Bindings[pid]
-	if bd == nil || !fsutil.SamePath(bd.Root, subB) {
+	if bd == nil || !sameDir(bd.Root, subB) {
 		t.Fatalf("B 应自动绑定到 %s，得到 %+v", subB, e.st.Bindings)
 	}
 	data, err := os.ReadFile(filepath.Join(b.cfg.ProjectsDir(), bd.Dir, "s1.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cwd := project.ReadCwd(filepath.Join(b.cfg.ProjectsDir(), bd.Dir)); !fsutil.SamePath(cwd, subB) {
+	if cwd := project.ReadCwd(filepath.Join(b.cfg.ProjectsDir(), bd.Dir)); !sameDir(cwd, subB) {
 		t.Errorf("会话里的 cwd 应翻译成 B 的路径 %s，得到 %q（%s）", subB, cwd, data)
 	}
+}
+
+// sameDir 是不是同一个文件夹。不比字符串：同一个文件夹可能有长短两种写法
+// （git 给的是长文件名，CI 上的临时目录是 C:\Users\RUNNER~1\... 这种短文件名）。
+func sameDir(a, b string) bool {
+	fa, errA := os.Stat(a)
+	fb, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(fa, fb)
 }

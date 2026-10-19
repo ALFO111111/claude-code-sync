@@ -31,6 +31,11 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - 会话最后一行还没写完时这一轮先跳过，不再误判成分叉
   A session whose last line is still being written is skipped for this round instead of being mistaken for a fork
 
+### 修复 / Fixed
+
+- 通过短文件名路径（如 `C:\Users\ABCDEF~1\...`）打开仓库里的子文件夹时，项目 ID 会丢掉子目录，导致和其他设备对不上
+  Opening a repository subfolder through a short (8.3) path no longer drops the subfolder from the project ID, which kept it from matching other devices
+
 ## [0.1.0] - 2026-10-13
 
 第一个公开版本。 / First public release.
