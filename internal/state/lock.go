@@ -54,3 +54,13 @@ func AcquireLock() (func(), error) {
 	}
 	return nil, ErrLocked
 }
+
+// WaitLock 同 AcquireLock，锁被占用时最多等 wait。
+func WaitLock(wait time.Duration) (func(), error) {
+	unlock, err := AcquireLock()
+	for deadline := time.Now().Add(wait); err == ErrLocked && time.Now().Before(deadline); {
+		time.Sleep(200 * time.Millisecond)
+		unlock, err = AcquireLock()
+	}
+	return unlock, err
+}

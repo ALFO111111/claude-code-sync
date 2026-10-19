@@ -1,62 +1,123 @@
 <template>
-  <div style="max-width:640px">
-    <div class="card">
-      <h3>{{ t('settings.device') }}</h3>
-      <div class="form-row">
-        <label>{{ t('settings.deviceName') }}</label>
-        <input v-model="form.deviceName" :placeholder="t('settings.deviceExample')" />
+  <div>
+    <!-- 窗口窄时一列（按 order 排）；窗口宽时左右两列，各列卡片自然往下排，不留空洞 -->
+    <div class="settings">
+      <div class="col">
+        <!-- 改了马上生效的开关：不用点下面的"保存" -->
+        <div class="card general">
+          <div class="card-head"><h3>{{ t('settings.general') }}</h3><span class="muted small">{{ t('settings.instant') }}</span></div>
+          <div class="setting">
+            <div><div class="label">{{ t('lang.label') }}</div></div>
+            <LangSwitch />
+          </div>
+          <div class="setting">
+            <div><div class="label">{{ t('settings.theme') }}</div></div>
+            <div class="segmented">
+              <button v-for="o in THEMES" :key="o" :class="{ on: themeSetting === o }" @click="changeTheme(o)">{{ t(`settings.themes.${o || 'system'}`) }}</button>
+            </div>
+          </div>
+          <div class="setting">
+            <div>
+              <div class="label">{{ t('settings.autostart') }}</div>
+              <div class="desc">{{ autostart.available ? t('settings.autostartDesc') : t('settings.autostartSandbox') }}</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" :checked="autostart.enabled" :disabled="!autostart.available || autoBusy" @change="toggleAutostart($event.target.checked)" />
+              <span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card device">
+          <h3>{{ t('settings.device') }}</h3>
+          <div class="form-grid">
+            <div class="form-row">
+              <label>{{ t('settings.deviceName') }}</label>
+              <input v-model="form.deviceName" :placeholder="t('settings.deviceExample')" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 修改口令：影响所有设备，单独放、单独确认 -->
+        <div class="card pass">
+          <div class="card-head">
+            <h3>{{ t('settings.passphrase') }}</h3>
+            <button v-if="!passOpen" class="sm" @click="passOpen = true"><NavIcon name="key" :size="13" /> {{ t('settings.changePass') }}</button>
+          </div>
+          <div v-if="!passOpen" class="muted small">{{ t('settings.passDesc') }}</div>
+          <template v-else>
+            <div class="warn-box">{{ t('settings.passWarn') }}</div>
+            <div class="form-grid">
+              <div class="form-row"><label>{{ t('settings.passOld') }}</label><input v-model="pass.old" type="password" :disabled="rekeying" /></div>
+              <div class="form-row"><label>{{ t('settings.passNew') }}</label><input v-model="pass.new1" type="password" :disabled="rekeying" /></div>
+              <div class="form-row"><label>{{ t('settings.passNew2') }}</label><input v-model="pass.new2" type="password" :disabled="rekeying" /></div>
+            </div>
+            <div v-if="pass.new1 && pass.new2 && pass.new1 !== pass.new2" class="err small">{{ t('wizard.mismatch') }}</div>
+            <template v-if="rekeying">
+              <div class="progress mt"><div :style="{ width: rekeyPct + '%' }"></div></div>
+              <div class="muted small mt">{{ t('settings.rekeying', { done: rekey.done, total: rekey.total }) }}</div>
+            </template>
+            <div v-if="passErr" class="err-box mt">{{ passErr }}</div>
+            <div class="row mt">
+              <button class="primary" :disabled="!canChangePass || rekeying" @click="changePass">{{ rekeying ? t('common.working') : t('settings.changePassGo') }}</button>
+              <button class="ghost" :disabled="rekeying" @click="closePass">{{ t('common.cancel') }}</button>
+            </div>
+          </template>
+          <div v-if="passOk" class="ok mt">{{ t('settings.passChanged') }}</div>
+        </div>
       </div>
-      <div class="form-row">
-        <label>{{ t('lang.label') }}</label>
-        <LangSwitch />
+
+      <div class="col">
+        <div class="card storage">
+          <h3>{{ t('settings.storage') }}</h3>
+          <StorageForm v-if="st.type === 's3'" :st="st" :has-secret="form.hasSecret" />
+          <!-- 本地文件夹只给开发测试用，界面不提供，但已保存的要能看到、能改 -->
+          <div v-else class="form-row">
+            <label>{{ t('storage.testOnly', { type: st.type }) }} · {{ t('storage.path') }}</label>
+            <input v-model.trim="st.path" />
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>{{ t('storage.prefix') }}</label><input v-model.trim="st.prefix" placeholder="v1/" /></div>
+          </div>
+          <div v-if="locationChanged" class="warn-box">
+            <i18n-t keypath="settings.locationWarn" tag="span">
+              <template #fields>{{ changedFields.join(t('common.listSep')) }}</template>
+              <template #repo><b>{{ t('settings.newRepo') }}</b></template>
+            </i18n-t>
+          </div>
+          <button @click="testConn" :disabled="busy">{{ t('common.testConn') }}</button>
+        </div>
+
+        <div class="card scan">
+          <h3>{{ t('settings.scanRoots') }}</h3>
+          <div class="form-row">
+            <label>{{ t('settings.scanRootsHint') }}</label>
+            <textarea v-model="scanRoots" rows="3" placeholder="D:\code"></textarea>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="card">
-      <h3>{{ t('settings.storage') }}</h3>
-      <StorageForm v-if="st.type === 's3'" :st="st" :has-secret="form.hasSecret" />
-      <!-- 本地文件夹只给开发测试用，界面不提供，但已保存的要能看到、能改 -->
-      <div v-else class="form-row">
-        <label>{{ t('storage.testOnly', { type: st.type }) }} · {{ t('storage.path') }}</label>
-        <input v-model.trim="st.path" />
-      </div>
-      <div class="form-row"><label>{{ t('storage.prefix') }}</label><input v-model.trim="st.prefix" placeholder="v1/" /></div>
-      <div v-if="locationChanged" class="warn-box">
-        <i18n-t keypath="settings.locationWarn" tag="span">
-          <template #fields>{{ changedFields.join(t('common.listSep')) }}</template>
-          <template #repo><b>{{ t('settings.newRepo') }}</b></template>
-        </i18n-t>
-      </div>
-      <button @click="testConn" :disabled="busy">{{ t('common.testConn') }}</button>
-      <div class="muted" style="margin-top:8px; font-size:13px">{{ t('settings.passHint') }}</div>
-    </div>
-
-    <div class="card">
-      <h3>{{ t('settings.scanRoots') }}</h3>
-      <div class="form-row">
-        <label>{{ t('settings.scanRootsHint') }}</label>
-        <textarea v-model="scanRoots" rows="3" placeholder="D:\code"></textarea>
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
+    <!-- 保存条贴在窗口底部：页面再长、窗口再大，都不用找它在哪 -->
+    <div class="save-bar">
       <button class="primary" @click="save" :disabled="busy">{{ t('settings.save') }}</button>
-      <span class="muted" style="margin-left:8px; font-size:13px">{{ t('settings.saveHint') }}</span>
+      <span class="muted small grow">{{ t('settings.saveHint') }}</span>
     </div>
-
     <Notice :notice="notice" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { api } from '@/api'
+import { api, EventsOn } from '@/api'
 import { useNotice } from '@/composables/useNotice'
 import { BLANK_STORAGE } from '@/utils/storageTypes'
+import { themeSetting, changeTheme } from '@/utils/theme'
 import Notice from '@/components/Notice.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
 import StorageForm from '@/components/StorageForm.vue'
+import NavIcon from '@/components/NavIcon.vue'
 
 const { t } = useI18n()
 const form = ref({ deviceName: '', hasSecret: false })
@@ -64,6 +125,23 @@ const st = ref({ ...BLANK_STORAGE })
 const scanRoots = ref('')
 const busy = ref(false)
 const { notice, ok, fail, clear } = useNotice()
+
+const THEMES = ['', 'light', 'dark']
+
+// ---------- 开机自启 ----------
+const autostart = ref({ enabled: false, available: false })
+const autoBusy = ref(false)
+async function toggleAutostart(on) {
+  autoBusy.value = true
+  try {
+    autostart.value = await api.SetAutostart(on)
+  } catch (e) {
+    fail(String(e))
+    autostart.value = await api.GetAutostart()
+  } finally {
+    autoBusy.value = false
+  }
+}
 
 // 决定"数据存在哪"的字段：改了任何一个都等于换了云端仓库（AccessKey 只是换钥匙、路径风格只是换访问方式，都不算）
 const LOCATION_FIELDS = {
@@ -121,5 +199,78 @@ const save = async () => {
   if (done) loadForm()
 }
 
-onMounted(loadForm)
+// ---------- 修改口令 ----------
+const passOpen = ref(false)
+const pass = ref({ old: '', new1: '', new2: '' })
+const passErr = ref('')
+const passOk = ref(false)
+const rekeying = ref(false)
+const rekey = ref({ done: 0, total: 0 })
+const rekeyPct = computed(() => (rekey.value.total ? Math.round((rekey.value.done / rekey.value.total) * 100) : 0))
+const canChangePass = computed(() => pass.value.old && pass.value.new1 && pass.value.new1 === pass.value.new2)
+let offRekey
+
+function closePass() {
+  passOpen.value = false
+  pass.value = { old: '', new1: '', new2: '' }
+  passErr.value = ''
+}
+
+async function changePass() {
+  const yes = await api.Confirm(t('settings.passConfirmTitle'), t('settings.passConfirm'))
+  if (!yes) return
+  rekeying.value = true
+  passErr.value = ''
+  passOk.value = false
+  rekey.value = { done: 0, total: 0 }
+  try {
+    await api.ChangePassphrase(pass.value.old, pass.value.new1)
+    closePass()
+    passOk.value = true
+  } catch (e) {
+    passErr.value = String(e)
+  } finally {
+    rekeying.value = false
+  }
+}
+
+// 页面切走不销毁（App.vue 的 KeepAlive）：表单只在第一次打开时读，切回来时没保存的输入还在
+onMounted(() => {
+  offRekey = EventsOn('rekey-progress', (p) => { rekey.value = p })
+  loadForm()
+})
+// 开机自启可能被 uninstall 等改了，每次进来以注册表里实际的为准
+onActivated(async () => {
+  autostart.value = await api.GetAutostart()
+})
+onUnmounted(() => offRekey?.())
 </script>
+
+<style scoped>
+/* 窄：一列，卡片按 order 排（两个 .col 用 display: contents 拆开，卡片直接参与外层排序） */
+.settings { display: flex; flex-direction: column; gap: 14px; }
+.settings .col { display: contents; }
+.settings .card { margin-bottom: 0; }
+.general { order: 1; }
+.device { order: 2; }
+.storage { order: 3; }
+.scan { order: 4; }
+.pass { order: 5; }
+/* 宽：左右两列（侧边栏 180 + 边距后，内容区大约 950px 起），每列自己往下排 */
+@media (min-width: 1180px) {
+  .settings { flex-direction: row; align-items: flex-start; }
+  .settings .col { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; }
+}
+.save-bar {
+  position: sticky;
+  bottom: -20px; /* 抵消内容区的下内边距，贴住窗口底边 */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  z-index: 1;
+}
+</style>

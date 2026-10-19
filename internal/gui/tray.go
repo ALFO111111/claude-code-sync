@@ -75,9 +75,7 @@ func (t *tray) start(app *App) {
 				case <-mSync.ClickedCh:
 					app.SyncNow()
 				case <-mOpen.ClickedCh:
-					if app.ctx != nil {
-						wailsRuntime.WindowShow(app.ctx)
-					}
+					app.showWindow()
 				case <-mQuit.ClickedCh:
 					app.quitting.Store(true) // 不然 OnBeforeClose 会把 Quit 当成"最小化到托盘"
 					if app.ctx != nil {
@@ -99,6 +97,8 @@ func (t *tray) showStatus(s *service.Status) {
 	switch {
 	case !s.Initialized:
 		t.set(t.idle, tip(i18n.T("还没设置，打开主窗口按向导完成")))
+	case s.KeyMismatch:
+		t.set(t.failed, tip(i18n.T("同步已暂停：口令在其他设备上改了，打开主窗口输入新口令")))
 	case s.Stats.Errors > 0:
 		t.set(t.failed, tip(i18n.T("上次同步有失败，打开主窗口看日志")))
 	case s.LastSync == "":

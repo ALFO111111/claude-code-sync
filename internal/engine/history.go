@@ -74,7 +74,7 @@ func (e *Engine) syncHistory(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		plain, err := crypt.Open(e.key, HistoryKey, data)
+		plain, err := e.open(HistoryKey, data)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (e *Engine) syncHistory(ctx context.Context) error {
 			e.log.Printf("输入历史正在被写入，本次跳过")
 			return nil
 		}
-		if local, err = appendHistory(path, local, missing); err != nil {
+		if local, err = appendLines(path, local, missing); err != nil {
 			return err
 		}
 		e.mu.Lock()
@@ -159,41 +159,6 @@ func (e *Engine) syncHistory(ctx context.Context) error {
 	}
 	e.st.History = st
 	return nil
-}
-
-// appendHistory 把缺的行追加到本地文件末尾（只追加、不重写），返回追加后的完整内容。
-func appendHistory(path string, local []byte, lines [][]byte) ([]byte, error) {
-	var buf bytes.Buffer
-	if len(local) > 0 && local[len(local)-1] != '\n' {
-		buf.WriteByte('\n') // 最后一行是完整的但没换行
-	}
-	for _, l := range lines {
-		buf.Write(l)
-		buf.WriteByte('\n')
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return nil, err
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil, err
-	}
-	_, werr := f.Write(buf.Bytes())
-	if cerr := f.Close(); werr == nil {
-		werr = cerr
-	}
-	if werr != nil {
-		return nil, werr
-	}
-	return append(local, buf.Bytes()...), nil
-}
-
-// lastLineComplete 文件为空、以换行结尾、或最后一行是完整的 JSON。
-func lastLineComplete(data []byte) bool {
-	if len(data) == 0 || data[len(data)-1] == '\n' {
-		return true
-	}
-	return json.Valid(data[bytes.LastIndexByte(data, '\n')+1:])
 }
 
 // historyLineKey 判断两行"是不是同一条"：时间戳 + 输入内容，不看路径。解析失败的行按原文比。

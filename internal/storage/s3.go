@@ -181,3 +181,11 @@ func s3Err(err error) error {
 // normETag 统一成去引号的大写：和旧版 OSS SDK 存进 state.json 的格式一致，
 // 换实现后不会因为大小写不同把所有文件误判成"云端变了"。
 func normETag(e string) string { return strings.ToUpper(strings.Trim(e, `"`)) }
+
+func (s *s3Storage) Stat(ctx context.Context, key string) (Object, error) {
+	info, err := s.client.StatObject(ctx, s.bucket, s.prefix+key, minio.StatObjectOptions{})
+	if err != nil {
+		return Object{}, s3Err(err)
+	}
+	return Object{Key: key, ETag: normETag(info.ETag), Size: info.Size, Modified: info.LastModified}, nil
+}

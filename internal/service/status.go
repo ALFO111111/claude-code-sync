@@ -21,9 +21,32 @@ type Status struct {
 	Stats       state.SyncStats `json:"stats"`      // 上次同步的统计
 	Syncing     bool            `json:"syncing"`    // 由 GUI 层填（只有它知道自己有没有在跑）
 	// 自动同步（hooks + 定时任务）是否就绪。界面只在没就绪时提示，平时不展示。
-	AutoSync      bool   `json:"autoSync"`
-	AutoSyncIssue string `json:"autoSyncIssue,omitempty"` // 没就绪的原因
-	Sandboxed     bool   `json:"sandboxed"`               // 沙箱模式（不装自动同步）
+	AutoSync      bool         `json:"autoSync"`
+	AutoSyncIssue string       `json:"autoSyncIssue,omitempty"` // 没就绪的原因
+	Sandboxed     bool         `json:"sandboxed"`               // 沙箱模式（不装自动同步）
+	KeyMismatch   bool         `json:"keyMismatch"`             // 别的设备改了同步口令，本机要输入新口令
+	Changes       []ChangeItem `json:"changes"`                 // 上次同步改动了哪些文件
+}
+
+// ChangeItem 本轮明细里的一条（见 state.Change）。
+type ChangeItem struct {
+	Kind    string `json:"kind"`
+	PID     string `json:"pid"`
+	Project string `json:"project"`
+	Rel     string `json:"rel"`
+}
+
+// changeItems 本轮明细，项目换成显示名。
+func changeItems(st *state.State, changes []state.Change) []ChangeItem {
+	out := []ChangeItem{}
+	for _, c := range changes {
+		it := ChangeItem{Kind: c.Kind, PID: c.PID, Project: c.Dir, Rel: c.Rel}
+		if b := st.Bindings[c.PID]; b != nil && b.Display != "" {
+			it.Project = b.Display
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 // LoadStatus 未初始化不算错误，返回 Initialized=false。
@@ -37,6 +60,7 @@ func LoadStatus() *Status {
 	s.DeviceName = cfg.DeviceName
 	s.DeviceID = cfg.DeviceID
 	s.Devices = []DeviceSummary{}
+	s.Changes = []ChangeItem{}
 	if st, err := state.Load(); err == nil {
 		s.LastSync = fmtTime(st.LastSync)
 		if !st.LastSync.IsZero() {
@@ -44,8 +68,10 @@ func LoadStatus() *Status {
 		}
 		s.Stats = st.LastStats
 		s.Projects = len(st.Bindings)
+		s.KeyMismatch = st.KeyMismatch
+		s.Changes = changeItems(st, st.LastChanges)
 		for id, d := range st.Devices {
-			s.Devices = append(s.Devices, DeviceSummary{ID: id, Name: d.Info.Name, Projects: len(d.Info.Projects)})
+			s.Devices = append(s.Devices, deviceSummary(id, d.Info))
 		}
 		sort.Slice(s.Devices, func(i, j int) bool { return s.Devices[i].Name < s.Devices[j].Name })
 	}

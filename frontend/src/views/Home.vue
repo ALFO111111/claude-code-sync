@@ -1,81 +1,156 @@
 <template>
   <div>
-    <div class="card" style="display:flex; align-items:center; gap:20px">
-      <div style="flex:1">
-        <h3>{{ t('home.status') }}</h3>
-        <div v-if="status">
-          <div class="muted" :title="status.lastSync">
-            {{ t('home.lastSync', { when: fromNow(status.lastSyncAt, now) }) }}
-            <span v-if="status.lastSync">({{ status.lastSync }})</span>
-          </div>
-          <div style="margin-top:6px">
-            <span class="badge">{{ t('home.pushed', { n: status.stats.pushed }) }}</span>
-            <span class="badge">{{ t('home.pulled', { n: status.stats.pulled }) }}</span>
-            <span class="badge">{{ t('home.merged', { n: status.stats.merged }) }}</span>
-            <span class="badge">{{ t('home.forked', { n: status.stats.forked }) }}</span>
-            <span class="badge">{{ t('home.history', { n: status.stats.history }) }}</span>
-            <span class="badge" :class="status.stats.errors ? 'warn' : 'ok'">
-              {{ t('home.errors', { n: status.stats.errors }) }}
-            </span>
-          </div>
+    <!-- 口令在别的设备上改了：同步已经停了，最要紧，放最上面 -->
+    <div v-if="status?.keyMismatch" class="card alert">
+      <h3>{{ t('home.keyTitle') }}</h3>
+      <div class="note key-desc">{{ t('home.keyDesc') }}</div>
+      <div class="row">
+        <input v-model="newPass" type="password" class="grow" :placeholder="t('home.keyPlaceholder')" @keyup.enter="adopt" />
+        <button class="primary" :disabled="!newPass || adopting" @click="adopt">{{ adopting ? t('common.working') : t('home.keyAdopt') }}</button>
+      </div>
+      <div v-if="adoptErr" class="err mt">{{ adoptErr }}</div>
+    </div>
+
+    <div class="card">
+      <div class="row hero">
+        <div class="grow">
+          <h3>{{ t('home.status') }}</h3>
+          <template v-if="status">
+            <div class="last-sync" :title="status.lastSync">{{ t('home.lastSync', { when: fromNow(status.lastSyncAt, now) }) }}</div>
+            <div class="muted small" v-if="status.lastSync">{{ status.lastSync }}</div>
+            <div class="badges mt">
+              <span class="badge">{{ t('home.pushed', { n: status.stats.pushed }) }}</span>
+              <span class="badge">{{ t('home.pulled', { n: status.stats.pulled }) }}</span>
+              <span class="badge">{{ t('home.merged', { n: status.stats.merged }) }}</span>
+              <span class="badge">{{ t('home.forked', { n: status.stats.forked }) }}</span>
+              <span class="badge">{{ t('home.history', { n: status.stats.history }) }}</span>
+              <span class="badge" :class="status.stats.errors ? 'err' : 'ok'">{{ t('home.errors', { n: status.stats.errors }) }}</span>
+              <button v-if="status.changes.length" class="link small" @click="showChanges = !showChanges">
+                {{ showChanges ? t('home.hideChanges') : t('home.showChanges', { n: status.changes.length }) }}
+              </button>
+              <button v-if="status.stats.errors" class="link small" @click="go('logs', { problems: true })">{{ t('home.seeLog') }}</button>
+            </div>
+          </template>
+        </div>
+        <div class="sync-box">
+          <button class="primary lg" :disabled="syncState.running" @click="api.SyncNow()">
+            <span v-if="syncState.running" class="spin">↻</span> {{ syncState.running ? t('common.syncing') : t('common.syncNow') }}
+          </button>
+          <template v-if="syncState.running && syncState.total">
+            <div class="progress mt"><div :style="{ width: pct + '%' }"></div></div>
+            <div class="muted small mt">{{ t('home.progress', { done: syncState.done, total: syncState.total }) }}</div>
+          </template>
         </div>
       </div>
-      <button class="primary" style="font-size:16px; padding:12px 28px" :disabled="syncState.running" @click="api.SyncNow()">
-        <span v-if="syncState.running" class="spin">↻</span> {{ syncState.running ? t('common.syncing') : t('common.syncNow') }}
-      </button>
+
+      <!-- 本轮明细：哪些文件传了、拉了、合并了 -->
+      <div v-if="showChanges && status?.changes.length" class="changes">
+        <div v-for="(c, i) in status.changes" :key="i" class="change">
+          <span class="kind" :class="c.kind"><NavIcon :name="CHANGE_ICON[c.kind]" :size="14" /> {{ t(`home.change.${c.kind}`) }}</span>
+          <span class="grow ellipsis" :title="c.rel"><b>{{ c.project }}</b> <span class="muted mono">{{ c.rel }}</span></span>
+          <button v-if="c.kind === 'fork' || c.kind === 'conflict'" class="link small" @click="go('backups')">{{ t('home.seeBackups') }}</button>
+        </div>
+        <div v-if="status.changes.length >= 200" class="muted small mt">{{ t('home.changesCapped') }}</div>
+      </div>
     </div>
 
     <!-- 只在这次同步真有变化或出错时提示；自动同步每轮"什么都没变"不刷屏 -->
     <Notice :notice="result" />
 
-    <div class="card" v-if="status">
-      <h3>{{ t('home.myDevices') }}</h3>
-      <table>
-        <tr>
-          <td style="width:40%"><b>{{ status.deviceName }}</b> <span class="badge ok">{{ t('home.thisDevice') }}</span></td>
-          <td class="muted">{{ t('home.projects', status.projects) }}</td>
-          <td class="muted" style="font-size:12px">{{ status.deviceId }}</td>
-        </tr>
-        <tr v-for="d in status.devices" :key="d.id">
-          <td>{{ d.name }}</td>
-          <td class="muted">{{ t('home.projects', d.projects) }}</td>
-          <td class="muted" style="font-size:12px">{{ d.id }}</td>
-        </tr>
-      </table>
-      <div v-if="!status.devices.length" class="muted" style="margin-top:8px; font-size:13px">
-        {{ t('home.noOtherDevices') }}
+    <!-- 自动同步平时不展示；只有没装好时才提示 -->
+    <div class="card alert" v-if="status && !status.autoSync">
+      <h3>{{ t('home.autoSyncNotReady') }}</h3>
+      <div class="err">{{ status.autoSyncIssue }}</div>
+      <div v-if="!status.sandboxed" class="row mt">
+        <button class="primary" :disabled="repairing" @click="repair">{{ repairing ? t('home.repairing') : t('home.repair') }}</button>
+        <span class="muted small">{{ t('home.repairHint') }}</span>
       </div>
     </div>
 
-    <!-- 自动同步平时不展示；只有没装好时才提示 -->
-    <div class="card" v-if="status && !status.autoSync">
-      <h3>{{ t('home.autoSyncNotReady') }}</h3>
-      <div class="err">{{ status.autoSyncIssue }}</div>
-      <div v-if="!status.sandboxed" style="margin-top:10px; display:flex; align-items:center; gap:10px">
-        <button class="primary" :disabled="repairing" @click="repair">{{ repairing ? t('home.repairing') : t('home.repair') }}</button>
-        <span class="muted" style="font-size:13px">{{ t('home.repairHint') }}</span>
+    <div class="grid2">
+      <div class="card" v-if="status">
+        <h3>{{ t('home.myDevices') }}<Refreshing :on="statusRes.loading" /></h3>
+        <div class="device">
+          <NavIcon name="device" class="dev-icon" />
+          <div class="grow">
+            <div><b>{{ status.deviceName }}</b> <span class="badge ok">{{ t('home.thisDevice') }}</span></div>
+            <div class="muted small">{{ t('home.projects', status.projects) }}</div>
+          </div>
+        </div>
+        <div v-for="d in status.devices" :key="d.id" class="device" :title="t('home.deviceId', { id: d.id })">
+          <NavIcon name="device" class="dev-icon" />
+          <div class="grow">
+            <div>{{ d.name }}</div>
+            <div class="muted small">{{ t('home.projects', d.projects) }} · {{ lastSeen(d.lastSeen) }}</div>
+          </div>
+        </div>
+        <div v-if="!status.devices.length" class="note">{{ t('home.noOtherDevices') }}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>{{ t('home.usage') }}<Refreshing :on="usageRes.loading && !!usage" /></h3>
+          <button class="ghost sm" :disabled="usageRes.loading" @click="usageRes.refresh()">{{ t('common.refresh') }}</button>
+        </div>
+        <!-- 有旧数据时照样显示旧数据，错误只在上面提一句 -->
+        <div v-if="usageRes.error" class="err small">{{ t('home.usageFailed', { err: usageRes.error }) }}</div>
+        <Skeleton v-if="!usage && !usageRes.error" :lines="5" />
+        <template v-else-if="usage">
+          <div class="usage-total">{{ fmtSize(usage.total) }} <span class="muted small">{{ t('home.usageFiles', { n: usage.objects }) }}</span></div>
+          <div class="stack mt" v-if="usage.total">
+            <div class="s1" :style="{ width: share(usage.sessions) }" :title="t('home.usageSessions')"></div>
+            <div class="s2" :style="{ width: share(usage.history) }" :title="t('home.usageHistory')"></div>
+            <div class="s3" :style="{ width: share(usage.other) }" :title="t('home.usageOther')"></div>
+          </div>
+          <div class="legend small muted">
+            <span><i class="s1"></i>{{ t('home.usageSessions') }} {{ fmtSize(usage.sessions) }}</span>
+            <span><i class="s2"></i>{{ t('home.usageHistory') }} {{ fmtSize(usage.history) }}</span>
+            <span><i class="s3"></i>{{ t('home.usageOther') }} {{ fmtSize(usage.other) }}</span>
+          </div>
+          <div v-for="p in topProjects" :key="p.pid || p.display" class="proj-usage">
+            <div class="row">
+              <span class="grow ellipsis" :title="p.pid">{{ p.display || t('home.usageUnknown') }}</span>
+              <span class="muted small">{{ fmtSize(p.bytes) }}</span>
+            </div>
+            <div class="bar"><div :style="{ width: barWidth(p.bytes) }"></div></div>
+          </div>
+          <div v-if="usage.projects.length > TOP" class="muted small mt">
+            {{ t('home.usageMore', { n: usage.projects.length - TOP, size: fmtSize(restBytes) }) }}
+          </div>
+          <div class="note">{{ t('home.usageNote') }}</div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { syncState } from '@/stores/sync'
-import { fromNow } from '@/utils/format'
+import { go } from '@/stores/nav'
+import { resources } from '@/stores/data'
+import { fromNow, fmtSize } from '@/utils/format'
 import Notice from '@/components/Notice.vue'
+import NavIcon from '@/components/NavIcon.vue'
+import Skeleton from '@/components/Skeleton.vue'
+import Refreshing from '@/components/Refreshing.vue'
 
 const { t, locale } = useI18n()
-const status = ref(null)
+// 数据都来自全局缓存（stores/data.js）：再进首页时先显示上次的，后台悄悄刷新
+const statusRes = resources.status
+const usageRes = resources.usage
+const status = computed(() => statusRes.data)
+const usage = computed(() => usageRes.data)
 const repairing = ref(false)
+const showChanges = ref(false)
 const now = ref(Date.now()) // 每 30 秒走一次，让"3 分钟前"自己更新
 let timer
 
-async function refresh() {
-  status.value = await api.GetStatus()
-}
+const CHANGE_ICON = { push: 'upload', pull: 'download', merge: 'merge', fork: 'fork', conflict: 'conflict' }
+
+const refresh = () => statusRes.refresh()
 
 async function repair() {
   repairing.value = true
@@ -88,6 +163,28 @@ async function repair() {
     refresh()
   }
 }
+
+// ---------- 口令在别的设备上改了 ----------
+const newPass = ref('')
+const adopting = ref(false)
+const adoptErr = ref('')
+async function adopt() {
+  if (!newPass.value) return
+  adopting.value = true
+  adoptErr.value = ''
+  try {
+    await api.AdoptPassphrase(newPass.value)
+    newPass.value = ''
+    refresh()
+  } catch (e) {
+    adoptErr.value = String(e)
+  } finally {
+    adopting.value = false
+  }
+}
+
+// ---------- 同步进度、结果 ----------
+const pct = computed(() => (syncState.total ? Math.round((syncState.done / syncState.total) * 100) : 0))
 
 // 上一次同步的结果提示：同步中、或者什么都没变时不显示
 const result = computed(() => {
@@ -105,13 +202,65 @@ const result = computed(() => {
   return parts.length ? { error: false, text: t('home.done', { parts: parts.join(t('common.listSep')) }) } : null
 })
 
-// 每次同步结束刷新状态；切换语言后也刷新（"自动同步没就绪"的原因是后端按语言生成的）
-watch(() => syncState.running, (running) => { if (!running) refresh() })
+// 其他设备最近一次上报的时间（同步时至少每小时报一次，所以一小时内的都算"在线"）
+function lastSeen(ms) {
+  if (!ms) return t('home.lastSeenUnknown')
+  if (now.value - ms < 3600_000) return t('home.activeRecently')
+  return t('home.lastSeen', { when: fromNow(ms, now.value) })
+}
+
+// ---------- 云端用量 ----------
+const TOP = 5
+const topProjects = computed(() => usage.value?.projects.slice(0, TOP) || [])
+const restBytes = computed(() => (usage.value?.projects.slice(TOP) || []).reduce((n, p) => n + p.bytes, 0))
+const share = (n) => (usage.value?.total ? (n / usage.value.total) * 100 + '%' : '0')
+const barWidth = (n) => (topProjects.value[0]?.bytes ? Math.max(2, (n / topProjects.value[0].bytes) * 100) + '%' : '0')
+
+// 同步结束后的刷新由 stores/data.js 统一做；切换语言后要刷新（"自动同步没就绪"的原因是后端按语言生成的）
 watch(locale, refresh)
 
+// 每次进首页（包括第一次）：状态是本地读的，总是刷新；云端用量 5 分钟内不重复拉
+onActivated(() => {
+  statusRes.load()
+  usageRes.load()
+  now.value = Date.now()
+})
+
 onMounted(() => {
-  refresh()
   timer = setInterval(() => { now.value = Date.now() }, 30000)
 })
 onUnmounted(() => clearInterval(timer))
 </script>
+
+<style scoped>
+.key-desc { margin: 0 0 10px; }
+.hero { align-items: flex-start; gap: 20px; }
+.last-sync { font-size: 18px; font-weight: 600; }
+.sync-box { width: 200px; text-align: center; }
+.sync-box button { width: 100%; }
+
+.changes { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; max-height: 280px; overflow-y: auto; }
+.change { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+.change .kind { display: inline-flex; align-items: center; gap: 4px; width: 64px; flex-shrink: 0; color: var(--muted); }
+.change .kind.pull { color: var(--info); }
+.change .kind.push { color: var(--ok); }
+.change .kind.merge, .change .kind.fork { color: var(--accent); }
+.change .kind.conflict { color: var(--err); }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid2 .card { margin-bottom: 0; }
+.device { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.device + .device { border-top: 1px solid var(--border); }
+.dev-icon { color: var(--muted); flex-shrink: 0; }
+
+.usage-total { font-size: 22px; font-weight: 600; }
+.stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border); }
+.s1 { background: var(--accent); }
+.s2 { background: var(--info); }
+.s3 { background: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 12px; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.proj-usage { margin-bottom: 8px; font-size: 13px; }
+.proj-usage .bar { height: 4px; border-radius: 2px; background: var(--panel-2); margin-top: 3px; }
+.proj-usage .bar div { height: 100%; border-radius: 2px; background: var(--accent); opacity: 0.6; }
+</style>

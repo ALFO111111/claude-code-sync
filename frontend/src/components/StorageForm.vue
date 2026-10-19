@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="form-grid">
     <div v-if="showProvider" class="form-row">
       <label>{{ t('storage.provider') }}</label>
       <select :value="st.provider" @change="setProvider($event.target.value)">
@@ -10,7 +10,7 @@
       <label>{{ provider.region ? t('storage.region') : t('storage.regionOptional') }}</label>
       <input v-model.trim="st.region" :placeholder="provider.region || (st.provider === 'r2' ? 'auto' : 'us-east-1')" />
     </div>
-    <div class="form-row">
+    <div class="form-row wide">
       <label>{{ needsEndpoint(provider) ? t('storage.endpoint') : t('storage.endpointAuto') }}</label>
       <input v-model.trim="st.endpoint" :placeholder="endpointPlaceholder" />
     </div>
@@ -20,10 +20,10 @@
       <label>AccessKeySecret</label>
       <input v-model="st.accessKeySecret" type="password" :placeholder="hasSecret ? t('storage.secretKept') : ''" />
     </div>
-    <div v-if="needsEndpoint(provider)" class="form-row">
+    <div v-if="needsEndpoint(provider)" class="form-row wide">
       <label class="check"><input v-model="st.pathStyle" type="checkbox" /> {{ t('storage.pathStyle') }}</label>
     </div>
-    <div class="muted" style="font-size:13px; margin-bottom:12px">
+    <div class="muted guide wide">
       <a href="#" @click.prevent="BrowserOpenURL(storageGuideURL(locale))">{{ t('storage.guide') }} ↗</a>
     </div>
   </div>
@@ -53,3 +53,7 @@ const endpointPlaceholder = computed(() => {
 
 const setProvider = (value) => applyProvider(props.st, value)
 </script>
+
+<style scoped>
+.guide { font-size: 13px; margin-bottom: 12px; }
+</style>

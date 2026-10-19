@@ -35,7 +35,7 @@ func (e *Engine) FetchDevices(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		plain, err := crypt.Open(e.key, o.Key, data)
+		plain, err := e.open(o.Key, data)
 		if err != nil {
 			return fmt.Errorf("%s: %w", o.Key, err)
 		}
@@ -54,6 +54,9 @@ func (e *Engine) FetchDevices(ctx context.Context) error {
 	return nil
 }
 
+// heartbeatInterval 设备信息没变时，最多隔多久也上报一次。
+const heartbeatInterval = time.Hour
+
 func (e *Engine) publishDevice(ctx context.Context) error {
 	info := state.DeviceInfo{DeviceID: e.cfg.DeviceID, Name: e.cfg.DeviceName, Home: e.cfg.Home, Projects: map[string]state.ProjectInfo{}}
 	for pid, b := range e.st.Bindings {
@@ -61,7 +64,8 @@ func (e *Engine) publishDevice(ctx context.Context) error {
 	}
 	data, _ := json.Marshal(info)
 	h := crypt.SHA256Hex(data)
-	if h == e.st.PublishedHash {
+	// 内容没变也每小时报一次（刷新 Updated）：其他设备据此显示"最近活跃"
+	if h == e.st.PublishedHash && time.Since(e.st.PublishedAt) < heartbeatInterval {
 		return nil
 	}
 	info.Updated = time.Now().UTC()
@@ -74,7 +78,7 @@ func (e *Engine) publishDevice(ctx context.Context) error {
 	if _, err := e.store.Put(ctx, key, enc); err != nil {
 		return err
 	}
-	e.st.PublishedHash = h
+	e.st.PublishedHash, e.st.PublishedAt = h, time.Now()
 	return nil
 }
 

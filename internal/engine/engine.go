@@ -4,9 +4,12 @@
 //	devices.go    设备信息交换（devices/<ID>.json）
 //	binding.go    项目发现、自动绑定、认领
 //	identity.go   本机目录 → 项目身份证
-//	transfer.go   文件逐个比对 → 上传/下载/合并/分叉，冲突备份
-//	merge.go      jsonl 按 uuid 合并、分叉
+//	transfer.go   文件逐个比对 → 上传/下载/合并/分叉
+//	merge.go      jsonl 按 uuid 合并、分叉、只追加写入
+//	backup.go     被替换内容的备份、恢复
 //	history.go    输入历史 ~/.claude/history.jsonl（全机一份，只追加合并）
+//	keys.go       口令校验、修改口令（全部云端文件换新密钥重新加密）
+//	usage.go      云端用量统计
 //	translate.go  拉到本机时翻译路径
 package engine
 
@@ -28,12 +31,13 @@ import (
 
 // Engine 一次同步会话的全部上下文（配置、状态、云端连接、密钥）。
 type Engine struct {
-	cfg   *config.Config
-	st    *state.State
-	store storage.Storage
-	key   []byte
-	log   *logging.Logger
-	runTS string
+	cfg     *config.Config
+	st      *state.State
+	store   storage.Storage
+	key     []byte
+	prevKey []byte // 改口令前的旧密钥（可能为空）：别的设备还没换口令时传上来的文件，用它也能解开
+	log     *logging.Logger
+	bk      *backups
 
 	devices map[string]state.DeviceInfo // 其他设备（不含本机）
 	dry     bool
@@ -44,6 +48,9 @@ type Engine struct {
 	mu          sync.Mutex
 	translators map[string]*translator
 	stats       state.SyncStats
+	changes     map[string]state.Change // 云端 key → 本轮的变化（同一个文件只留最重要的那种）
+	progress    func(done, total int)
+	done, total int
 }
 
 // New 读配置、密钥、状态并连上云端。quiet=true 时日志只写文件。
@@ -64,10 +71,11 @@ func New(quiet bool) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	log := logging.New(quiet)
 	return &Engine{
-		cfg: cfg, st: st, store: store, key: key,
-		log:    logging.New(quiet),
-		runTS:  time.Now().Format("20060102-150405"),
+		cfg: cfg, st: st, store: store, key: key, prevKey: config.LoadPrevKey(),
+		log:    log,
+		bk:     newBackups(log),
 		walkFn: filepath.WalkDir,
 	}, nil
 }
@@ -77,6 +85,9 @@ func (e *Engine) State() *state.State    { return e.st }
 
 // Stats 最近一次 Sync 的统计。
 func (e *Engine) Stats() state.SyncStats { return e.stats }
+
+// Changes 最近一次 Sync 改动了哪些文件（最多 state.MaxChanges 条）。
+func (e *Engine) Changes() []state.Change { return e.st.LastChanges }
 
 // Devices 其他设备的信息（不含本机），FetchDevices 之后才有。
 func (e *Engine) Devices() map[string]state.DeviceInfo { return e.devices }
@@ -91,17 +102,15 @@ type Options struct {
 	Claim    *Claim        // 认领一个其他设备的项目
 	Ignore   string        // 忽略一个项目：待认领的不再提示；已绑定的停止同步（本机、云端文件都不动）
 	Unignore string        // 取消忽略：之后照常自动发现、自动对上，或重新出现在待认领里
+	// Progress 文件比对的进度（done 个已处理 / 共 total 个）。在同步用的 goroutine 里调用，要快。
+	Progress func(done, total int)
 }
 
 // Claim 把其他设备的项目 PID 绑定到本机目录 Root。
 type Claim struct{ PID, Root string }
 
 func (e *Engine) Sync(ctx context.Context, opts Options) error {
-	unlock, err := state.AcquireLock()
-	for deadline := time.Now().Add(opts.WaitLock); err == state.ErrLocked && time.Now().Before(deadline); {
-		time.Sleep(200 * time.Millisecond)
-		unlock, err = state.AcquireLock()
-	}
+	unlock, err := state.WaitLock(opts.WaitLock)
 	if err != nil {
 		return err
 	}
@@ -114,11 +123,20 @@ func (e *Engine) Sync(ctx context.Context, opts Options) error {
 	e.dry = opts.Dry
 	e.translators = map[string]*translator{}
 	e.stats = state.SyncStats{}
+	e.changes = map[string]state.Change{}
+	e.progress, e.done, e.total = opts.Progress, 0, 0
 	if !e.dry {
-		e.pruneBackups()
+		pruneBackups()
 	}
 	start := time.Now()
 
+	// 先确认口令和云端一致：别的设备改了口令后，本机用旧密钥接着传，会把新旧密钥的文件混在一起
+	if err := e.verifyKey(ctx); err != nil {
+		if !e.dry {
+			state.Save(e.st)
+		}
+		return err
+	}
 	if err := e.FetchDevices(ctx); err != nil {
 		return fmt.Errorf(i18n.T("读取云端设备信息失败: %w"), err)
 	}
@@ -162,6 +180,7 @@ func (e *Engine) Sync(ctx context.Context, opts Options) error {
 	if !e.dry {
 		e.st.LastSync = time.Now()
 		e.st.LastStats = e.stats
+		e.st.LastChanges = e.sortedChanges()
 		if serr := state.Save(e.st); serr != nil && err == nil {
 			err = serr
 		}

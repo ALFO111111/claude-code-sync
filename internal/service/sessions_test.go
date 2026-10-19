@@ -109,3 +109,67 @@ func TestListSessionsEmpty(t *testing.T) {
 		t.Error("空会话应返回 [] 而不是 nil")
 	}
 }
+
+// 标题：用户起的名字（custom-title）优先，其次 Claude 起的（ai-title），都取最后一次的。
+func TestSessionSummaryTitle(t *testing.T) {
+	data := strings.Join([]string{
+		`{"type":"user","message":{"role":"user","content":"第一句话"}}`,
+		`{"type":"ai-title","aiTitle":"旧的自动标题"}`,
+		`{"type":"ai-title","aiTitle":"新的自动标题"}`,
+	}, "\n")
+	lines, preview, title := sessionSummary([]byte(data))
+	if lines != 3 || preview != "第一句话" || title != "新的自动标题" {
+		t.Errorf("得到 %d %q %q", lines, preview, title)
+	}
+	_, _, title = sessionSummary([]byte(data + "\n" + `{"type":"custom-title","customTitle":"我起的名字"}` + "\n" + `{"type":"ai-title","aiTitle":"更晚的自动标题"}`))
+	if title != "我起的名字" {
+		t.Errorf("用户起的名字应优先，得到 %q", title)
+	}
+}
+
+// 跨项目搜索：不分大小写，带命中条数和上下文；一个字不搜。
+func TestSearchSessions(t *testing.T) {
+	_, pid := newDeviceWithSession(t, "devA",
+		`{"type":"user","timestamp":"2026-10-11T10:00:00Z","message":{"role":"user","content":"帮我看看 Login 页面的报错"}}`+"\n"+
+			`{"type":"assistant","timestamp":"2026-10-11T10:00:05Z","message":{"role":"assistant","content":[{"type":"text","text":"login 的问题在这里"}]}}`+"\n")
+	hits, err := SearchSessions("LOGIN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].PID != pid || hits[0].Count != 2 || !strings.Contains(hits[0].Snippet, "Login 页面") {
+		t.Fatalf("搜索结果不对: %+v", hits)
+	}
+	if hits, _ := SearchSessions("找不到的词"); len(hits) != 0 {
+		t.Errorf("没命中应返回空: %+v", hits)
+	}
+	if hits, _ := SearchSessions("帮"); len(hits) != 0 {
+		t.Errorf("一个字不搜: %+v", hits)
+	}
+}
+
+func TestSnippet(t *testing.T) {
+	text := strings.Repeat("前", 50) + "关键词" + strings.Repeat("后", 200)
+	s := snippet(text, strings.Index(text, "关键词"), "关键词")
+	if !strings.HasPrefix(s, "…") || !strings.HasSuffix(s, "…") || !strings.Contains(s, "关键词") || !utf8.ValidString(s) {
+		t.Errorf("上下文截取不对: %q", s)
+	}
+	if got := snippet("ÀB关键", strings.Index(strings.ToLower("ÀB关键"), "关键"), "关键"); got != "ÀB关键" {
+		t.Errorf("转小写后字节数会变的字符也要对得上，得到 %q", got)
+	}
+}
+
+// 只有顶层会话（文件名是会话 ID）能在 Claude Code 里继续；命令在项目目录里执行。
+func TestResumeCommand(t *testing.T) {
+	_, pid := newDeviceWithSession(t, "devA", "")
+	if _, err := ResumeCommand(pid, "a1.jsonl"); err == nil {
+		t.Error("文件名不是会话 ID 时不能继续")
+	}
+	id := "11111111-2222-4333-8444-555555555555"
+	r, err := ResumeCommand(pid, id+".jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(r.Command, "claude --resume "+id) || !strings.Contains(r.Command, `cd "`+r.Dir+`"`) {
+		t.Errorf("命令不对: %+v", r)
+	}
+}

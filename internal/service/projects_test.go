@@ -91,3 +91,34 @@ func TestStatusDevicesAndIgnored(t *testing.T) {
 		t.Errorf("忽略列表不对: %+v", ov.Ignored)
 	}
 }
+
+// 不联网的项目总览：用上次同步时缓存的设备信息，待认领列表和联网版一致；云端坏了它也照样能出结果。
+func TestLoadProjectsCached(t *testing.T) {
+	a, pid := newDeviceWithSession(t, "devA", "")
+	b := testutil.NewDevice(t, "devB")
+	b.Storage = a.Storage
+	if err := config.Save(b); err != nil {
+		t.Fatal(err)
+	}
+	if ov, _ := LoadProjectsCached(); len(ov.Claimable) != 0 {
+		t.Fatalf("B 还没同步过，缓存里不该有别的设备: %+v", ov)
+	}
+	mustSync(t) // B 同步一次，设备信息进缓存
+	ov, err := LoadProjectsCached()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ov.Claimable) != 1 || ov.Claimable[0].PID != pid || len(ov.Devices) != 1 {
+		t.Fatalf("缓存版应列出 A 的项目: %+v", ov)
+	}
+
+	// 云端坏掉：联网版报 RemoteError，但待认领仍来自缓存，不会整页变空
+	bad := filepath.Join(b.Storage.Path, "v1", "devices", "devX.json")
+	if err := fsutil.WriteFileAtomic(bad, []byte("garbage")); err != nil {
+		t.Fatal(err)
+	}
+	ov, _ = LoadProjects(context.Background())
+	if ov.RemoteError == "" || len(ov.Claimable) != 1 {
+		t.Errorf("读云端失败时应退回缓存: %+v", ov)
+	}
+}

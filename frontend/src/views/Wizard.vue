@@ -2,7 +2,7 @@
   <div class="wizard">
     <div class="card">
       <div class="wizard-head">
-        <h3 style="font-size:18px">{{ t('wizard.welcome') }}</h3>
+        <h3 class="welcome">{{ t('wizard.welcome') }}</h3>
         <LangSwitch />
       </div>
       <div class="steps">
@@ -31,7 +31,7 @@
             <div class="desc">{{ t(`storage.providers.${p.value}.desc`) }}</div>
           </div>
         </div>
-        <p class="muted" style="font-size:13px">{{ t('wizard.step2Hint') }}</p>
+        <p class="note">{{ t('wizard.step2Hint') }}</p>
       </template>
 
       <!-- 第 3 步：存储参数 -->
@@ -39,7 +39,7 @@
         <p><b>{{ t(`storage.providers.${st.provider}.name`) }}</b></p>
         <StorageForm :st="st" :show-provider="false" />
         <button @click="testConn" :disabled="busy || !storageOK">{{ busy ? t('common.testing') : t('common.testConn') }}</button>
-        <span v-if="testOk" class="ok" style="margin-left:10px">{{ t('common.connOk') }}</span>
+        <span v-if="testOk" class="ok test-ok">{{ t('common.connOk') }}</span>
       </template>
 
       <!-- 第 4 步：口令 -->
@@ -53,7 +53,7 @@
         <p class="muted">{{ t('wizard.finishHint') }}</p>
       </template>
 
-      <div v-if="err" class="err" style="margin-top:10px">{{ err }}</div>
+      <div v-if="err" class="err mt">{{ err }}</div>
 
       <div class="actions">
         <button v-if="step > 1" @click="step--" :disabled="busy">{{ t('wizard.prev') }}</button>
@@ -143,3 +143,8 @@ onMounted(async () => {
   deviceName.value = await api.DefaultDeviceName()
 })
 </script>
+
+<style scoped>
+.welcome { font-size: 18px; }
+.test-ok { margin-left: 10px; }
+</style>

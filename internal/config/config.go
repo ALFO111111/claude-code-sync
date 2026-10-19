@@ -18,14 +18,16 @@ import (
 const AppName = "claude-code-sync"
 
 type Config struct {
-	DeviceID   string         `json:"deviceId"`
-	DeviceName string         `json:"deviceName"`
-	Home       string         `json:"home,omitempty"`      // 用户目录，默认取系统值
-	ClaudeDir  string         `json:"claudeDir,omitempty"` // 默认 <Home>/.claude
-	Storage    storage.Config `json:"storage"`
-	ScanRoots  []string       `json:"scanRoots,omitempty"` // 额外的 git 仓库扫描目录
-	Ignore     []string       `json:"ignore,omitempty"`    // 不同步的本地目录名或项目 ID
-	Language   string         `json:"language,omitempty"`  // 界面语言 zh-CN / en；空 = 跟随系统
+	DeviceID    string         `json:"deviceId"`
+	DeviceName  string         `json:"deviceName"`
+	Home        string         `json:"home,omitempty"`      // 用户目录，默认取系统值
+	ClaudeDir   string         `json:"claudeDir,omitempty"` // 默认 <Home>/.claude
+	Storage     storage.Config `json:"storage"`
+	ScanRoots   []string       `json:"scanRoots,omitempty"`   // 额外的 git 仓库扫描目录
+	Ignore      []string       `json:"ignore,omitempty"`      // 不同步的本地目录名或项目 ID
+	Language    string         `json:"language,omitempty"`    // 界面语言 zh-CN / en；空 = 跟随系统
+	Theme       string         `json:"theme,omitempty"`       // 界面主题 light / dark；空 = 跟随系统
+	NoAutostart bool           `json:"noAutostart,omitempty"` // 用户关掉了开机自启（默认开）
 }
 
 // Dir 是本工具自己的数据目录，可用环境变量 CLAUDE_CODE_SYNC_HOME 覆盖（测试/沙箱用）。
@@ -121,4 +123,30 @@ func WriteKey(key []byte) error {
 		return err
 	}
 	return os.WriteFile(KeyPath(), []byte(hex.EncodeToString(key)), 0o600)
+}
+
+// PrevKeyPath 改口令前的旧密钥。别的设备还没换上新口令时可能传上来旧密钥加密的文件，有它就还能解开。
+func PrevKeyPath() string { return filepath.Join(Dir(), "key.prev") }
+
+// LoadPrevKey 读旧密钥；没有（从没改过口令）或损坏返回 nil。
+func LoadPrevKey() []byte {
+	data, err := os.ReadFile(PrevKeyPath())
+	if err != nil {
+		return nil
+	}
+	key, err := hex.DecodeString(strings.TrimSpace(string(data)))
+	if err != nil || len(key) != 32 {
+		return nil
+	}
+	return key
+}
+
+// ReplaceKey 换成新密钥，原来的密钥留作 key.prev。
+func ReplaceKey(newKey []byte) error {
+	if old, err := LoadKey(); err == nil {
+		if err := fsutil.WriteFileAtomic(PrevKeyPath(), []byte(hex.EncodeToString(old))); err != nil {
+			return err
+		}
+	}
+	return fsutil.WriteFileAtomic(KeyPath(), []byte(hex.EncodeToString(newKey)))
 }

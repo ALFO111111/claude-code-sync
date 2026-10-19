@@ -55,7 +55,7 @@ const keys = Object.keys(a)
 const patterns = [
   /\bt\(\s*'([^']+)'/g, // t('a.b')
   /\bt\(\s*`([^`]+)`/g, // t(`a.${x}.b`)
-  /keypath="([^"]+)"/g, // <i18n-t keypath="a.b">
+  /keypath="`?([^"`]+)`?"/g, // <i18n-t keypath="a.b">、:keypath="`a.${x}`"
   /\b(?:okKey|failKey)?\s*'((?:bindings|settings|home|sessions|storage|wizard|common)\.[\w.]+)'/g, // 作为参数传递的 key
 ]
 for (const file of walk(src)) {

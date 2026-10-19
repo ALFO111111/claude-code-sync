@@ -79,11 +79,13 @@ func dispatch(ctx context.Context, cmd string, o flags, version string) error {
 		}
 		_, err := service.Sync(ctx, service.SyncRequest{UnignorePID: o.positional[0]})
 		return err
+	case "passwd":
+		return cmdPasswd(ctx)
 	case "uninstall":
 		if err := service.RemoveAutoSync(); err != nil {
 			return err
 		}
-		fmt.Println(i18n.T("已删除自动同步（Claude Code hooks 和定时任务）。会话文件、配置和云端数据都没动。"))
+		fmt.Println(i18n.T("已删除自动同步（Claude Code hooks、定时任务和开机自启）。会话文件、配置和云端数据都没动。"))
 		fmt.Println(i18n.T("注意：再次打开图形界面会自动重新安装。"))
 		return nil
 	case "hook-event": // 隐藏命令：被 Claude Code hooks 调用
@@ -143,7 +145,8 @@ func usage() {
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
-  {app} uninstall            删除自动同步（hooks 和定时任务），不动会话和云端数据
+  {app} passwd               修改同步口令（所有设备一起换）；别的设备改过口令后，在本机输入新口令
+  {app} uninstall            删除自动同步（hooks、定时任务、开机自启），不动会话和云端数据
   {app} version              显示版本
 
 选项：
@@ -319,4 +322,35 @@ func cmdHookEvent(ctx context.Context) {
 	if hint := service.HookSync(ctx, input.Cwd); hint != "" {
 		fmt.Println(hint)
 	}
+}
+
+// cmdPasswd 修改同步口令。本机口令已经和云端对不上（别的设备改过）时，改为输入新口令。
+func cmdPasswd(ctx context.Context) error {
+	ok, err := service.PassphraseMatches(ctx)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Println(i18n.T("同步口令已在其他设备上修改。请输入新口令（和那台设备上改的一样）："))
+		if err := service.AdoptPassphrase(ctx, promptSecret(i18n.T("新口令: "))); err != nil {
+			return err
+		}
+		fmt.Println(i18n.T("口令已更新，可以继续同步了"))
+		return nil
+	}
+	fmt.Println(i18n.T("修改同步口令：云端的全部文件会用新口令重新加密，其他设备之后要输入新口令才能继续同步。"))
+	oldPass := promptSecret(i18n.T("当前口令: "))
+	newPass := promptSecret(i18n.T("新口令: "))
+	if promptSecret(i18n.T("再输一次确认: ")) != newPass {
+		return errors.New(i18n.T("两次输入不一致"))
+	}
+	err = service.ChangePassphrase(ctx, oldPass, newPass, func(done, total int) {
+		fmt.Printf("\r"+i18n.T("重新加密云端文件 %d/%d"), done, total)
+	})
+	fmt.Println()
+	if err != nil {
+		return err
+	}
+	fmt.Println(i18n.T("口令已修改。请在其他设备上运行 %s passwd（或打开图形界面）输入新口令。", appName))
+	return nil
 }

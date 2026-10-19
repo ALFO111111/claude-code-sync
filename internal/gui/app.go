@@ -11,7 +11,10 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/claude-code-sync/internal/engine"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/claude-code-sync/internal/logging"
+	"github.com/ALFO111111/claude-code-sync/internal/platform"
 	"github.com/ALFO111111/claude-code-sync/internal/service"
 	"github.com/ALFO111111/claude-code-sync/internal/state"
 	"github.com/ALFO111111/claude-code-sync/internal/storage"
@@ -23,15 +26,18 @@ import (
 //
 // 前端能用的全部接口：
 //
-//	状态     GetStatus
-//	同步     SyncNow                                 + 事件 "sync"（SyncEvent）
-//	项目     ListProjects  ListBound  ClaimProject  IgnoreProject  UnignoreProject  PickDirectory
-//	会话     ListSessions  ReadSession
+//	状态     GetStatus  GetUsage（云端用量）
+//	同步     SyncNow                                 + 事件 "sync"（SyncEvent）、"sync-progress"（SyncProgress）
+//	项目     ListProjects  ListProjectsCached  ListBound  ClaimProject  IgnoreProject  UnignoreProject  PickDirectory
+//	会话     ListSessions  ReadSession  SearchSessions  ResumeCommand  OpenInClaude  CopyText
+//	备份     ListBackups  ReadBackup  RestoreBackup  OpenBackupFolder
+//	口令     ChangePassphrase（+ 事件 "rekey-progress"）  AdoptPassphrase
+//	外观     GetTheme  SetTheme  GetAutostart  SetAutostart
 //	对话框   Confirm（危险操作前的系统确认框）
 //	设置     GetSettings  SaveSettings  TestStorage
 //	语言     GetLanguage  SetLanguage（立即生效：界面、托盘、错误信息、日志）
 //	自动同步 RepairAutoSync（平时自动装好，不展示；GetStatus.autoSync=false 时界面才提示修复）
-//	日志     ReadLog  ClearLog
+//	日志     ReadLog  ClearLog  OpenLogFolder
 //	向导     DefaultDeviceName  Initialize
 type App struct {
 	ctx       context.Context // Wails 运行时上下文（发事件、弹对话框用）
@@ -42,7 +48,8 @@ type App struct {
 	rerun     atomic.Bool      // 同步进行中又来了后台触发
 	watchers  []*watch.Watcher // 文件监听（程序开着才生效）：会话有变化就同步；settings.json 变了就检查 hooks
 	watcherMu sync.Mutex
-	tray      *tray // 系统托盘（测试里为 nil）
+	tray      *tray        // 系统托盘（测试里为 nil）
+	lastEmit  atomic.Int64 // 上次推进度事件的时间（纳秒），限流用
 }
 
 func NewApp() *App { return &App{} }
@@ -148,6 +155,7 @@ func (a *App) syncOnce(req service.SyncRequest) error {
 	a.tray.syncStarted()
 	req.Quiet = true
 	req.WaitLock = 30 * time.Second
+	req.Progress = func(done, total int) { a.emitProgress("sync-progress", done, total) }
 	stats, err := service.Sync(context.Background(), req)
 	ev := SyncEvent{Stats: stats}
 	if err != nil {
@@ -273,4 +281,136 @@ func (a *App) Initialize(p service.InitParams) (string, error) {
 	service.EnsureAutoSync()
 	a.startWatcher()
 	return res.Keycheck, nil
+}
+
+// SyncProgress 进度事件（"sync-progress"、"rekey-progress"）的内容。
+type SyncProgress struct {
+	Done  int `json:"done"`
+	Total int `json:"total"`
+}
+
+// emitProgress 推进度事件，最多每 150ms 一次（几千个文件一个个推会把界面卡住），开头和结尾一定推。
+func (a *App) emitProgress(event string, done, total int) {
+	now := time.Now().UnixNano()
+	last := a.lastEmit.Load()
+	if done != 0 && done != total && (now-last < int64(150*time.Millisecond) || !a.lastEmit.CompareAndSwap(last, now)) {
+		return
+	}
+	a.lastEmit.Store(now)
+	a.emit(event, SyncProgress{Done: done, Total: total})
+}
+
+// showWindow 把主窗口叫到前面（托盘"打开主窗口"、再次双击 exe 时）。
+func (a *App) showWindow() {
+	if a.ctx != nil {
+		wailsRuntime.WindowUnminimise(a.ctx)
+		wailsRuntime.WindowShow(a.ctx)
+	}
+}
+
+// ---------- 云端用量 ----------
+
+func (a *App) GetUsage() (*engine.Usage, error) { return service.CloudUsage(context.Background()) }
+
+// ---------- 会话（搜索、继续）----------
+
+func (a *App) SearchSessions(q string) ([]service.SearchHit, error) { return service.SearchSessions(q) }
+
+func (a *App) ResumeCommand(pid, rel string) (*service.ResumeInfo, error) {
+	return service.ResumeCommand(pid, rel)
+}
+
+// OpenInClaude 开一个终端窗口，在项目目录里 claude --resume 这个会话。
+func (a *App) OpenInClaude(pid, rel string) error { return service.OpenInClaude(pid, rel) }
+
+// CopyText 复制到剪贴板。
+func (a *App) CopyText(text string) error {
+	if a.ctx == nil {
+		return errors.New(i18n.T("界面还没就绪"))
+	}
+	return wailsRuntime.ClipboardSetText(a.ctx, text)
+}
+
+// ---------- 备份 ----------
+
+func (a *App) ListBackups() (*service.BackupOverview, error) { return service.ListBackups() }
+
+func (a *App) ReadBackup(id string) (*service.BackupContent, error) { return service.ReadBackup(id) }
+
+// RestoreBackup 用备份替换本机文件，然后同步一轮（把恢复的版本传到其他设备）。等同步跑完才返回。
+func (a *App) RestoreBackup(id string) error {
+	a.syncMu.Lock()
+	err := service.RestoreBackup(id)
+	a.syncMu.Unlock()
+	if err != nil {
+		return err
+	}
+	return a.runSync(service.SyncRequest{}, true)
+}
+
+func (a *App) OpenBackupFolder() error {
+	return platform.OpenFolder(engine.BackupDir())
+}
+
+// ---------- 口令 ----------
+
+// ChangePassphrase 修改同步口令（云端全部文件重新加密，进度看 "rekey-progress" 事件）。
+// 期间不跑同步：文件监听的触发记一笔，改完补一轮。
+func (a *App) ChangePassphrase(oldPass, newPass string) error {
+	a.syncMu.Lock()
+	err := service.ChangePassphrase(context.Background(), oldPass, newPass, func(done, total int) {
+		a.emitProgress("rekey-progress", done, total)
+	})
+	a.syncMu.Unlock()
+	if err != nil {
+		return err
+	}
+	go a.runSync(service.SyncRequest{}, true)
+	return nil
+}
+
+// AdoptPassphrase 别的设备改了口令后，本机输入新口令，然后同步一轮。
+func (a *App) AdoptPassphrase(pass string) error {
+	if err := service.AdoptPassphrase(context.Background(), pass); err != nil {
+		return err
+	}
+	go a.runSync(service.SyncRequest{}, true)
+	return nil
+}
+
+// ---------- 外观、开机自启 ----------
+
+func (a *App) GetTheme() service.ThemeInfo { return service.GetTheme() }
+
+// SetTheme 切换主题（"" 跟随系统 / light / dark），窗口标题栏一起变。返回切换后的主题。
+func (a *App) SetTheme(theme string) (service.ThemeInfo, error) {
+	err := service.SetTheme(theme)
+	info := service.GetTheme()
+	if a.ctx != nil {
+		switch info.Setting {
+		case service.ThemeDark:
+			wailsRuntime.WindowSetDarkTheme(a.ctx)
+		case service.ThemeLight:
+			wailsRuntime.WindowSetLightTheme(a.ctx)
+		default:
+			wailsRuntime.WindowSetSystemDefaultTheme(a.ctx)
+		}
+	}
+	return info, err
+}
+
+func (a *App) GetAutostart() service.AutostartInfo { return service.GetAutostart() }
+
+func (a *App) SetAutostart(on bool) (service.AutostartInfo, error) {
+	err := service.SetAutostart(on)
+	return service.GetAutostart(), err
+}
+
+// ---------- 日志 ----------
+
+func (a *App) OpenLogFolder() error { return platform.OpenFolder(filepath.Dir(logging.Path())) }
+
+// ListProjectsCached 项目总览，只用本机缓存、不联网（项目页先用它秒开，再调 ListProjects 刷新）。
+func (a *App) ListProjectsCached() (*service.ProjectsOverview, error) {
+	return service.LoadProjectsCached()
 }

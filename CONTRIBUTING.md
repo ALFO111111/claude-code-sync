@@ -29,7 +29,8 @@
 
 ```powershell
 go test ./...                    # 全部测试（单元 + 双设备集成，全在临时目录，不需要任何密钥）
-cd frontend; npm ci; npm run check-i18n; cd ..   # 前端文字检查
+cd frontend; npm ci; npm run check-i18n; npm test; cd ..   # 前端文字检查 + 单元测试
+cd frontend; npm run demo                          # 浏览器里用假数据跑界面（不需要 Go 后端，改界面、截图用）
 wails build                      # 打包单个 exe → build\bin\claude-code-sync.exe
 .\打包.bat                        # 同上，双击运行，会先关掉正在运行的程序
 ```
@@ -51,7 +52,7 @@ main.go                 唯一入口：无参数 → 图形界面，有参数 �
 internal/
   cli/  gui/            命令行 / 图形界面：只负责收参数、展示结果，不写业务判断
   service/              两种界面共用的业务操作
-  engine/               同步引擎：比对、合并、分叉、路径翻译、项目绑定
+  engine/               同步引擎：比对、合并、分叉、路径翻译、项目绑定、备份、改口令
   state/                state.json（上次同步时的样子）+ sync.lock
   project/              项目身份证（pid）
   storage/              云端接口：S3 兼容（minio-go）+ 本地文件夹（测试用）
@@ -71,7 +72,7 @@ frontend/src/           Vue 3：api/ 调后端，i18n/ 界面文字，views/ 页
 ### 提交
 
 - 提交信息格式：`类型-简短描述`，类型用 `feat` / `fix` / `docs` / `chore` / `refactor` / `test`，例如 `fix-项目会话目录不存在误报同步失败`
-- PR 提交前请确认：`go test ./...` 通过、`gofmt -l .` 没有输出、`npm run check-i18n` 通过
+- PR 提交前请确认：`go test ./...` 通过、`gofmt -l .` 没有输出、`npm run check-i18n` 和 `npm test` 通过
 
 ### 发布流程（维护者）
 
@@ -108,7 +109,8 @@ This tool reads and writes the user's `~/.claude` directly, and losing conversat
 
 ```powershell
 go test ./...                    # all tests (unit + two-device integration, all in temp dirs, no keys needed)
-cd frontend; npm ci; npm run check-i18n; cd ..   # UI text check
+cd frontend; npm ci; npm run check-i18n; npm test; cd ..   # UI text check + unit tests
+cd frontend; npm run demo                          # run the UI in a browser with fake data (no Go backend; for UI work and screenshots)
 wails build                      # build the single exe → build\bin\claude-code-sync.exe
 ```
 
@@ -129,7 +131,7 @@ main.go                 single entry: no args → GUI, args → CLI
 internal/
   cli/  gui/            terminal / window front ends: collect input, show results, no business logic
   service/              operations shared by both front ends
-  engine/               sync engine: diff, merge, fork, path translation, project binding
+  engine/               sync engine: diff, merge, fork, path translation, project binding, backups, passphrase change
   state/                state.json (what things looked like at the last sync) + sync.lock
   project/              project identity (pid)
   storage/              cloud interface: S3-compatible (minio-go) + local folder (tests)
@@ -149,7 +151,7 @@ frontend/src/           Vue 3: api/ calls the backend, i18n/ UI text, views/ pag
 ### Commits and PRs
 
 - Commit messages: `type-short description`, where type is `feat` / `fix` / `docs` / `chore` / `refactor` / `test`
-- Before opening a PR: `go test ./...` passes, `gofmt -l .` prints nothing, `npm run check-i18n` passes
+- Before opening a PR: `go test ./...` passes, `gofmt -l .` prints nothing, `npm run check-i18n` and `npm test` pass
 
 ### Releasing (maintainers)
 

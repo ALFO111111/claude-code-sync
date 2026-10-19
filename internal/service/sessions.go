@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,10 +12,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
 	"github.com/ALFO111111/claude-code-sync/internal/engine"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/claude-code-sync/internal/platform"
 	"github.com/ALFO111111/claude-code-sync/internal/state"
 )
 
@@ -25,10 +28,13 @@ type SessionInfo struct {
 	Name    string `json:"name"` // 文件名（<uuid>.jsonl）
 	Rel     string `json:"rel"`  // 相对项目目录的路径
 	Size    int64  `json:"size"`
-	Lines   int    `json:"lines"`   // 记录条数
-	Mtime   string `json:"mtime"`   // 已格式化（Wails 绑定不认 time.Time）
-	Preview string `json:"preview"` // 首条用户消息摘要
-	Synced  bool   `json:"synced"`  // 已同步到云端
+	Lines   int    `json:"lines"`            // 记录条数
+	Mtime   string `json:"mtime"`            // 已格式化（Wails 绑定不认 time.Time）
+	Preview string `json:"preview"`          // 首条用户消息摘要
+	Title   string `json:"title"`            // 会话标题：用户起的名字 > Claude 起的名字 > 空（界面用摘要代替）
+	Synced  bool   `json:"synced"`           // 已同步到云端
+	ForkOf  string `json:"forkOf,omitempty"` // 这是分叉出来的副本：原会话的 ID
+	Resume  bool   `json:"resume"`           // 能在 Claude Code 里继续（顶层会话）
 }
 
 func fmtTime(t time.Time) string {
@@ -63,12 +69,14 @@ func ListSessions(pid string) ([]SessionInfo, error) {
 		}
 		s := SessionInfo{Name: ent.Name(), Rel: ent.Name(), Size: info.Size(), Mtime: fmtTime(info.ModTime())}
 		var ok bool
-		if s.Lines, s.Preview, ok = cachedSummary(filepath.Join(dir, ent.Name()), info); !ok {
+		if s.Lines, s.Preview, s.Title, ok = cachedSummary(filepath.Join(dir, ent.Name()), info); !ok {
 			continue
 		}
 		if fs := st.Files[engine.FileKey(pid, s.Rel)]; fs != nil && !fs.Deleted {
 			s.Synced = true
 		}
+		id := strings.TrimSuffix(s.Name, ".jsonl")
+		s.ForkOf, s.Resume = st.Forks[id], isSessionID(id)
 		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Mtime > out[j].Mtime })
@@ -84,34 +92,55 @@ type summaryEntry struct {
 	mtime   time.Time
 	lines   int
 	preview string
+	title   string
 }
 
-func cachedSummary(path string, info fs.FileInfo) (lines int, preview string, ok bool) {
+func cachedSummary(path string, info fs.FileInfo) (lines int, preview, title string, ok bool) {
 	if v, hit := summaryCache.Load(path); hit {
 		if c := v.(summaryEntry); c.size == info.Size() && c.mtime.Equal(info.ModTime()) {
-			return c.lines, c.preview, true
+			return c.lines, c.preview, c.title, true
 		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0, "", false
+		return 0, "", "", false
 	}
-	lines, preview = sessionSummary(data)
-	summaryCache.Store(path, summaryEntry{info.Size(), info.ModTime(), lines, preview})
-	return lines, preview, true
+	lines, preview, title = sessionSummary(data)
+	summaryCache.Store(path, summaryEntry{info.Size(), info.ModTime(), lines, preview, title})
+	return lines, preview, title, true
 }
 
-// sessionSummary 数记录条数，并找首条用户消息当摘要。
-func sessionSummary(data []byte) (lines int, preview string) {
+// sessionSummary 数记录条数，找首条用户消息当摘要，再找标题：
+// 用户用 /rename 起的名字（custom-title）优先，其次 Claude 自动起的（ai-title），都取最后一次的。
+func sessionSummary(data []byte) (lines int, preview, title string) {
+	var custom, ai string
 	for _, l := range engine.SplitLines(data) {
 		lines++
+		if bytes.Contains(l, []byte(`"type":"custom-title"`)) || bytes.Contains(l, []byte(`"type":"ai-title"`)) {
+			var v struct {
+				Type        string `json:"type"`
+				CustomTitle string `json:"customTitle"`
+				AITitle     string `json:"aiTitle"`
+			}
+			if json.Unmarshal(l, &v) == nil {
+				if v.Type == "custom-title" && v.CustomTitle != "" {
+					custom = v.CustomTitle
+				} else if v.Type == "ai-title" && v.AITitle != "" {
+					ai = v.AITitle
+				}
+			}
+			continue
+		}
 		if preview == "" {
 			if m, ok := parseMessageLine(l); ok && m.Role == "user" && m.Text != "" {
 				preview = truncate(m.Text, 100)
 			}
 		}
 	}
-	return lines, preview
+	if title = custom; title == "" {
+		title = ai
+	}
+	return lines, preview, truncate(title, 100)
 }
 
 // SessionMessage 查看器里的一条消息。
@@ -249,4 +278,139 @@ func openBinding(pid string) (*config.Config, *state.State, *state.Binding, erro
 		return nil, nil, nil, fmt.Errorf(i18n.T("项目未绑定: %s"), pid)
 	}
 	return cfg, st, b, nil
+}
+
+// isSessionID 顶层会话的文件名就是会话 ID（标准 UUID），Claude Code 的 --resume 认它。
+func isSessionID(id string) bool { return len(id) == 36 && strings.Count(id, "-") == 4 }
+
+// ---------- 跨项目搜索 ----------
+
+// SearchHit 搜索结果：一个会话里有几条消息命中，以及第一处命中的上下文。
+type SearchHit struct {
+	PID     string `json:"pid"`
+	Project string `json:"project"`
+	Rel     string `json:"rel"`
+	Title   string `json:"title"`
+	Mtime   string `json:"mtime"`
+	Count   int    `json:"count"`   // 命中的消息条数
+	Snippet string `json:"snippet"` // 第一处命中前后的一段文字
+}
+
+// maxSearchHits 搜索最多返回多少个会话。
+const maxSearchHits = 100
+
+// SearchSessions 在本机所有已绑定项目的会话里搜消息内容（不分大小写），最近的会话排前面。
+// 先在原始文件里粗筛（不包含关键词的文件不解析），再逐条消息精确匹配。
+func SearchSessions(q string) ([]SearchHit, error) {
+	q = strings.TrimSpace(q)
+	out := []SearchHit{}
+	if len([]rune(q)) < 2 {
+		return out, nil // 一个字能命中几乎所有会话，没意义
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	st, err := state.Load()
+	if err != nil {
+		return nil, err
+	}
+	lq := strings.ToLower(q)
+	type cand struct {
+		hit   SearchHit
+		mtime time.Time
+	}
+	var cands []cand
+	for _, b := range st.Bindings {
+		dir := filepath.Join(cfg.ProjectsDir(), b.Dir)
+		entries, _ := os.ReadDir(dir)
+		for _, ent := range entries {
+			if ent.IsDir() || !strings.HasSuffix(ent.Name(), ".jsonl") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, ent.Name()))
+			if err != nil || !bytes.Contains(bytes.ToLower(data), []byte(lq)) {
+				continue
+			}
+			h := SearchHit{PID: b.PID, Project: b.Display, Rel: ent.Name()}
+			for _, m := range parseSession(data) {
+				if i := strings.Index(strings.ToLower(m.Text), lq); i >= 0 {
+					if h.Count++; h.Snippet == "" {
+						h.Snippet = snippet(m.Text, i, lq)
+					}
+				}
+			}
+			if h.Count == 0 {
+				continue
+			}
+			info, _ := ent.Info()
+			c := cand{hit: h}
+			if info != nil {
+				c.mtime = info.ModTime()
+				c.hit.Mtime = fmtTime(c.mtime)
+				_, preview, title, _ := cachedSummary(filepath.Join(dir, ent.Name()), info)
+				if c.hit.Title = title; title == "" {
+					c.hit.Title = preview
+				}
+			}
+			cands = append(cands, c)
+		}
+	}
+	sort.Slice(cands, func(i, j int) bool { return cands[i].mtime.After(cands[j].mtime) })
+	for i, c := range cands {
+		if i == maxSearchHits {
+			break
+		}
+		out = append(out, c.hit)
+	}
+	return out, nil
+}
+
+// snippet 命中处前后的一段文字，换行压成空格。i 是命中在小写文本里的字节下标，q 是小写关键词。
+// strings.ToLower 逐个字符转换、不增减字符数，所以按字符数换算回原文的位置是准的。
+func snippet(text string, i int, q string) string {
+	r := []rune(text)
+	at := utf8.RuneCountInString(strings.ToLower(text)[:i])
+	from, to := max(0, at-30), min(len(r), at+utf8.RuneCountInString(q)+90)
+	s := string(r[from:to])
+	if from > 0 {
+		s = "…" + s
+	}
+	if to < len(r) {
+		s += "…"
+	}
+	return strings.ReplaceAll(s, "\n", " ")
+}
+
+// ---------- 在 Claude Code 里继续 ----------
+
+// ResumeInfo 继续一个会话要做的事：在项目目录里运行 claude --resume <会话 ID>。
+type ResumeInfo struct {
+	Dir     string `json:"dir"`
+	Command string `json:"command"` // 可以直接粘贴到终端（PowerShell、Git Bash 都认）
+}
+
+// ResumeCommand 继续某个会话的命令。
+func ResumeCommand(pid, rel string) (*ResumeInfo, error) {
+	_, _, b, err := openBinding(pid)
+	if err != nil {
+		return nil, err
+	}
+	id := strings.TrimSuffix(rel, ".jsonl")
+	if strings.Contains(rel, "/") || !isSessionID(id) {
+		return nil, errors.New(i18n.T("只有顶层会话能继续"))
+	}
+	return &ResumeInfo{Dir: b.Root, Command: `cd "` + b.Root + `"; claude --resume ` + id}, nil
+}
+
+// OpenInClaude 开一个终端窗口，在项目目录里继续这个会话。
+func OpenInClaude(pid, rel string) error {
+	r, err := ResumeCommand(pid, rel)
+	if err != nil {
+		return err
+	}
+	if fi, err := os.Stat(r.Dir); err != nil || !fi.IsDir() {
+		return fmt.Errorf(i18n.T("项目目录不存在: %s"), r.Dir)
+	}
+	return platform.OpenTerminal(r.Dir, "claude", "--resume", strings.TrimSuffix(rel, ".jsonl"))
 }

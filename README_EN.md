@@ -18,9 +18,16 @@
 > [!NOTE]
 > This is an **unofficial** community tool and is not affiliated with Anthropic in any way. "Claude" is a trademark of Anthropic.
 
-<!-- TODO: add screenshots under docs/images/ and show them here, e.g.:
-<p align="center"><img src="docs/images/home.png" width="720" alt="Home" /></p>
--->
+<p align="center"><img src="docs/images/home-en.png" width="760" alt="Home: sync status, change details, devices, cloud usage" /></p>
+
+<details>
+<summary><b>More screenshots</b> (session browser, backups & restore, dark mode)</summary>
+<br />
+<p align="center"><img src="docs/images/sessions-en.png" width="760" alt="Sessions: browse, search, continue in Claude Code" /></p>
+<p align="center"><img src="docs/images/backups-en.png" width="760" alt="Backups: compare, then restore with one click" /></p>
+<p align="center"><img src="docs/images/home-dark-en.png" width="760" alt="Dark mode" /></p>
+<p align="center"><sub>Devices, projects and paths in the screenshots are demo data (<code>cd frontend && npm run demo</code>).</sub></p>
+</details>
 
 ## Why
 
@@ -34,8 +41,10 @@ claude-code-sync solves exactly that:
 - **Automatic path translation**: `D:\work\app` on machine A becomes `E:\code\app` on machine B, so `claude --resume` just works
 - **Projects match up by themselves**: git projects are matched by remote URL (ssh and https forms alike); plain folders are claimed with one click
 - **End-to-end encryption**: everything is encrypted with your passphrase before upload (Argon2id + AES-256-GCM); the cloud only sees ciphertext
-- **No data loss**: if the same session was continued on two machines, both versions are kept (one is saved as a new session); overwritten files are backed up first
-- **Fully automatic**: syncs the current project whenever a Claude Code conversation starts or a reply finishes, syncs on file changes while the app is running, and does a full sync every hour as a safety net
+- **No data loss**: sessions are only ever appended to, never overwritten wholesale; if the same session was continued on two machines, both versions are kept (one is saved as a new session); any other file is backed up before it is replaced, and the Backups page lets you compare and restore with one click
+- **Fully automatic**: starts at login and sits in the tray, syncing as soon as files change; syncs the current project whenever a Claude Code conversation starts or a reply finishes; plus a full sync every hour as a safety net
+- **Session browser**: sessions listed by title for every project, search across all projects, and continue any session with `claude --resume` in a terminal with one click
+- **Change the passphrase any time**: every cloud file is re-encrypted with the new passphrase; other machines continue once you enter it there
 - **Bring your own storage**: any S3-compatible object storage: Cloudflare R2, AWS S3, Alibaba Cloud OSS, Tencent Cloud COS, MinIO (self-hosted / NAS), …
 - **GUI + CLI**: a single portable exe; the interface is available in English and Simplified Chinese
 
@@ -68,7 +77,7 @@ Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude
    - git projects (with a remote URL) match automatically
    - plain folders: open the "Projects" page and click "Claim" under "To claim", then pick the local folder
    - conversations started from your home folder (no project) map to the other machine's home folder automatically
-5. **Continue on the other machine**: run `claude --resume` in the project folder and the sessions from the other computer are there.
+5. **Continue on the other machine**: run `claude --resume` in the project folder and the sessions from the other computer are there; or find the session on the app's Sessions page and click "Continue".
 
 > [!TIP]
 > Sessions are synced, **your code is not**: use git for that. Commit and push before switching machines, otherwise the conversation and the code won't match.
@@ -170,13 +179,16 @@ D:\work\app                       v1/history.jsonl                           tra
   | Situation | What happens |
   |---|---|
   | Only one side changed | Normal upload or download |
-  | Both changed the same session, one is a prefix of the other | The more complete one wins |
+  | Both changed the same session, one is a prefix of the other | The more complete one wins: only the missing records are appended to the local file, never a full rewrite (so a line Claude Code is writing right now can't be lost) |
   | Both continued the session differently | Both are kept: the other one becomes a new session |
   | MEMORY.md changed on both sides | Lines are merged |
-  | Any other file changed on both sides | Local wins; the cloud copy is backed up to `~/.claude-code-sync/backup/` (kept for 14 days) |
+  | Any other file changed on both sides | Local wins; the other machine's version is backed up |
+  | Any other file changed only on the other machine | Downloaded; the previous local version is backed up first |
   | Old sessions cleaned up by Claude Code itself | Never pulled back |
 
-- **Four triggers**: Claude Code hooks (`SessionStart` / `Stop`) do most of the work; a file watcher runs while the app sits in the tray; a Windows scheduled task does a full sync every hour; and you can always click "Sync now".
+  Backups live in `~/.claude-code-sync/backup/` for 14 days. The Backups page in the app lets you view them, compare them line by line with the current file, and restore with one click (the version being replaced is backed up too, so you can switch back).
+
+- **Four triggers**: Claude Code hooks (`SessionStart` / `Stop`) do most of the work; the app starts at login and watches for file changes from the tray (start-at-login can be turned off in Settings); a Windows scheduled task does a full sync every hour; and you can always click "Sync now".
 
 ## Command line
 
@@ -190,7 +202,8 @@ claude-code-sync status                        # bindings and projects waiting t
 claude-code-sync claim <project-id> <path>     # claim a project from another machine
 claude-code-sync ignore <project-id>           # ignore / stop syncing a project (no files deleted)
 claude-code-sync unignore <project-id>         # stop ignoring
-claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task)
+claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
+claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login)
 claude-code-sync version
 ```
 
@@ -200,6 +213,14 @@ claude-code-sync version
 <summary><b>Can several computers share one bucket?</b></summary>
 
 Not only can they, they **must**. The computers never talk to each other directly; the shared bucket is how they meet. If the bucket or prefix differs, nothing is synced. Different cloud accounts or keys are fine as long as they point to the same bucket.
+</details>
+
+<details>
+<summary><b>How do I change the sync passphrase?</b></summary>
+
+Go to Settings → Sync passphrase → "Change passphrase" (or run `claude-code-sync passwd`). Every file in the cloud is re-encrypted with the new passphrase, which takes a few minutes with many files; if it gets interrupted, just run it again with the same passphrases.
+
+Afterwards your other machines pause syncing (they won't keep uploading with the old passphrase); the app's home page asks for the new passphrase, and syncing continues once it's entered.
 </details>
 
 <details>
@@ -226,7 +247,7 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 <details>
 <summary><b>How do I uninstall?</b></summary>
 
-1. Run `claude-code-sync uninstall` to remove the Claude Code hooks and the scheduled task (sessions, config and cloud data stay)
+1. Run `claude-code-sync uninstall` to remove the Claude Code hooks, the scheduled task and start-at-login (sessions, config and cloud data stay)
 2. Right-click the tray icon → Quit
 3. Delete the exe and the `%USERPROFILE%\.claude-code-sync` folder
 4. Cloud data: delete the `v1/` folder in your bucket from the provider's console

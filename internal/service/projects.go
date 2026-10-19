@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/ALFO111111/claude-code-sync/internal/config"
 	"github.com/ALFO111111/claude-code-sync/internal/engine"
 	"github.com/ALFO111111/claude-code-sync/internal/project"
 	"github.com/ALFO111111/claude-code-sync/internal/state"
@@ -30,6 +31,15 @@ type DeviceSummary struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Projects int    `json:"projects"`
+	LastSeen int64  `json:"lastSeen"` // 毫秒时间戳：它最近一次上报的时间（同步时至少每小时报一次）；0 = 不知道
+}
+
+func deviceSummary(id string, d state.DeviceInfo) DeviceSummary {
+	s := DeviceSummary{ID: id, Name: d.Name, Projects: len(d.Projects)}
+	if !d.Updated.IsZero() {
+		s.LastSeen = d.Updated.UnixMilli()
+	}
+	return s
 }
 
 // IgnoredProject 用户忽略的项目（可以取消忽略）。
@@ -44,7 +54,7 @@ type ProjectsOverview struct {
 	Claimable []ClaimableProject `json:"claimable"`
 	Ignored   []IgnoredProject   `json:"ignored"`
 	Devices   []DeviceSummary    `json:"devices"` // 其他设备
-	// 读云端失败（断网等）时只返回本机绑定，Claimable/Devices 为空，错误放这里，不整体报错。
+	// 读云端失败（断网等）时退回上次同步时缓存的设备信息，错误放这里，不整体报错。
 	RemoteError string `json:"remoteError,omitempty"`
 }
 
@@ -66,23 +76,46 @@ func boundOf(st *state.State) []BoundProject {
 	return out
 }
 
-// LoadProjects 项目总览（CLI status 和 GUI 项目页共用）。
+// LoadProjects 项目总览（CLI status 和 GUI 项目页共用）。会联网读其他设备的最新信息；
+// 读不到（断网等）时退回上次同步时缓存的设备信息，错误放在 RemoteError。
 func LoadProjects(ctx context.Context) (*ProjectsOverview, error) {
 	e, err := engine.New(true)
 	if err != nil {
 		return nil, err
 	}
-	cfg, st := e.Config(), e.State()
-	ov := &ProjectsOverview{Bound: boundOf(st), Claimable: []ClaimableProject{}, Devices: []DeviceSummary{}}
-
 	if err := e.FetchDevices(ctx); err != nil {
+		ov := buildOverview(e.Config(), e.State(), cachedDevices(e.State()))
 		ov.RemoteError = err.Error()
-		ov.Ignored = ignoredOf(st, nil)
 		return ov, nil
 	}
-	ov.Ignored = ignoredOf(st, e.Devices())
-	for id, d := range e.Devices() {
-		ov.Devices = append(ov.Devices, DeviceSummary{ID: id, Name: d.Name, Projects: len(d.Projects)})
+	return buildOverview(e.Config(), e.State(), e.Devices()), nil
+}
+
+// LoadProjectsCached 和 LoadProjects 一样，但只用上次同步时缓存的设备信息，不联网（界面先用它秒开，再联网刷新）。
+func LoadProjectsCached() (*ProjectsOverview, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	st, err := state.Load()
+	if err != nil {
+		return nil, err
+	}
+	return buildOverview(cfg, st, cachedDevices(st)), nil
+}
+
+func cachedDevices(st *state.State) map[string]state.DeviceInfo {
+	out := map[string]state.DeviceInfo{}
+	for id, c := range st.Devices {
+		out[id] = c.Info
+	}
+	return out
+}
+
+func buildOverview(cfg *config.Config, st *state.State, devices map[string]state.DeviceInfo) *ProjectsOverview {
+	ov := &ProjectsOverview{Bound: boundOf(st), Claimable: []ClaimableProject{}, Devices: []DeviceSummary{}, Ignored: ignoredOf(st, devices)}
+	for id, d := range devices {
+		ov.Devices = append(ov.Devices, deviceSummary(id, d))
 		for pid, p := range d.Projects {
 			if st.Bindings[pid] != nil || st.Ignored[pid] || cfg.Ignored(pid) {
 				continue
@@ -99,7 +132,7 @@ func LoadProjects(ctx context.Context) (*ProjectsOverview, error) {
 		}
 		return ov.Claimable[i].Device < ov.Claimable[j].Device
 	})
-	return ov, nil
+	return ov
 }
 
 // ignoredOf 忽略列表，名字尽量取其他设备上报的（云端读不到时 devices 为空，只显示 ID）。

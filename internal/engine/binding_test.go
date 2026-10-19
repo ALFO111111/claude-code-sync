@@ -2,9 +2,13 @@ package engine
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
+	"github.com/ALFO111111/claude-code-sync/internal/project"
 	"github.com/ALFO111111/claude-code-sync/internal/testutil"
 )
 
@@ -46,5 +50,56 @@ func TestIgnoreBoundProject(t *testing.T) {
 	}
 	if _, err := os.Stat(abs); err != nil {
 		t.Errorf("取消忽略后云端的文件应拉回本机: %v", err)
+	}
+}
+
+// gitRepo 在 dir 建一个只有远程地址的 git 仓库（自动绑定只看远程地址）。
+func gitRepo(t *testing.T, dir, remote string) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("没有 git")
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", remote}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+}
+
+// 打开的是仓库里的子文件夹（pid 带 #子目录）：另一台设备上同一个仓库换了位置、换了写法的远程地址，
+// 也要自动对上"仓库根 + 同一个子目录"，并把路径翻译成本机的。
+func TestAutoBindGitSubdirectory(t *testing.T) {
+	a := newDevice(t, "devA", nil)
+	b := newDevice(t, "devB", a)
+	repoA := filepath.Join(a.cfg.Home, "mono")
+	repoB := filepath.Join(b.cfg.Home, "mono-clone")
+	gitRepo(t, repoA, "git@github.com:acme/mono.git")
+	gitRepo(t, repoB, "https://github.com/acme/mono")
+	subA := filepath.Join(repoA, "pkg", "app")
+	subB := filepath.Join(repoB, "pkg", "app")
+	os.MkdirAll(subA, 0o700)
+	os.MkdirAll(subB, 0o700)
+
+	dirA := project.EncodeDir(subA)
+	testutil.WriteProjectFile(t, a.cfg, dirA, "s1.jsonl", sessionLine(subA, "u1"))
+	pid := a.sync(t, Options{}).theOnlyPID(t)
+	if pid != "git:github.com/acme/mono#pkg/app" {
+		t.Fatalf("子目录项目的 pid 应带 #pkg/app，得到 %q", pid)
+	}
+
+	e := b.sync(t, Options{})
+	bd := e.st.Bindings[pid]
+	if bd == nil || !fsutil.SamePath(bd.Root, subB) {
+		t.Fatalf("B 应自动绑定到 %s，得到 %+v", subB, e.st.Bindings)
+	}
+	data, err := os.ReadFile(filepath.Join(b.cfg.ProjectsDir(), bd.Dir, "s1.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cwd := project.ReadCwd(filepath.Join(b.cfg.ProjectsDir(), bd.Dir)); !fsutil.SamePath(cwd, subB) {
+		t.Errorf("会话里的 cwd 应翻译成 B 的路径 %s，得到 %q（%s）", subB, cwd, data)
 	}
 }

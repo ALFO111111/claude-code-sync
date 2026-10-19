@@ -75,3 +75,14 @@ func (s *localStorage) Put(ctx context.Context, key string, data []byte) (string
 	}
 	return etagOf(info), nil
 }
+
+func (s *localStorage) Stat(ctx context.Context, key string) (Object, error) {
+	info, err := os.Stat(s.path(key))
+	if errors.Is(err, fs.ErrNotExist) {
+		return Object{}, ErrNotFound
+	}
+	if err != nil {
+		return Object{}, err
+	}
+	return Object{Key: key, ETag: etagOf(info), Size: info.Size(), Modified: info.ModTime()}, nil
+}

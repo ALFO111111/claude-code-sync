@@ -18,6 +18,7 @@ import (
 // 自动同步是程序自带的能力，不让用户手动开关：
 //   Claude Code hooks（主力）：SessionStart / Stop 时调 "<exe> hook-event"，只同步当前项目
 //   Windows 定时任务（兜底）：每小时 + 登录时全量同步
+//   开机自启（GUI 在托盘里常驻，文件一变就同步）：默认开，设置页可以关
 // 初始化完成时、每次打开图形界面时都会调 EnsureAutoSync：没装就装，exe 换了位置就把路径改过来。
 // hooks 还可能被别的工具抹掉（CC Switch 切换供应商会重写 settings.json），见 RepairHooks。
 
@@ -52,6 +53,9 @@ func EnsureAutoSync() error {
 			logging.New(true).Printf("登录时自动同步的任务没装上（权限不够），每小时一次的定时同步不受影响")
 		}
 	}
+	if err := syncAutostart(cfg); err != nil {
+		errs = append(errs, err)
+	}
 	err = errors.Join(errs...)
 	if err != nil {
 		logging.New(true).Printf("自动同步安装失败: %v", err)
@@ -84,7 +88,7 @@ func RepairHooks() error {
 	return nil
 }
 
-// RemoveAutoSync 卸载：删掉本工具的 hooks 和定时任务（别的工具的 hooks 不动）。
+// RemoveAutoSync 卸载：删掉本工具的 hooks、定时任务和开机自启（别的工具的 hooks 不动）。
 // 沙箱模式不碰定时任务（它是全机共用的，删了会把真实环境的也删掉）。
 func RemoveAutoSync() error {
 	cfg, err := config.Load()
@@ -94,7 +98,25 @@ func RemoveAutoSync() error {
 	if config.Sandboxed() {
 		return removeHooks(cfg.ClaudeDir)
 	}
-	return errors.Join(removeHooks(cfg.ClaudeDir), platform.RemoveSchedule())
+	return errors.Join(removeHooks(cfg.ClaudeDir), platform.RemoveSchedule(), platform.RemoveAutostart())
+}
+
+// syncAutostart 按设置登记或取消开机自启；登记的不是当前 exe 就改过来。
+func syncAutostart(cfg *config.Config) error {
+	cur, ok := platform.Autostart()
+	if cfg.NoAutostart {
+		if ok {
+			return platform.RemoveAutostart()
+		}
+		return nil
+	}
+	if ok && cur == platform.AutostartCommand(ExePath()) {
+		return nil
+	}
+	if err := platform.SetAutostart(ExePath()); err != nil {
+		return fmt.Errorf(i18n.T("设置开机自启失败: %w"), err)
+	}
+	return nil
 }
 
 // autoSyncStatus hooks / 定时任务是否已装好且指向当前 exe。

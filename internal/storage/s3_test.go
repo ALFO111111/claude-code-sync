@@ -125,6 +125,13 @@ func TestS3RoundTrip(t *testing.T) {
 	if objs, _ := s.List(ctx, "devices/"); len(objs) != 0 {
 		t.Errorf("前缀过滤失效: %+v", objs)
 	}
+	// Stat（HEAD）拿到的 etag 要和 Put 返回的一样：上传后的并发校验靠它，不再整份读回
+	if o, err := s.Stat(ctx, "files/abc/x.jsonl"); err != nil || o.ETag != etag || o.Size != 5 {
+		t.Errorf("Stat = %+v, %v，期望 etag=%s size=5", o, err, etag)
+	}
+	if _, err := s.Stat(ctx, "nope"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Stat 不存在的对象应返回 ErrNotFound，得到 %v", err)
+	}
 
 	mu.Lock()
 	defer mu.Unlock()

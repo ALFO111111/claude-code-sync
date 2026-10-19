@@ -104,8 +104,8 @@ var en = map[string]string{
 	"用法: %s claim <项目ID> <本机路径>": "Usage: %s claim <project-id> <local-path>",
 	"用法: %s ignore <项目ID>":       "Usage: %s ignore <project-id>",
 	"用法: %s unignore <项目ID>":     "Usage: %s unignore <project-id>",
-	"已删除自动同步（Claude Code hooks 和定时任务）。会话文件、配置和云端数据都没动。": "Automatic sync removed (Claude Code hooks and scheduled task). Session files, config and cloud data were not touched.",
-	"注意：再次打开图形界面会自动重新安装。":                               "Note: opening the app again will reinstall it automatically.",
+	"已删除自动同步（Claude Code hooks、定时任务和开机自启）。会话文件、配置和云端数据都没动。": "Automatic sync removed (Claude Code hooks, scheduled task and start-at-login). Session files, config and cloud data were not touched.",
+	"注意：再次打开图形界面会自动重新安装。":                                   "Note: opening the app again will reinstall it automatically.",
 	"--cwd 需要参数": "--cwd requires an argument",
 	"不认识的参数 %s":  "Unknown option %s",
 	`{app} - 把 Claude Code 的会话在多台设备之间同步
@@ -119,7 +119,8 @@ var en = map[string]string{
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
-  {app} uninstall            删除自动同步（hooks 和定时任务），不动会话和云端数据
+  {app} passwd               修改同步口令（所有设备一起换）；别的设备改过口令后，在本机输入新口令
+  {app} uninstall            删除自动同步（hooks、定时任务、开机自启），不动会话和云端数据
   {app} version              显示版本
 
 选项：
@@ -137,7 +138,8 @@ Usage:
   {app} claim <project-id> <local-path>   bind a cloud project to a local folder
   {app} ignore <project-id>  ignore a project (stops syncing a bound one; no files are deleted)
   {app} unignore <project-id>  stop ignoring a project
-  {app} uninstall            remove automatic sync (hooks and scheduled task); sessions and cloud data stay
+  {app} passwd               change the sync passphrase (for all devices); after another device changed it, enter the new one here
+  {app} uninstall            remove automatic sync (hooks, scheduled task, start-at-login); sessions and cloud data stay
   {app} version              show version
 
 Options:
@@ -186,4 +188,35 @@ Options:
 	"  %s（ID %s，%d 个项目）":                                "  %s (ID %s, %d projects)",
 	"    待认领: %s\n      对方路径: %s (%s)":                  "    to claim: %s\n      their path: %s (%s)",
 	"用 %s claim <项目ID> <本机路径> 认领，或 %s ignore <项目ID> 忽略": "Claim with %s claim <project-id> <local-path>, or ignore with %s ignore <project-id>",
+
+	// 2026-10：只追加拉取、备份、修改口令、开机自启、会话搜索
+	"本机文件刚被修改": "The local file was just modified",
+	"%s/%s 正在被修改，本轮先跳过，下次同步再处理":   "%s/%s is being modified; skipped this round, will retry next sync",
+	"找不到这份备份（可能已超过保留期被清理）":        "Backup not found (it may have been cleaned up after the retention period)",
+	"这条记录没有备份文件":                  "This entry has no backup file",
+	"已从备份恢复 %s/%s":                "Restored %s/%s from backup",
+	"同步口令已在其他设备上修改，请在本机输入新口令后再同步": "The sync passphrase was changed on another device. Enter the new passphrase on this device to continue syncing",
+	"口令不对": "Wrong passphrase",
+	"读取云端口令校验文件失败: %w":                    "Failed to read the passphrase check file from the cloud: %w",
+	"云端的同步口令已在其他设备上修改，本机暂停同步，等待输入新口令":     "The sync passphrase was changed on another device; syncing is paused until the new passphrase is entered",
+	"新口令和原来的一样":                           "The new passphrase is the same as the current one",
+	"改口令：%s 用原口令也解不开，跳过":                  "Passphrase change: %s can't be decrypted with the old passphrase either, skipped",
+	"改口令：%s 重新加密失败: %v":                   "Passphrase change: failed to re-encrypt %s: %v",
+	"有 %d 个文件没能重新加密（网络问题？），口令还没改成功，请再试一次": "%d files could not be re-encrypted (network problem?). The passphrase has not been changed yet, please try again",
+	"同步口令已修改：%d 个云端文件已用新口令重新加密":           "Sync passphrase changed: %d cloud files were re-encrypted with the new passphrase",
+	"有 %d 个云端文件原来就解不开，没有处理":               "%d cloud files could not be decrypted before the change and were left as they were",
+	"已换上新的同步口令":                           "Switched to the new sync passphrase",
+	"沙箱模式下不能设置开机自启":                       "Start-at-login can't be changed in sandbox mode",
+	"设置开机自启失败: %w":                        "Failed to set up start-at-login: %w",
+	"只有顶层会话能继续":                           "Only top-level sessions can be continued",
+	"项目目录不存在: %s":                         "Project folder does not exist: %s",
+	"[claude-code-sync] 会话同步已暂停：同步口令在其他设备上改过了，请打开 claude-code-sync 输入新口令。": "[claude-code-sync] Session sync is paused: the sync passphrase was changed on another device. Please open claude-code-sync and enter the new passphrase.",
+	"同步已暂停：口令在其他设备上改了，打开主窗口输入新口令":                                          "Sync paused: the passphrase was changed on another device. Open the main window to enter the new one",
+	"同步口令已在其他设备上修改。请输入新口令（和那台设备上改的一样）：":                                    "The sync passphrase was changed on another device. Enter the new passphrase (the same one set there):",
+	"新口令: ": "New passphrase: ",
+	"口令已更新，可以继续同步了": "Passphrase updated, syncing can continue",
+	"修改同步口令：云端的全部文件会用新口令重新加密，其他设备之后要输入新口令才能继续同步。": "Change the sync passphrase: all cloud files will be re-encrypted with the new passphrase, and other devices will need the new passphrase to keep syncing.",
+	"当前口令: ":         "Current passphrase: ",
+	"重新加密云端文件 %d/%d": "Re-encrypting cloud files %d/%d",
+	"口令已修改。请在其他设备上运行 %s passwd（或打开图形界面）输入新口令。": "Passphrase changed. On your other devices, run %s passwd (or open the app) and enter the new passphrase.",
 }

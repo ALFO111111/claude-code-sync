@@ -3,9 +3,11 @@ import { i18n } from '@/i18n'
 const t = (...args) => i18n.global.t(...args)
 
 export function fmtSize(n) {
+  n = n || 0
   if (n < 1024) return n + ' B'
-  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB'
-  return (n / 1024 / 1024).toFixed(1) + ' MB'
+  if (n < 1024 ** 2) return (n / 1024).toFixed(1) + ' KB'
+  if (n < 1024 ** 3) return (n / 1024 ** 2).toFixed(1) + ' MB'
+  return (n / 1024 ** 3).toFixed(2) + ' GB'
 }
 
 // kindLabel 项目种类（后端 project.Kind：home / git / local）的显示名。

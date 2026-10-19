@@ -2,7 +2,8 @@
   <div>
     <div class="card">
       <h3>{{ t('bindings.bound') }}</h3>
-      <div v-if="!bound.length" class="muted">{{ t('bindings.noneBound') }}</div>
+      <Skeleton v-if="!res.data" :lines="3" />
+      <div v-else-if="!bound.length" class="muted">{{ t('bindings.noneBound') }}</div>
       <table v-else>
         <thead>
           <tr>
@@ -23,8 +24,10 @@
     </div>
 
     <div class="card">
-      <h3>{{ t('bindings.claimable') }}</h3>
-      <div v-if="remoteError" class="err">{{ t('bindings.remoteError', { err: remoteError }) }}</div>
+      <h3>{{ t('bindings.claimable') }}<Refreshing :on="res.loading && !!res.data" /></h3>
+      <!-- 读云端失败时下面照样显示上次缓存的结果，这里提一句 -->
+      <div v-if="remoteError" class="err-box">{{ t('bindings.remoteError', { err: remoteError }) }}</div>
+      <Skeleton v-if="!res.data" :lines="2" />
       <div v-else-if="!claimable.length" class="muted">{{ t('bindings.noClaimable') }}</div>
       <table v-else>
         <thead>
@@ -45,7 +48,7 @@
           </tr>
         </tbody>
       </table>
-      <div class="muted" style="margin-top:8px; font-size:13px">{{ t('bindings.claimHint') }}</div>
+      <div class="note">{{ t('bindings.claimHint') }}</div>
     </div>
 
     <div class="card" v-if="ignored.length">
@@ -66,7 +69,7 @@
           </tr>
         </tbody>
       </table>
-      <div class="muted" style="margin-top:8px; font-size:13px">{{ t('bindings.restoreHint') }}</div>
+      <div class="note">{{ t('bindings.restoreHint') }}</div>
     </div>
 
     <Notice :notice="notice" />
@@ -74,32 +77,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { kindLabel } from '@/utils/format'
 import { useNotice } from '@/composables/useNotice'
+import { resources } from '@/stores/data'
 import Notice from '@/components/Notice.vue'
+import Skeleton from '@/components/Skeleton.vue'
+import Refreshing from '@/components/Refreshing.vue'
 
 const { t } = useI18n()
-const bound = ref([])
-const claimable = ref([])
-const ignored = ref([])
-const remoteError = ref('')
+// 数据来自全局缓存（stores/data.js）：启动时已在后台拉好；再进这页先显示上次的，后台悄悄刷新
+const res = resources.projects
+const bound = computed(() => res.data?.bound || [])
+const claimable = computed(() => res.data?.claimable || [])
+const ignored = computed(() => res.data?.ignored || [])
+const remoteError = computed(() => res.data?.remoteError || res.error)
 const busy = ref(false) // 操作要顺带跑一轮同步，期间按钮禁用，免得连点
 const { notice, ok, fail } = useNotice()
 
-async function refresh() {
-  try {
-    const ov = await api.ListProjects()
-    bound.value = ov.bound
-    claimable.value = ov.claimable
-    ignored.value = ov.ignored
-    remoteError.value = ov.remoteError || ''
-  } catch (e) {
-    fail(e)
-  }
-}
+const refresh = () => res.refresh()
 
 // act 执行一个会顺带同步的操作。failKey 是失败提示的文字 key（带 {err} 参数）。
 async function act(fn, okText, failKey) {
@@ -137,13 +135,13 @@ function unignore(g) {
   act(() => api.UnignoreProject(g.pid), t('bindings.restored', { name: nameOf(g) }), 'bindings.opFailed')
 }
 
-onMounted(refresh)
+// 每次进这页：30 秒内拉过就不重复拉（同步结束时缓存会自动刷新）
+onActivated(() => res.load())
 </script>
 
 <style scoped>
-/* 项目 ID 很长：截断显示，鼠标悬停看全 */
-.pid { font-size: 12px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 操作列：按内容收紧宽度、表头和按钮都居中（按钮有内边距，靠左/靠右都会和表头错开）、不折行 */
-.ops { width: 1%; white-space: nowrap; text-align: center; }
-.ops button + button { margin-left: 6px; }
+/* 项目 ID 很长：按窗口宽度截断（全屏时显示得更多），鼠标悬停看全 */
+.pid { font-size: 12px; max-width: 18vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 操作列：表头和按钮都居中（按钮有内边距，靠左/靠右都会和表头错开） */
+.ops { text-align: center; }
 </style>

@@ -8,7 +8,11 @@
 //	settings.go    可在界面修改的设置
 //	automation.go  自动同步：Claude Code hooks、定时任务
 //	logs.go        日志
-//	sessions.go    会话浏览
+//	sessions.go    会话浏览、搜索、在 Claude Code 里继续
+//	backups.go     备份的查看、恢复
+//	passphrase.go  修改同步口令
+//	usage.go       云端用量
+//	appearance.go  主题、开机自启
 package service
 
 import (
@@ -24,6 +28,7 @@ import (
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
 	"github.com/ALFO111111/claude-code-sync/internal/crypt"
+	"github.com/ALFO111111/claude-code-sync/internal/engine"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
 	"github.com/ALFO111111/claude-code-sync/internal/storage"
 )
@@ -41,8 +46,6 @@ type InitResult struct {
 	Config   *config.Config `json:"config"`
 	Keycheck string         `json:"keycheck"` // "created"（云端首次写入）或 "matched"（与云端已有口令一致）
 }
-
-const keycheckKey = "keycheck"
 
 // Initialize 验证参数 → 测云端连通 → 口令校验 → 落盘 config + key。
 func Initialize(ctx context.Context, p InitParams) (*InitResult, error) {
@@ -73,22 +76,21 @@ func Initialize(ctx context.Context, p InitParams) (*InitResult, error) {
 
 	key := crypt.DeriveKey(p.Passphrase, crypt.KeySalt)
 	keycheck := "matched"
-	data, _, err := store.Get(cctx, keycheckKey)
+	data, _, err := store.Get(cctx, engine.KeycheckKey)
 	switch {
 	case errors.Is(err, storage.ErrNotFound):
-		enc, err := crypt.Seal(key, keycheckKey, []byte(crypt.KeycheckPlain))
+		enc, err := engine.SealKeycheck(key)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := store.Put(cctx, keycheckKey, enc); err != nil {
+		if _, err := store.Put(cctx, engine.KeycheckKey, enc); err != nil {
 			return nil, err
 		}
 		keycheck = "created"
 	case err != nil:
 		return nil, err
 	default:
-		plain, err := crypt.Open(key, keycheckKey, data)
-		if err != nil || string(plain) != crypt.KeycheckPlain {
+		if !engine.CheckKey(key, data) {
 			return nil, errors.New(i18n.T("口令与云端不一致！云端已有其他设备用别的口令加密的数据，请输入相同的口令（或清空云端重新开始）"))
 		}
 	}

@@ -2,7 +2,7 @@
 //
 // 单个 exe 两种模式：
 //
-//	无参数（双击）→ 图形界面  internal/gui
+//	无参数（双击）→ 图形界面  internal/gui（--background：开机自启，只在托盘里运行）
 //	带参数        → 命令行    internal/cli（hooks、定时任务走这条路）
 //
 // 两边真正干活都调 internal/service；同步引擎在 internal/engine。
@@ -28,10 +28,10 @@ var version = "dev"
 var frontendDist embed.FS
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || len(os.Args) == 2 && os.Args[1] == gui.BackgroundArg {
 		assets, err := fs.Sub(frontendDist, "frontend/dist")
 		if err == nil {
-			err = gui.Run(assets)
+			err = gui.Run(assets, len(os.Args) == 2)
 		}
 		if err != nil {
 			os.Stderr.WriteString(i18n.T("错误:") + " " + err.Error() + "\n")

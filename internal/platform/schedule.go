@@ -1,4 +1,4 @@
-// Package platform 和操作系统打交道的部分：Windows 定时任务、隐藏子进程窗口。
+// Package platform 和操作系统打交道的部分：Windows 定时任务、隐藏子进程窗口、开机自启、打开文件夹/终端、深色模式。
 package platform
 
 import (

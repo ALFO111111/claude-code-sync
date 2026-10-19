@@ -1,4 +1,4 @@
-# 每次推送 / PR：格式、静态检查、全部测试、前端文字检查和构建。
+# 每次推送 / PR：格式、静态检查、全部测试、前端文字检查、前端单元测试和构建。
 # 测试全部在临时目录里跑（云端用本地文件夹或内存假 S3 代替），不需要任何密钥。
 name: CI
 
@@ -34,11 +34,12 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
           wails generate module
 
-      - name: Frontend (i18n check + build)
+      - name: Frontend (i18n check + unit tests + build)
         working-directory: frontend
         run: |
           npm ci
           npm run check-i18n
+          npm test
           npm run build
 
       - name: gofmt

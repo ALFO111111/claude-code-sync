@@ -18,9 +18,16 @@
 > [!NOTE]
 > 这是社区开发的**非官方**工具，与 Anthropic 没有任何关系。“Claude” 是 Anthropic 的商标。
 
-<!-- TODO: 截图放到 docs/images/ 后在这里展示，例如：
-<p align="center"><img src="docs/images/home.png" width="720" alt="首页" /></p>
--->
+<p align="center"><img src="docs/images/home.png" width="760" alt="首页：同步状态、本轮明细、设备、云端空间" /></p>
+
+<details>
+<summary><b>更多截图</b>（会话浏览、备份与恢复、深色模式）</summary>
+<br />
+<p align="center"><img src="docs/images/sessions.png" width="760" alt="会话：浏览、搜索、在 Claude Code 里继续" /></p>
+<p align="center"><img src="docs/images/backups.png" width="760" alt="备份与恢复：对比后一键恢复" /></p>
+<p align="center"><img src="docs/images/home-dark.png" width="760" alt="深色模式" /></p>
+<p align="center"><sub>截图里的设备、项目、路径都是演示数据（<code>cd frontend && npm run demo</code>）。</sub></p>
+</details>
 
 ## 为什么需要它
 
@@ -34,8 +41,10 @@ claude-code-sync 专门解决这个问题：
 - **路径自动翻译**：A 电脑的 `D:\work\app` 拉到 B 电脑时自动换成 `E:\code\app`，`claude --resume` 直接能用
 - **项目自动对上**：git 项目按远程仓库地址自动匹配（ssh / https 写法都认）；普通文件夹在界面上点一下“认领”
 - **端到端加密**：上传前用你的口令加密（Argon2id + AES-256-GCM），云端只看得到乱码
-- **不丢数据**：两台电脑各自续聊了同一个会话时，两份都保留（另一份存为新会话）；被覆盖的文件先备份
-- **全自动**：Claude Code 每次对话开始和回复结束时同步当前项目，程序开着时文件一变就同步，另外每小时全量兜底一次
+- **不丢数据**：会话只往末尾追加、从不整份覆盖；两台电脑各自续聊了同一个会话时，两份都保留（另一份存为新会话）；其他文件被替换前先备份，在“备份”页对比后一键恢复
+- **全自动**：开机自动在托盘里运行，文件一变就同步；Claude Code 每次对话开始和回复结束时同步当前项目；另外每小时全量兜底一次
+- **会话浏览**：按标题列出每个项目的会话，跨项目搜索聊天内容，一键在终端里 `claude --resume` 接着聊
+- **随时改口令**：所有云端文件用新口令重新加密，其他电脑输入新口令后接着同步
 - **用你自己的存储**：任何 S3 兼容的对象存储都行：阿里云 OSS、腾讯云 COS、Cloudflare R2、AWS S3、MinIO（自建/NAS）……
 - **图形界面 + 命令行**：单个 exe，免安装；界面支持简体中文和 English
 
@@ -68,7 +77,7 @@ claude-code-sync 专门解决这个问题：
    - git 项目（有远程仓库地址）会自动对上，不用管
    - 普通文件夹：打开“项目绑定”页，在“待认领”里点“认领”，选本机对应的目录
    - 没打开项目、直接在用户目录里聊的会话，会自动对上另一台电脑的用户目录
-5. **换电脑接着聊**：在对应项目目录里运行 `claude --resume`，就能看到另一台电脑上的会话。
+5. **换电脑接着聊**：在对应项目目录里运行 `claude --resume`，就能看到另一台电脑上的会话；也可以在程序的“会话”页找到它，点“继续”。
 
 > [!TIP]
 > 会话同步了，**代码也要同步**（用 git）。换电脑前提交、推送，不然 AI 看到的聊天记录和代码会对不上。
@@ -170,13 +179,16 @@ D:\work\app                       v1/history.jsonl                           翻
   | 情况 | 怎么办 |
   |---|---|
   | 只有一边改了 | 正常上传或下载 |
-  | 两边都改了同一个会话，一边是另一边的“前半段” | 取更完整的那份 |
+  | 两边都改了同一个会话，一边是另一边的“前半段” | 取更完整的那份：只把缺的记录追加到本机文件末尾，从不整份覆盖（Claude Code 正在写也不会吞掉它刚写的那句） |
   | 两边各自续聊出了不同内容 | 都保留：另一份存成新会话 |
   | 项目记忆 MEMORY.md 两边都改了 | 按行合并 |
-  | 其他文件两边都改了 | 本机优先，云端那份备份到 `~/.claude-code-sync/backup/`（保留 14 天） |
+  | 其他文件两边都改了 | 本机优先，另一台的版本进备份 |
+  | 其他文件只有另一台改了 | 下载，替换前本机的旧版本进备份 |
   | Claude Code 自己清理掉的旧会话 | 不会被重新拉回来 |
 
-- **四层触发**：Claude Code hooks（`SessionStart` / `Stop`）是主力；程序在托盘常驻时盯文件变化；Windows 定时任务每小时兜底一次；也可以随时手动点“立即同步”。
+  备份在 `~/.claude-code-sync/backup/`，保留 14 天。程序的“备份”页可以查看、和本机现在的版本逐行对比、一键恢复（恢复前的版本也会先备份，可以再换回来）。
+
+- **四层触发**：Claude Code hooks（`SessionStart` / `Stop`）是主力；程序开机自启、在托盘常驻时盯文件变化（设置页可以关掉开机自启）；Windows 定时任务每小时兜底一次；也可以随时手动点“立即同步”。
 
 ## 命令行
 
@@ -190,7 +202,8 @@ claude-code-sync status                     # 查看绑定情况和待认领项�
 claude-code-sync claim <项目ID> <本机路径>   # 认领其他电脑上的项目
 claude-code-sync ignore <项目ID>             # 忽略 / 停止同步一个项目（不删文件）
 claude-code-sync unignore <项目ID>           # 取消忽略
-claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务）
+claude-code-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
+claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启）
 claude-code-sync version
 ```
 
@@ -200,6 +213,14 @@ claude-code-sync version
 <summary><b>多台电脑能共用一个 bucket 吗？</b></summary>
 
 不但能，而且**必须**共用。电脑之间没有直接通信，全靠同一个 bucket 碰头。bucket 和路径前缀不一致的话，等于没同步。不同的云账号、不同的密钥都可以，只要指向同一个 bucket。
+</details>
+
+<details>
+<summary><b>怎么修改同步口令？</b></summary>
+
+在“设置 → 同步口令”里点“修改口令”（或运行 `claude-code-sync passwd`）。程序会把云端的全部文件用新口令重新加密，文件多的话要几分钟；万一中途断了，用同样的口令再来一次就行。
+
+改完之后，其他电脑会暂停同步（不会用旧口令接着上传），打开程序首页会提示输入新口令，输入后继续。
 </details>
 
 <details>
@@ -232,7 +253,7 @@ claude-code-sync version
 <details>
 <summary><b>怎么卸载？</b></summary>
 
-1. 运行 `claude-code-sync uninstall`，删除 Claude Code hooks 和 Windows 定时任务（会话、配置、云端数据都不动）
+1. 运行 `claude-code-sync uninstall`，删除 Claude Code hooks、Windows 定时任务和开机自启（会话、配置、云端数据都不动）
 2. 在托盘图标上右键 → 退出
 3. 删除 exe 和 `%USERPROFILE%\.claude-code-sync` 目录
 4. 云端数据：在服务商控制台删除 bucket 里的 `v1/` 目录

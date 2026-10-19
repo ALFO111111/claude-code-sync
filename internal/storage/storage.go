@@ -80,6 +80,8 @@ type Storage interface {
 	List(ctx context.Context, prefix string) ([]Object, error)
 	Get(ctx context.Context, key string) (data []byte, etag string, err error)
 	Put(ctx context.Context, key string, data []byte) (etag string, err error)
+	// Stat 只取文件信息（etag、大小），不下载内容。不存在返回 ErrNotFound。
+	Stat(ctx context.Context, key string) (Object, error)
 }
 
 // New 按配置创建存储。c 应已 Normalize（config.Load 和 service 层都会做）。

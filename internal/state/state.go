@@ -52,15 +52,40 @@ type CachedDevice struct {
 }
 
 type State struct {
-	Bindings      map[string]*Binding     `json:"bindings"`           // pid → 绑定
-	Ignored       map[string]bool         `json:"ignored"`            // 用户选择忽略的 pid
-	Files         map[string]*FileState   `json:"files"`              // 云端 key → 状态
-	Devices       map[string]CachedDevice `json:"devices"`            // 其他设备信息缓存
-	PublishedHash string                  `json:"publishedHash"`      // 上次上传的本机设备信息
-	LastSync      time.Time               `json:"lastSync,omitempty"` // 上次同步时间（GUI 首页用）
+	Bindings      map[string]*Binding     `json:"bindings"`              // pid → 绑定
+	Ignored       map[string]bool         `json:"ignored"`               // 用户选择忽略的 pid
+	Files         map[string]*FileState   `json:"files"`                 // 云端 key → 状态
+	Devices       map[string]CachedDevice `json:"devices"`               // 其他设备信息缓存
+	PublishedHash string                  `json:"publishedHash"`         // 上次上传的本机设备信息
+	PublishedAt   time.Time               `json:"publishedAt,omitempty"` // 上次上传设备信息的时间（每小时至少报一次"我还在"）
+	LastSync      time.Time               `json:"lastSync,omitempty"`    // 上次同步时间（GUI 首页用）
 	LastStats     SyncStats               `json:"lastStats,omitempty"`
-	History       *FileState              `json:"history,omitempty"` // ~/.claude/history.jsonl 上次同步时的样子
+	LastChanges   []Change                `json:"lastChanges,omitempty"`  // 上次同步改动了哪些文件（首页"本轮明细"）
+	History       *FileState              `json:"history,omitempty"`      // ~/.claude/history.jsonl 上次同步时的样子
+	Forks         map[string]string       `json:"forks,omitempty"`        // 分叉出来的会话 ID → 原会话 ID（会话页标记用）
+	KeycheckETag  string                  `json:"keycheckEtag,omitempty"` // 上次验证通过的云端口令校验文件
+	KeyMismatch   bool                    `json:"keyMismatch,omitempty"`  // 云端口令已在其他设备上修改，本机要输入新口令
 }
+
+// 本轮明细里的变化种类。
+const (
+	ChangePush     = "push"     // 本机的修改传到了云端
+	ChangePull     = "pull"     // 其他设备的修改拉到了本机
+	ChangeMerge    = "merge"    // 两边都改了，合并了
+	ChangeFork     = "fork"     // 会话在两台设备上各自继续了，另存了一份
+	ChangeConflict = "conflict" // 两边都改了，保留了本机的，另一台的版本进了备份
+)
+
+// Change 一次同步里一个文件的变化。
+type Change struct {
+	Kind string `json:"kind"`
+	PID  string `json:"pid"`
+	Dir  string `json:"dir"`
+	Rel  string `json:"rel"`
+}
+
+// MaxChanges 本轮明细最多记多少条（首次同步可能上千个文件，全记没意义）。
+const MaxChanges = 200
 
 // SyncStats 一次同步的统计。
 type SyncStats struct {
@@ -100,6 +125,9 @@ func Load() (*State, error) {
 	}
 	if st.Devices == nil {
 		st.Devices = map[string]CachedDevice{}
+	}
+	if st.Forks == nil {
+		st.Forks = map[string]string{}
 	}
 	return st, nil
 }

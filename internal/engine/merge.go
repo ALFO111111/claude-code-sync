@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ALFO111111/claude-code-sync/internal/crypt"
@@ -60,34 +62,65 @@ func isSubset(a, b map[string]bool) bool {
 	return true
 }
 
-// unionLines 保留本地全部记录，再追加远端独有的记录。
-func unionLines(local, remote []byte) []byte {
-	return unionBy(local, remote, lineKey)
-}
-
-// unionTextLines 文本文件按行取并集（MEMORY.md 用），key 是去掉首尾空白的整行。
-func unionTextLines(local, remote []byte) []byte {
-	return unionBy(local, remote, func(l []byte) string { return strings.TrimSpace(string(l)) })
-}
-
-// unionBy 保留本地全部行，再追加远端独有的行（key 决定"算不算同一行"）。
+// missingLines 远端有、本地没有的行（key 决定"算不算同一行"），按远端的顺序、去重。
 // 行尾的 \r 统一剥掉（CRLF 文件混进 \r 会让 jsonl 解析和文本比对变脏）。
-func unionBy(local, remote []byte, key func([]byte) string) []byte {
+func missingLines(local, remote []byte, key func([]byte) string) [][]byte {
 	have := map[string]bool{}
-	var out []byte
-	for _, data := range [][]byte{local, remote} {
-		for _, l := range SplitLines(data) {
-			l = bytes.TrimRight(l, "\r")
-			k := key(l)
-			if have[k] {
-				continue
-			}
+	for _, l := range SplitLines(local) {
+		have[key(bytes.TrimRight(l, "\r"))] = true
+	}
+	var out [][]byte
+	for _, l := range SplitLines(remote) {
+		l = bytes.TrimRight(l, "\r")
+		if k := key(l); !have[k] {
 			have[k] = true
-			out = append(out, l...)
-			out = append(out, '\n')
+			out = append(out, l)
 		}
 	}
 	return out
+}
+
+// textLineKey 文本文件（MEMORY.md）按行比对：去掉首尾空白的整行。
+func textLineKey(l []byte) string { return strings.TrimSpace(string(l)) }
+
+// appendLines 把缺的行追加到文件末尾（只追加、不重写），返回追加后的完整内容（按 local 推算）。
+// 为什么不整份重写：Claude Code 随时可能在往文件末尾追加，"读出来 → 合并 → 写回去"中间
+// 它写的那一行会被我们覆盖掉；用追加模式写，两边写的内容都在。
+func appendLines(path string, local []byte, lines [][]byte) ([]byte, error) {
+	if len(lines) == 0 {
+		return local, nil
+	}
+	var buf bytes.Buffer
+	if len(local) > 0 && local[len(local)-1] != '\n' {
+		buf.WriteByte('\n') // 最后一行是完整的但没换行
+	}
+	for _, l := range lines {
+		buf.Write(l)
+		buf.WriteByte('\n')
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	_, werr := f.Write(buf.Bytes())
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		return nil, werr
+	}
+	return append(local[:len(local):len(local)], buf.Bytes()...), nil
+}
+
+// lastLineComplete 文件为空、以换行结尾、或最后一行是完整的 JSON。
+func lastLineComplete(data []byte) bool {
+	if len(data) == 0 || data[len(data)-1] == '\n' {
+		return true
+	}
+	return json.Valid(data[bytes.LastIndexByte(data, '\n')+1:])
 }
 
 // forkUUID 由旧会话 ID + 远端内容确定性地算出新会话 ID。
