@@ -1,12 +1,7 @@
-# 发布：推送 v 开头的标签（如 v0.1.0、v0.2.0-beta.1）时自动构建、（可选）签名、发布到 GitHub Releases。
+# 发布：推送 v 开头的标签（如 v0.1.0、v0.2.0-beta.1）时自动构建并发布到 GitHub Releases。
 #
 #   1. CHANGELOG.md 里把 [Unreleased] 改成 [0.1.0] - 日期，提交
 #   2. git tag v0.1.0 && git push origin v0.1.0
-#
-# 代码签名（SignPath，开源项目免费）：在仓库 Settings → Secrets and variables → Actions 里配置
-#   secret   SIGNPATH_API_TOKEN
-#   variable SIGNPATH_ORGANIZATION_ID / SIGNPATH_PROJECT_SLUG / SIGNPATH_POLICY_SLUG
-# 没配置时跳过签名，照常发布未签名的 exe。申请步骤见 docs/code-signing.md。
 name: Release
 
 on:
@@ -15,7 +10,6 @@ on:
 
 permissions:
   contents: write # 创建 Release、上传文件
-  actions: read   # SignPath 读取构建产物
 
 jobs:
   release:
@@ -55,31 +49,6 @@ jobs:
           # 版本号写进 exe 文件属性（右键 → 属性 → 详细信息）
           node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('wails.json'));j.info.productVersion='${{ steps.ver.outputs.numeric }}';fs.writeFileSync('wails.json',JSON.stringify(j,null,2)+'\n')"
           wails build -clean -trimpath -ldflags "-X main.version=${{ steps.ver.outputs.version }}"
-
-      - name: Upload unsigned exe
-        id: unsigned
-        uses: actions/upload-artifact@v7
-        with:
-          name: claude-code-sync-unsigned
-          path: build/bin/claude-code-sync.exe
-
-      - name: Sign (SignPath)
-        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
-        uses: signpath/github-action-submit-signing-request@v3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
-          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
-          wait-for-completion: true
-          wait-for-completion-timeout-in-seconds: 3600 # release-signing 要人工批准，留足时间
-          output-artifact-directory: signed
-
-      - name: Use signed exe
-        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
-        shell: bash
-        run: cp signed/claude-code-sync.exe build/bin/claude-code-sync.exe
 
       - name: Package
         shell: pwsh

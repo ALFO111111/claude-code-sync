@@ -59,8 +59,8 @@ The GUI uses WebView2, which ships with Windows 11 and is usually present on Win
 Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases) and put it in a **permanent location**, e.g. `%LOCALAPPDATA%\Programs\claude-code-sync\`. Automatic sync remembers where the exe is; if you move it later, just open the app once and the path is fixed for you.
 
 > [!IMPORTANT]
-> Code signing is being applied for (see the [code signing policy](#code-signing-policy)). Until it's approved, released executables are unsigned, and the first launch may show "Windows protected your PC". Click **More info → Run anyway**.
-> You can verify the download against `SHA256SUMS.txt` in the release, or [build it from source](CONTRIBUTING.md).
+> The executables are not code-signed — this is a personal open-source project and a signing certificate costs more than it can afford. On the first launch Windows may show "Windows protected your PC"; click **More info → Run anyway**. This is Windows' generic warning for any unsigned software, not an indication of a problem.
+> If you'd rather not take that on faith: verify the download against `SHA256SUMS.txt` in the release, audit the source, or [build it yourself](CONTRIBUTING.md).
 
 ## Get started in 5 minutes
 
@@ -258,15 +258,6 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 - Sessions are encrypted locally before upload: the passphrase is stretched with Argon2id into a 256-bit key; content is gzip-compressed and encrypted with AES-256-GCM, with the object path as associated data to prevent swapping.
 - The app only talks to **the object storage you configured**. No telemetry, analytics or any other network requests.
 - Found a security issue? Please see [SECURITY.md](SECURITY.md) instead of opening a public issue.
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). (Application in progress; releases are unsigned until it's approved.)
-
-- Committers and reviewers: [ALFO111111](https://github.com/ALFO111111)
-- Approvers: [ALFO111111](https://github.com/ALFO111111)
-
-Privacy policy: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. It only sends data to the object storage configured by the user.
 
 ## Contributing
 
