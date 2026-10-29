@@ -57,6 +57,37 @@ var en = map[string]string{
 	"将比对合并 %s/%s":                       "Will compare and merge %s/%s",
 	"会话 %s 在两台设备上各自继续了，另一份已另存为新会话 %s":   "Session %s was continued separately on two devices; the other copy was saved as new session %s",
 	"备份失败 %s: %v":                       "Backup failed %s: %v",
+	"全局内容同步失败: %v":                      "Global content sync failed: %v",
+	"保存 CC Switch 检测状态失败: %v":           "Failed to save CC Switch detection state: %v",
+	"全局文件 %s 正在被修改，本轮先跳过":               "Global file %s is being modified; skipped this round",
+	"全局文件同步失败 %s/%s: %v":                "Global file sync failed %s/%s: %v",
+	"列出云端全局文件失败: %w":                    "Failed to list global cloud files: %w",
+	"遍历全局内容 %s 失败（本类别本轮跳过）: %v":         "Failed to scan global content %s (category skipped this round): %v",
+	"列出云端结构化配置失败: %w":                   "Failed to list structured cloud config: %w",
+	"将合并全局文件 %s/%s":                     "Will merge global file %s/%s",
+	"全局文件 %s/%s 需要人工处理冲突":               "Global file %s/%s needs manual conflict resolution",
+	"全局文件 %s/%s 两边都有不同修改，已放入冲突中心":       "Global file %s/%s changed differently on both sides; added to the conflict center",
+	"将下载全局文件 %s/%s":                     "Will download global file %s/%s",
+	"将上传全局文件 %s/%s":                     "Will upload global file %s/%s",
+	"云端全局文件 %s/%s 被其他设备并发覆盖，下轮重新合并":     "Global cloud file %s/%s was overwritten by another device; will merge again next round",
+	"清理已解决冲突记录失败 %s/%s: %v":             "Failed to clear resolved conflict record %s/%s: %v",
+	"未知的全局内容类别":                         "Unknown global content category",
+	"非法冲突 ID":                           "Invalid conflict ID",
+	"本机文件在冲突产生后又改过，请先重新同步再处理":           "The local file changed after the conflict was recorded; sync again before resolving it",
+	"云端文件在冲突产生后又改过，请先重新同步再处理":           "The cloud file changed after the conflict was recorded; sync again before resolving it",
+	"手工合并的 settings 不符合格式: %w":          "Manually merged settings are invalid: %w",
+	"手工合并的 MCP 不符合格式: %w":               "Manually merged MCP config is invalid: %w",
+	"这个文件不能保留两份，请手工合并":                  "This file cannot be kept as two copies; please merge manually",
+	"未知的冲突解决方式":                         "Unknown conflict resolution",
+	"云端刚被其他设备覆盖，冲突尚未解决，请重试":             "The cloud copy was just overwritten by another device; the conflict is still open, please retry",
+	"保留两份用的副本文件已经存在，请先重命名":              "The copy needed to keep both versions already exists; please rename it first",
+	"非法全局内容路径":                          "Invalid global content path",
+	"本机文件已经存在，请先同步或处理冲突":                "The local file already exists; sync or resolve its conflict first",
+	"配置顶层必须是 JSON 对象":                   "The top-level config must be a JSON object",
+	"配置 JSON 后面有多余内容":                   "Unexpected content after the config JSON",
+	"settings 同步内容缺少 settings 对象":       "Synced settings content is missing the settings object",
+	"MCP 同步内容缺少 mcpServers 对象":          "Synced MCP content is missing the mcpServers object",
+	"%s 中有 %d 项含秘密或无法映射的本机路径，已保留在本机：%s": "%s: %d entries contain secrets or unmappable local paths and were kept on this machine: %s",
 
 	// watch
 	"文件监听出错: %v": "File watcher error: %v",
@@ -67,11 +98,16 @@ var en = map[string]string{
 	"自动同步安装失败: %v":                "Failed to set up automatic sync: %v",
 	"补回 Claude Code hooks 失败: %v": "Failed to restore Claude Code hooks: %v",
 	"Claude Code hooks 不见了（可能是 CC Switch 等工具改写了 settings.json），已自动补回": "Claude Code hooks were missing (settings.json was probably rewritten by a tool like CC Switch); restored automatically",
-	"settings.json 解析失败 %s: %w": "Failed to parse settings.json %s: %w",
-	"请填写设备名":                    "Please enter a device name",
-	"口令不能为空":                    "Passphrase cannot be empty",
-	"存储类型不能为空":                  "Storage type cannot be empty",
-	"连不上云端，请检查配置和网络: %w":        "Cannot connect to the cloud, please check the settings and network: %w",
+	"settings.json 解析失败 %s: %w":       "Failed to parse settings.json %s: %w",
+	"settings.json 刚被其他程序修改，本轮先不重写":   "settings.json was just changed by another program; it will not be rewritten this round",
+	"未知的同步内容类别":                       "Unknown synced content category",
+	"这个类别可能也在由 CC Switch 同步，请先选择由谁负责": "CC Switch may also sync this category; choose which tool owns it first",
+	"这个类别不需要选择 CC Switch 负责人":         "This category does not need a CC Switch owner",
+	"未知的同步负责人":                        "Unknown sync owner",
+	"请填写设备名":                          "Please enter a device name",
+	"口令不能为空":                          "Passphrase cannot be empty",
+	"存储类型不能为空":                        "Storage type cannot be empty",
+	"连不上云端，请检查配置和网络: %w":              "Cannot connect to the cloud, please check the settings and network: %w",
 	"口令与云端不一致！云端已有其他设备用别的口令加密的数据，请输入相同的口令（或清空云端重新开始）": "Passphrase does not match the cloud! Another device already stored data encrypted with a different passphrase. Enter the same passphrase (or empty the cloud storage and start over)",
 	"连接失败: %w":  "Connection failed: %w",
 	"非法路径":      "Invalid path",
@@ -108,6 +144,17 @@ var en = map[string]string{
 	"注意：再次打开图形界面会自动重新安装。":                                   "Note: opening the app again will reinstall it automatically.",
 	"--cwd 需要参数": "--cwd requires an argument",
 	"不认识的参数 %s":  "Unknown option %s",
+	"以下类别可能也在由 CC Switch 同步，本轮已暂停，请用 content owner 选择负责人:": "These categories may also be synced by CC Switch and were paused this round; choose an owner with content owner:",
+	"用法: %s restore-content <类别> <相对路径>":                   "Usage: %s restore-content <category> <relative-path>",
+	"CC Switch Auto Sync:": "CC Switch Auto Sync:",
+	"关闭":                   "off",
+	"开启":                   "on",
+	"待选择负责人（本轮暂停）":         "owner needed (paused this round)",
+	"用法: %s content [enable|disable <类别> | owner <类别> sync|ccswitch]": "Usage: %s content [enable|disable <category> | owner <category> sync|ccswitch]",
+	"没有待解决的冲突": "No unresolved conflicts",
+	"用 resolve 命令选择保留哪一边；手工合并请在图形界面操作。":                                    "Use resolve to choose a side; use the app for manual merging.",
+	"用法: %s resolve <冲突ID> local|remote|both，或 resolve <冲突ID> merged <文件>": "Usage: %s resolve <conflict-id> local|remote|both, or resolve <conflict-id> merged <file>",
+	"merged 需要提供一个手工合并后的文件":                                                "merged requires a manually merged file",
 	`{app} - 把 Claude Code 的会话在多台设备之间同步
 
 用法：
@@ -116,6 +163,13 @@ var en = map[string]string{
   {app} sync                 双向同步（最常用）
   {app} sync --dry           只显示会做什么，不真正改动
   {app} status               查看本机项目绑定和云端待认领的项目
+  {app} content              查看全局同步内容开关
+  {app} content enable|disable <类别>   开关一个全局内容类别
+  {app} content owner <类别> sync|ccswitch   选择可能重复的类别由谁同步
+  {app} conflicts            列出待解决的冲突
+  {app} resolve <冲突ID> local|remote|both   解决冲突
+  {app} resolve <冲突ID> merged <文件>       使用手工合并后的文件解决
+  {app} restore-content <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
@@ -135,6 +189,13 @@ Usage:
   {app} sync                 two-way sync (the one you'll use most)
   {app} sync --dry           show what would happen without changing anything
   {app} status               show local project bindings and cloud projects waiting to be claimed
+  {app} content              show which global content is synced
+  {app} content enable|disable <category>   turn a global content category on or off
+  {app} content owner <category> sync|ccswitch   choose which tool syncs a possibly duplicated category
+  {app} conflicts            list unresolved conflicts
+  {app} resolve <conflict-id> local|remote|both   resolve a conflict
+  {app} resolve <conflict-id> merged <file>       resolve with a manually merged file
+  {app} restore-content <category> <relative-path>   restore a locally deleted global file from the cloud
   {app} claim <project-id> <local-path>   bind a cloud project to a local folder
   {app} ignore <project-id>  ignore a project (stops syncing a bound one; no files are deleted)
   {app} unignore <project-id>  stop ignoring a project

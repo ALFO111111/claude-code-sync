@@ -45,7 +45,7 @@
                 </i18n-t>
               </div>
               <div class="muted small ellipsis" :title="it.rel">
-                {{ it.project }} · <span class="mono">{{ it.rel }}</span> · {{ clock(it.time) }}<template v-if="it.size"> · {{ fmtSize(it.size) }}</template>
+                {{ projectName(it) }} · <span class="mono">{{ it.rel }}</span> · {{ clock(it.time) }}<template v-if="it.size"> · {{ fmtSize(it.size) }}</template>
               </div>
             </div>
             <template v-if="it.kind === 'fork'">
@@ -161,6 +161,8 @@ function dayLabel(d) {
 }
 const clock = (ms) => new Date(ms).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 const fileName = (rel) => rel.split('/').pop()
+// 全局内容（规则、技能、settings…）的备份没有项目，显示它的类别
+const projectName = (it) => (it.scope === 'global' ? t(`content.cat.${it.category}`) : it.project)
 
 // ---------- 展开查看 ----------
 const openId = ref('')
@@ -197,7 +199,7 @@ watch(filter, () => { openId.value = '' })
 // ---------- 恢复 ----------
 async function restore(it) {
   const name = fileName(it.rel)
-  const yes = await api.Confirm(t('backups.confirmTitle'), t('backups.confirmMsg', { file: it.rel, project: it.project }))
+  const yes = await api.Confirm(t('backups.confirmTitle'), t('backups.confirmMsg', { file: it.rel, project: projectName(it) }))
   if (!yes) return
   busy.value = true
   clear()

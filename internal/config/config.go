@@ -28,6 +28,11 @@ type Config struct {
 	Language    string         `json:"language,omitempty"`    // 界面语言 zh-CN / en；空 = 跟随系统
 	Theme       string         `json:"theme,omitempty"`       // 界面主题 light / dark；空 = 跟随系统
 	NoAutostart bool           `json:"noAutostart,omitempty"` // 用户关掉了开机自启（默认开）
+
+	ContentDisabled []string        `json:"contentDisabled,omitempty"` // 用户关闭的内容类别；默认全部开启
+	ContentApproved map[string]bool `json:"contentApproved,omitempty"` // CC Switch 自动同步开着，仍明确选择由本工具同步
+	CCSwitchKnown   bool            `json:"ccSwitchKnown,omitempty"`   // 是否已有明确的 CC Switch 检测结果
+	CCSwitchEnabled bool            `json:"ccSwitchEnabled,omitempty"` // 上次明确的 Auto Sync 状态，用于发现关闭后重新开启
 }
 
 // Dir 是本工具自己的数据目录，可用环境变量 CLAUDE_CODE_SYNC_HOME 覆盖（测试/沙箱用）。
@@ -64,6 +69,84 @@ func (c *Config) ApplyDefaults() {
 
 // ProjectsDir Claude Code 存会话的目录 ~/.claude/projects。
 func (c *Config) ProjectsDir() string { return filepath.Join(c.ClaudeDir, "projects") }
+
+const (
+	ContentRules    = "rules"
+	ContentPlans    = "plans"
+	ContentSkills   = "skills"
+	ContentAgents   = "agents"
+	ContentCommands = "commands"
+	ContentTasks    = "tasks"
+	ContentSettings = "settings"
+	ContentMCP      = "mcp"
+)
+
+var ContentCategories = []string{
+	ContentRules, ContentPlans, ContentSkills, ContentAgents,
+	ContentCommands, ContentTasks, ContentSettings, ContentMCP,
+}
+
+func ContentCategoryKnown(category string) bool {
+	for _, known := range ContentCategories {
+		if category == known {
+			return true
+		}
+	}
+	return false
+}
+
+// CCSwitchCategories 这些类别也可能被 CC Switch 的整库 Auto Sync 带上。
+var CCSwitchCategories = map[string]bool{ContentRules: true, ContentSkills: true, ContentMCP: true}
+
+func (c *Config) ContentEnabled(category string) bool {
+	for _, disabled := range c.ContentDisabled {
+		if disabled == category {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Config) SetContentEnabled(category string, enabled bool) {
+	var out []string
+	for _, disabled := range c.ContentDisabled {
+		if disabled != category {
+			out = append(out, disabled)
+		}
+	}
+	if !enabled {
+		out = append(out, category)
+	}
+	c.ContentDisabled = out
+}
+
+// UpdateCCSwitch 记录明确检测结果；关闭后重新开启时，旧的“仍由本工具同步”确认失效。
+// 返回配置是否发生变化。unknown 不应调用。
+func (c *Config) UpdateCCSwitch(enabled bool) bool {
+	changed := false
+	if enabled && (!c.CCSwitchKnown || !c.CCSwitchEnabled) && len(c.ContentApproved) > 0 {
+		c.ContentApproved = map[string]bool{}
+		changed = true
+	}
+	if !c.CCSwitchKnown || c.CCSwitchEnabled != enabled {
+		changed = true
+	}
+	c.CCSwitchKnown, c.CCSwitchEnabled = true, enabled
+	return changed
+}
+
+func (c *Config) ContentPending(category string, ccSwitchEnabled bool) bool {
+	return ccSwitchEnabled && CCSwitchCategories[category] && !c.ContentApproved[category]
+}
+
+// ClaudeStatePath Claude 的全局状态文件：默认在 Home；自定义配置目录/沙箱时跟随 ClaudeDir。
+func (c *Config) ClaudeStatePath() string {
+	defaultDir := filepath.Join(c.Home, ".claude")
+	if fsutil.SamePath(c.ClaudeDir, defaultDir) && os.Getenv("CLAUDE_CONFIG_DIR") == "" {
+		return filepath.Join(c.Home, ".claude.json")
+	}
+	return filepath.Join(c.ClaudeDir, ".claude.json")
+}
 
 // Ignored 任一名字（本地目录名或项目 ID）在忽略列表里就返回 true。
 func (c *Config) Ignored(names ...string) bool {

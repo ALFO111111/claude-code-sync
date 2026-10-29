@@ -2,7 +2,7 @@
 // vue-i18n syntax: {name} is a parameter; "A | B" picks singular/plural by count;
 // avoid the characters @ { } | in plain text.
 export default {
-  nav: { home: 'Home', sessions: 'Sessions', bindings: 'Projects', backups: 'Backups', settings: 'Settings', logs: 'Logs' },
+  nav: { home: 'Home', sessions: 'Sessions', bindings: 'Projects', backups: 'Backups', conflicts: 'Conflicts', settings: 'Settings', logs: 'Logs' },
 
   common: {
     syncing: 'Syncing…',
@@ -34,6 +34,10 @@ export default {
   kind: { home: 'Home folder', git: 'Git project', local: 'Local folder' },
 
   home: {
+    conflicts: '{n} global file(s) were changed differently on two computers and could not be merged automatically. Choose which version to keep (your local file keeps working meanwhile).',
+    seeConflicts: 'Resolve',
+    pendingContent: 'CC Switch auto sync is on too: global rules, skills and MCP could be synced twice, so they are paused. Choose which tool owns them.',
+    chooseOwner: 'Choose',
     status: 'Sync status',
     lastSync: 'Last sync: {when}',
     pushed: 'Uploaded {n}',
@@ -185,6 +189,69 @@ export default {
     confirmMsg: '{file} in “{project}” will be replaced with this backup.\n\nThe current version is backed up first (you can restore it again), and the restored file is synced to your other devices.\n\nContinue?',
     restored: 'Restored {file} and synced it to your other devices',
     restoreFailed: 'Restore failed: {err}',
+  },
+
+  content: {
+    title: 'What to sync',
+    intro: 'Besides sessions and project memory, these can be synced too. Turning one off only stops syncing; no local or cloud files are deleted. Deleting a file on one computer never deletes it on the others.',
+    ccWarn: 'CC Switch auto sync is on and it also syncs global rules, skills and MCP. Syncing them from both tools may overwrite each other; pick one owner for the categories marked below.',
+    cat: {
+      rules: 'Global rules CLAUDE.md',
+      plans: 'Plans',
+      skills: 'Skills',
+      agents: 'Agents',
+      commands: 'Custom commands',
+      tasks: 'Tasks',
+      settings: 'Settings (safe fields)',
+      mcp: 'MCP servers',
+    },
+    desc: {
+      rules: 'Rules that apply to every project',
+      plans: 'Plans written in plan mode',
+      skills: 'Skills you installed (except the synced folder managed by CC Switch)',
+      agents: 'Your custom subagents',
+      commands: 'Your custom slash commands',
+      tasks: 'Task lists',
+      settings: 'Only language, auto memory and co-author settings; model, keys, hooks and permissions stay on this computer',
+      mcp: 'User-level MCP servers; secrets, env vars and unrecognized local paths are never uploaded',
+    },
+    ownerSync: 'Synced by this app (CC Switch auto sync is also on)',
+    ownerCC: 'Left to CC Switch',
+    pickSync: 'Sync with this app',
+    pickCC: 'Leave to CC Switch',
+  },
+
+  conflicts: {
+    title: 'Conflicts',
+    intro: 'Two computers changed the same part of a global file in different ways, so it could not be merged automatically. Your local file stays as it is and keeps working; the other version waits here for your decision. Other files keep syncing.',
+    emptyTitle: 'No conflicts to resolve',
+    emptyDesc: 'Changes to different parts are merged automatically. Only edits to the same spot show up here.',
+    handle: 'Resolve',
+    safe: 'Nothing changes on this computer until you choose. The version you replace is saved to backups first.',
+    binary: 'This is not a text file and cannot be previewed; you can only choose which copy to keep.',
+    tooLarge: 'The file is too large; only the beginning is shown and manual merging is not available here.',
+    tabDiff: 'Differences',
+    tabLocal: 'This computer',
+    tabRemote: 'Other computer',
+    tabBase: 'Last common version',
+    tabEdit: 'Merge manually',
+    legendRemote: 'only on the other computer',
+    legendLocal: 'only on this computer',
+    editHint: 'Start from the local version, edit it into the final result, then click Save merged result.',
+    keepLocal: 'Keep mine',
+    useRemote: 'Use theirs',
+    keepBoth: 'Keep both',
+    saveMerged: 'Save merged result',
+    resolveNote: 'The result is synced to your other computers automatically.',
+    confirmTitle: 'Resolve this conflict?',
+    confirm: {
+      local: 'Keep the local {file}. The other version is saved to backups and the local one is synced over.',
+      remote: 'Replace the local {file} with the version from the other computer. The current local copy is backed up first.',
+      both: 'Keep the local {file} and save the other version as a new file. Both keep syncing.',
+      merged: 'Replace {file} with your merged content. The current local copy is backed up first.',
+    },
+    resolved: 'Resolved {file}',
+    resolveFailed: 'Could not resolve: {err}',
   },
 
   logs: {

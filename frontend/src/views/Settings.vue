@@ -28,6 +28,34 @@
           </div>
         </div>
 
+        <!-- 除了会话之外还同步哪些东西：改了马上生效 -->
+        <div class="card content">
+          <div class="card-head"><h3>{{ t('content.title') }}<Refreshing :on="contentRes.loading && !!content" /></h3><span class="muted small">{{ t('settings.instant') }}</span></div>
+          <div class="muted small">{{ t('content.intro') }}</div>
+          <!-- CC Switch 也开着自动同步：规则、技能、MCP 可能被两边同时同步，让用户选一个负责 -->
+          <div v-if="content?.pending.length" class="warn-box mt">{{ t('content.ccWarn') }}</div>
+          <div v-if="!content" class="mt"><Skeleton :lines="4" /></div>
+          <template v-else>
+            <div v-for="it in content.items" :key="it.category" class="setting">
+              <div class="grow">
+                <div class="label">{{ t(`content.cat.${it.category}`) }}</div>
+                <div class="desc">{{ t(`content.desc.${it.category}`) }}</div>
+                <div v-if="it.ccOverlap && content.ccSwitch === 'enabled' && !it.pending" class="desc">
+                  {{ it.enabled ? t('content.ownerSync') : t('content.ownerCC') }}
+                </div>
+                <div v-if="it.pending" class="row wrap owner">
+                  <button class="sm primary" :disabled="contentBusy" @click="setOwner(it.category, 'sync')">{{ t('content.pickSync') }}</button>
+                  <button class="sm" :disabled="contentBusy" @click="setOwner(it.category, 'ccswitch')">{{ t('content.pickCC') }}</button>
+                </div>
+              </div>
+              <label v-if="!it.pending" class="switch">
+                <input type="checkbox" :checked="it.enabled" :disabled="contentBusy" @change="toggleContent(it.category, $event.target.checked)" />
+                <span></span>
+              </label>
+            </div>
+          </template>
+        </div>
+
         <div class="card device">
           <h3>{{ t('settings.device') }}</h3>
           <div class="form-grid">
@@ -118,6 +146,9 @@ import Notice from '@/components/Notice.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
 import StorageForm from '@/components/StorageForm.vue'
 import NavIcon from '@/components/NavIcon.vue'
+import Skeleton from '@/components/Skeleton.vue'
+import Refreshing from '@/components/Refreshing.vue'
+import { resources } from '@/stores/data'
 
 const { t } = useI18n()
 const form = ref({ deviceName: '', hasSecret: false })
@@ -142,6 +173,26 @@ async function toggleAutostart(on) {
     autoBusy.value = false
   }
 }
+
+// ---------- 同步内容 ----------
+const contentRes = resources.content
+const content = computed(() => contentRes.data)
+const contentBusy = ref(false)
+async function changeContent(fn) {
+  contentBusy.value = true
+  clear()
+  try {
+    await fn()
+  } catch (e) {
+    fail(String(e))
+  } finally {
+    contentBusy.value = false
+    await contentRes.refresh()
+    resources.status.refresh() // 首页的"待选择"提示
+  }
+}
+const toggleContent = (category, on) => changeContent(() => api.SetContentEnabled(category, on))
+const setOwner = (category, owner) => changeContent(() => api.SetContentOwner(category, owner))
 
 // 决定"数据存在哪"的字段：改了任何一个都等于换了云端仓库（AccessKey 只是换钥匙、路径风格只是换访问方式，都不算）
 const LOCATION_FIELDS = {
@@ -241,6 +292,7 @@ onMounted(() => {
 })
 // 开机自启可能被 uninstall 等改了，每次进来以注册表里实际的为准
 onActivated(async () => {
+  contentRes.refresh() // CC Switch 的自动同步开关可能刚在它那边改过
   autostart.value = await api.GetAutostart()
 })
 onUnmounted(() => offRekey?.())
@@ -252,10 +304,12 @@ onUnmounted(() => offRekey?.())
 .settings .col { display: contents; }
 .settings .card { margin-bottom: 0; }
 .general { order: 1; }
-.device { order: 2; }
-.storage { order: 3; }
-.scan { order: 4; }
-.pass { order: 5; }
+.content { order: 2; }
+.device { order: 3; }
+.storage { order: 4; }
+.scan { order: 5; }
+.pass { order: 6; }
+.owner { gap: 8px; margin-top: 6px; }
 /* 宽：左右两列（侧边栏 180 + 边距后，内容区大约 950px 起），每列自己往下排 */
 @media (min-width: 1180px) {
   .settings { flex-direction: row; align-items: flex-start; }

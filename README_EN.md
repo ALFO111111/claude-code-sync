@@ -38,6 +38,7 @@ Copying the files over doesn't work either: the same project usually lives at di
 claude-code-sync solves exactly that:
 
 - **Session sync**: sessions, sub-agent transcripts and project memory (MEMORY.md) under `~/.claude/projects`, plus your input history (what ↑ brings back)
+- **Personal config sync**: global rules `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers, and a few safe fields from settings.json (language, auto memory, co-author line). Models, API keys, hooks, permissions and MCP secrets/env vars are **never uploaded**. Each category can be turned off in Settings
 - **Automatic path translation**: `D:\work\app` on machine A becomes `E:\code\app` on machine B, so `claude --resume` just works
 - **Projects match up by themselves**: git projects are matched by remote URL (ssh and https forms alike); plain folders are claimed with one click
 - **End-to-end encryption**: everything is encrypted with your passphrase before upload (Argon2id + AES-256-GCM); the cloud only sees ciphertext
@@ -188,6 +189,9 @@ D:\work\app                       v1/history.jsonl                           tra
 
   Backups live in `~/.claude-code-sync/backup/` for 14 days. The Backups page in the app lets you view them, compare them line by line with the current file, and restore with one click (the version being replaced is backed up too, so you can switch back).
 
+- **Merging personal config (rules, skills, MCP, …)**: the last common version is remembered and a three-way merge is done. Different lines or fields changed on two machines → merged automatically; the same spot changed → it goes to the Conflicts page while your local file stays usable, and you choose keep mine / use theirs / keep both / merge manually. **Deletions never propagate**: deleting a file on one machine never deletes it on another, and it is not pulled back locally either.
+- **Working with CC Switch**: CC Switch owns provider URLs, keys and models. If its auto sync is on, global rules, skills and MCP could be synced twice, so these three are paused until you pick an owner in Settings (nothing is shown if CC Switch auto sync is off).
+
 - **Four triggers**: Claude Code hooks (`SessionStart` / `Stop`) do most of the work; the app starts at login and watches for file changes from the tray (start-at-login can be turned off in Settings); a Windows scheduled task does a full sync every hour; and you can always click "Sync now".
 
 ## Command line
@@ -202,6 +206,12 @@ claude-code-sync status                        # bindings and projects waiting t
 claude-code-sync claim <project-id> <path>     # claim a project from another machine
 claude-code-sync ignore <project-id>           # ignore / stop syncing a project (no files deleted)
 claude-code-sync unignore <project-id>         # stop ignoring
+claude-code-sync content                       # which personal config is synced
+claude-code-sync content disable skills        # turn a category off (no files deleted); enable turns it on
+claude-code-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner (sync / ccswitch)
+claude-code-sync conflicts                     # list unresolved conflicts
+claude-code-sync resolve <conflict-id> local   # resolve: local / remote / both, or merged <file>
+claude-code-sync restore-content plans a.md    # pull a locally deleted config file back from the cloud
 claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
 claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login)
 claude-code-sync version

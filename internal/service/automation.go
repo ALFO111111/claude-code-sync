@@ -1,18 +1,21 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
 	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
 	"github.com/ALFO111111/claude-code-sync/internal/logging"
 	"github.com/ALFO111111/claude-code-sync/internal/platform"
+	"github.com/ALFO111111/claude-code-sync/internal/state"
 )
 
 // 自动同步是程序自带的能力，不让用户手动开关：
@@ -41,7 +44,7 @@ func EnsureAutoSync() error {
 		return err
 	}
 	var errs []error
-	if err := ensureHooks(cfg.ClaudeDir, HookCommand()); err != nil {
+	if err := withSettingsLock(func() error { return ensureHooks(cfg.ClaudeDir, HookCommand()) }); err != nil {
 		errs = append(errs, fmt.Errorf(i18n.T("安装 Claude Code hooks 失败: %w"), err))
 	}
 	if !scheduleCurrent() {
@@ -76,11 +79,12 @@ func RepairHooks() error {
 		return err
 	}
 	cmd := HookCommand()
+	// 先不拿锁看一眼：绝大多数时候 hooks 都在，不用排队等正在跑的同步
 	if ok, err := hooksConfigured(cfg.ClaudeDir, cmd); err != nil || ok {
 		return err
 	}
 	log := logging.New(true)
-	if err := ensureHooks(cfg.ClaudeDir, cmd); err != nil {
+	if err := withSettingsLock(func() error { return ensureHooks(cfg.ClaudeDir, cmd) }); err != nil {
 		log.Printf("补回 Claude Code hooks 失败: %v", err)
 		return err
 	}
@@ -95,10 +99,22 @@ func RemoveAutoSync() error {
 	if err != nil {
 		return err
 	}
+	unhook := withSettingsLock(func() error { return removeHooks(cfg.ClaudeDir) })
 	if config.Sandboxed() {
-		return removeHooks(cfg.ClaudeDir)
+		return unhook
 	}
-	return errors.Join(removeHooks(cfg.ClaudeDir), platform.RemoveSchedule(), platform.RemoveAutostart())
+	return errors.Join(unhook, platform.RemoveSchedule(), platform.RemoveAutostart())
+}
+
+// withSettingsLock 改写 settings.json 时拿同步锁：同步也会改 settings.json 里的安全字段（语言等），
+// 两边同时读—改—写会互相盖掉。只锁写 settings 这一小段，定时任务、开机自启不受影响。
+func withSettingsLock(fn func() error) error {
+	unlock, err := state.WaitLock(30 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return fn()
 }
 
 // syncAutostart 按设置登记或取消开机自启；登记的不是当前 exe 就改过来。
@@ -159,7 +175,7 @@ func hooksConfigured(claudeDir, command string) (bool, error) {
 // ensureHooks 把本工具的 hook 合并进 settings.json：缺的补上，路径不对的改过来，
 // 其他配置和别的工具的 hooks 全部保留。没有变化时不写文件。
 func ensureHooks(claudeDir, command string) error {
-	m, err := readClaudeSettings(claudeDir)
+	m, before, err := readClaudeSettingsVersion(claudeDir)
 	if err != nil {
 		return err
 	}
@@ -191,12 +207,12 @@ func ensureHooks(claudeDir, command string) error {
 	if !changed {
 		return nil
 	}
-	return writeClaudeSettings(claudeDir, m)
+	return writeClaudeSettings(claudeDir, m, before)
 }
 
 // removeHooks 删掉本工具的 hook；删完变空的分组、事件也一并删掉。
 func removeHooks(claudeDir string) error {
-	m, err := readClaudeSettings(claudeDir)
+	m, before, err := readClaudeSettingsVersion(claudeDir)
 	if err != nil {
 		return err
 	}
@@ -234,7 +250,7 @@ func removeHooks(claudeDir string) error {
 	if len(hooks) == 0 {
 		delete(m, "hooks")
 	}
-	return writeClaudeSettings(claudeDir, m)
+	return writeClaudeSettings(claudeDir, m, before)
 }
 
 // forEachHook 遍历某个事件下所有分组里的每条 hook（可以原地修改）。
@@ -253,21 +269,35 @@ func forEachHook(hooks map[string]any, event string, fn func(h map[string]any)) 
 
 // readClaudeSettings 读 Claude Code 的 settings.json（不存在当作空配置）。
 func readClaudeSettings(claudeDir string) (map[string]any, error) {
+	m, _, err := readClaudeSettingsVersion(claudeDir)
+	return m, err
+}
+
+func readClaudeSettingsVersion(claudeDir string) (map[string]any, []byte, error) {
 	data, err := os.ReadFile(settingsPath(claudeDir))
 	if errors.Is(err, os.ErrNotExist) {
-		return map[string]any{}, nil
+		return map[string]any{}, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	m := map[string]any{}
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf(i18n.T("settings.json 解析失败 %s: %w"), settingsPath(claudeDir), err)
+		return nil, nil, fmt.Errorf(i18n.T("settings.json 解析失败 %s: %w"), settingsPath(claudeDir), err)
 	}
-	return m, nil
+	return m, data, nil
 }
 
-func writeClaudeSettings(claudeDir string, m map[string]any) error {
+func writeClaudeSettings(claudeDir string, m map[string]any, before []byte) error {
+	current, err := os.ReadFile(settingsPath(claudeDir))
+	if errors.Is(err, os.ErrNotExist) {
+		current = nil
+	} else if err != nil {
+		return err
+	}
+	if !bytes.Equal(before, current) {
+		return errors.New(i18n.T("settings.json 刚被其他程序修改，本轮先不重写"))
+	}
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err

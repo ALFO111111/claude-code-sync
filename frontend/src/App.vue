@@ -10,6 +10,7 @@
       >
         <NavIcon :name="key" /> {{ t(`nav.${key}`) }}
         <span v-if="key === 'home' && syncState.last?.error" class="dot" :title="t('common.lastSyncFailed')"></span>
+        <span v-if="key === 'conflicts' && conflictCount" class="count">{{ conflictCount }}</span>
       </div>
       <div class="foot">
         <template v-if="syncState.running">
@@ -28,17 +29,18 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { syncState, listenSync } from '@/stores/sync'
 import { nav, go, PAGES } from '@/stores/nav'
-import { startData } from '@/stores/data'
+import { startData, resources } from '@/stores/data'
 import Wizard from '@/views/Wizard.vue'
 import Home from '@/views/Home.vue'
 import Sessions from '@/views/Sessions.vue'
 import Bindings from '@/views/Bindings.vue'
 import Backups from '@/views/Backups.vue'
+import Conflicts from '@/views/Conflicts.vue'
 import Settings from '@/views/Settings.vue'
 import Logs from '@/views/Logs.vue'
 import NavIcon from '@/components/NavIcon.vue'
@@ -46,7 +48,9 @@ import logo from '@/assets/logo.png'
 
 const { t } = useI18n()
 const initialized = ref(true)
-const VIEWS = { home: Home, sessions: Sessions, bindings: Bindings, backups: Backups, settings: Settings, logs: Logs }
+const VIEWS = { home: Home, sessions: Sessions, bindings: Bindings, backups: Backups, conflicts: Conflicts, settings: Settings, logs: Logs }
+// 侧边栏"冲突"的数字：首页状态里带着，不用另外请求
+const conflictCount = computed(() => resources.status.data?.conflicts || 0)
 
 async function boot() {
   listenSync() // 先挂监听再取快照，避免漏掉间隙里的"同步结束"事件

@@ -47,11 +47,22 @@
       <div v-if="showChanges && status?.changes.length" class="changes">
         <div v-for="(c, i) in status.changes" :key="i" class="change">
           <span class="kind" :class="c.kind"><NavIcon :name="CHANGE_ICON[c.kind]" :size="14" /> {{ t(`home.change.${c.kind}`) }}</span>
-          <span class="grow ellipsis" :title="c.rel"><b>{{ c.project }}</b> <span class="muted mono">{{ c.rel }}</span></span>
-          <button v-if="c.kind === 'fork' || c.kind === 'conflict'" class="link small" @click="go('backups')">{{ t('home.seeBackups') }}</button>
+          <span class="grow ellipsis" :title="c.rel"><b>{{ c.pid ? c.project : t(`content.cat.${c.project}`) }}</b> <span class="muted mono">{{ c.rel }}</span></span>
+          <button v-if="c.kind === 'conflict' && !c.pid" class="link small" @click="go('conflicts')">{{ t('home.seeConflicts') }}</button>
+          <button v-else-if="c.kind === 'fork' || c.kind === 'conflict'" class="link small" @click="go('backups')">{{ t('home.seeBackups') }}</button>
         </div>
         <div v-if="status.changes.length >= 200" class="muted small mt">{{ t('home.changesCapped') }}</div>
       </div>
+    </div>
+
+    <!-- 全局内容的冲突、和 CC Switch 谁负责还没选：都不挡其他同步，只提醒一句 -->
+    <div v-if="status?.conflicts" class="card alert row">
+      <span class="grow">{{ t('home.conflicts', { n: status.conflicts }) }}</span>
+      <button class="sm primary" @click="go('conflicts')">{{ t('home.seeConflicts') }}</button>
+    </div>
+    <div v-if="status?.pendingContent?.length" class="card alert row">
+      <span class="grow">{{ t('home.pendingContent') }}</span>
+      <button class="sm" @click="go('settings')">{{ t('home.chooseOwner') }}</button>
     </div>
 
     <!-- 只在这次同步真有变化或出错时提示；自动同步每轮"什么都没变"不刷屏 -->

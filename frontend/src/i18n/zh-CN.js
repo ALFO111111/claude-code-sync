@@ -1,7 +1,7 @@
 // 简体中文。改动 key 时 en.js 要一起改（npm run check-i18n 会检查两边是否一致）。
 // vue-i18n 语法提醒：{name} 是参数；"A | B" 是单复数（中文不用写）；文字里不要出现 @ { } | 这几个字符。
 export default {
-  nav: { home: '首页', sessions: '会话', bindings: '项目绑定', backups: '备份', settings: '设置', logs: '日志' },
+  nav: { home: '首页', sessions: '会话', bindings: '项目绑定', backups: '备份', conflicts: '冲突', settings: '设置', logs: '日志' },
 
   common: {
     syncing: '同步中…',
@@ -33,6 +33,10 @@ export default {
   kind: { home: '用户目录', git: 'git 项目', local: '本地文件夹' },
 
   home: {
+    conflicts: '有 {n} 个全局文件两台电脑改得不一样，自动合并不了，等你决定用哪份（本机文件一直能正常用）。',
+    seeConflicts: '去处理',
+    pendingContent: 'CC Switch 也开着自动同步：全局规则、技能、MCP 可能会被两边重复同步，先暂停了，请选一个负责。',
+    chooseOwner: '去选择',
     status: '同步状态',
     lastSync: '上次同步：{when}',
     pushed: '上传 {n}',
@@ -184,6 +188,69 @@ export default {
     confirmMsg: '会用这份备份替换「{project}」里的 {file}。\n\n替换前，本机现在的版本会先备份一份（可以再恢复回来）。恢复后会自动同步到其他设备。\n\n确定吗？',
     restored: '已恢复 {file}，并同步到其他设备',
     restoreFailed: '恢复失败：{err}',
+  },
+
+  content: {
+    title: '同步内容',
+    intro: '除了会话和项目记忆，还可以同步这些。关掉只是不再同步，本机和云端的文件都不会删。一台电脑上删掉的文件也不会去删别的电脑上的。',
+    ccWarn: 'CC Switch 开着自动同步，它也会同步全局规则、技能和 MCP。两边一起同步可能互相覆盖，请为下面标出的类别选一个负责的。',
+    cat: {
+      rules: '全局规则 CLAUDE.md',
+      plans: '计划 plans',
+      skills: '技能 skills',
+      agents: '子代理 agents',
+      commands: '自定义命令 commands',
+      tasks: '任务 tasks',
+      settings: '设置（安全字段）',
+      mcp: 'MCP 服务器',
+    },
+    desc: {
+      rules: '对所有项目都生效的规则文件',
+      plans: 'Plan 模式写下的方案',
+      skills: '自己装的技能（CC Switch 管理的 synced 目录除外）',
+      agents: '自定义的子代理',
+      commands: '自定义的斜杠命令',
+      tasks: '任务清单',
+      settings: '只同步语言、自动记忆、署名这几项；模型、Key、hooks、权限都留在本机',
+      mcp: '用户级 MCP 服务器；密钥、环境变量和认不出的本机路径不上传',
+    },
+    ownerSync: '已选择由本工具同步（CC Switch 也开着自动同步）',
+    ownerCC: '已交给 CC Switch 同步',
+    pickSync: '由本工具同步',
+    pickCC: '交给 CC Switch',
+  },
+
+  conflicts: {
+    title: '冲突处理',
+    intro: '两台电脑把同一个全局文件改成了不一样的内容，而且改的是同一处，没法自动合并。本机的文件一直保持原样、照常能用；另一台的版本先放在这里，等你决定。其他文件的同步不受影响。',
+    emptyTitle: '没有需要处理的冲突',
+    emptyDesc: '两台电脑改了不同地方时会自动合并，只有改到同一处才会出现在这里。',
+    handle: '处理',
+    safe: '处理之前，本机文件不会被动。选好之后，被换掉的那份也会先存进备份。',
+    binary: '这不是文本文件，没法预览，只能选保留哪一份。',
+    tooLarge: '文件太大，只显示了开头，不能在这里手工合并。',
+    tabDiff: '两边的差别',
+    tabLocal: '本机版本',
+    tabRemote: '另一台的版本',
+    tabBase: '上次一致时的版本',
+    tabEdit: '手工合并',
+    legendRemote: '只有另一台有',
+    legendLocal: '只有本机有',
+    editHint: '从本机版本开始改，改成你想要的最终样子，再点“保存合并结果”。',
+    keepLocal: '保留本机的',
+    useRemote: '用另一台的',
+    keepBoth: '两份都留',
+    saveMerged: '保存合并结果',
+    resolveNote: '处理完会自动同步到其他电脑。',
+    confirmTitle: '确认处理这个冲突？',
+    confirm: {
+      local: '保留本机的 {file}，另一台的版本存进备份，并把本机这份同步过去。',
+      remote: '用另一台的版本替换本机的 {file}，本机现在这份先存进备份。',
+      both: '{file} 保留本机这份，另一台的版本另存为一个新文件，两份都会继续同步。',
+      merged: '用你手工合并的内容替换 {file}，本机现在这份先存进备份。',
+    },
+    resolved: '已处理 {file}',
+    resolveFailed: '处理失败：{err}',
   },
 
   logs: {

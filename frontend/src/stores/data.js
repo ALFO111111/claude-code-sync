@@ -65,6 +65,8 @@ export const resources = {
   projects: resource(() => api.ListProjects(), { maxAge: 30_000, initial: () => api.ListProjectsCached() }),
   bound: resource(() => api.ListBound()),
   backups: resource(() => api.ListBackups()),
+  conflicts: resource(() => api.ListConflicts()),
+  content: resource(() => api.GetContent()),
 }
 
 let started = false

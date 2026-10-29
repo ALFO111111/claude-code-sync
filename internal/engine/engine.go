@@ -173,6 +173,12 @@ func (e *Engine) Sync(ctx context.Context, opts Options) error {
 		}
 	}
 	err = e.syncFiles(ctx, only)
+	if only == nil {
+		if perr := e.syncProfile(ctx); perr != nil {
+			e.log.Printf("全局内容同步失败: %v", perr)
+			e.count(&e.stats.Errors)
+		}
+	}
 	if herr := e.syncHistory(ctx); herr != nil {
 		e.log.Printf("输入历史同步失败: %v", herr)
 		e.count(&e.stats.Errors)

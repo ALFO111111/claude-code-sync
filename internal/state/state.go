@@ -25,11 +25,12 @@ type Binding struct {
 
 // FileState 记录上次同步时本地文件和云端文件的样子，用来判断哪边变了。
 type FileState struct {
-	ETag    string `json:"etag,omitempty"`
-	Size    int64  `json:"size"`
-	Mtime   int64  `json:"mtime"`
-	Hash    string `json:"hash,omitempty"`
-	Deleted bool   `json:"deleted,omitempty"` // 本地删了（比如 Claude Code 自动清理），不再拉回来
+	ETag     string `json:"etag,omitempty"`
+	Size     int64  `json:"size"`
+	Mtime    int64  `json:"mtime"`
+	Hash     string `json:"hash,omitempty"`
+	BaseHash string `json:"baseHash,omitempty"` // 上次共同版本的内容 hash；正文在本工具 base/ 下
+	Deleted  bool   `json:"deleted,omitempty"`  // 本地删了（比如 Claude Code 自动清理），不再拉回来
 }
 
 type ProjectInfo struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,8 @@ import (
 //	项目     ListProjects  ListProjectsCached  ListBound  ClaimProject  IgnoreProject  UnignoreProject  PickDirectory
 //	会话     ListSessions  ReadSession  SearchSessions  ResumeCommand  OpenInClaude  CopyText
 //	备份     ListBackups  ReadBackup  RestoreBackup  OpenBackupFolder
+//	冲突     ListConflicts  ReadConflict  ResolveConflict  RestoreContentItem
+//	同步内容 GetContent  SetContentEnabled  SetContentOwner（全局规则、技能、MCP 等哪些要同步；和 CC Switch 谁负责）
 //	口令     ChangePassphrase（+ 事件 "rekey-progress"）  AdoptPassphrase
 //	外观     GetTheme  SetTheme  GetAutostart  SetAutostart
 //	对话框   Confirm（危险操作前的系统确认框）
@@ -82,10 +85,35 @@ func (a *App) startWatcher() {
 	if err != nil {
 		return
 	}
-	for _, w := range []*watch.Watcher{
+	watchers := []*watch.Watcher{
 		watch.New(cfg.ProjectsDir(), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.NewFile(filepath.Join(cfg.ClaudeDir, "settings.json"), func() { service.RepairHooks() }),
-	} {
+		watch.NewFile(filepath.Join(cfg.ClaudeDir, "settings.json"), func() {
+			service.RepairHooks()
+			go a.runSync(service.SyncRequest{}, false)
+		}),
+		watch.NewFile(filepath.Join(cfg.ClaudeDir, "CLAUDE.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
+		watch.NewFile(cfg.ClaudeStatePath(), func() { go a.runSync(service.SyncRequest{}, false) }),
+	}
+	for _, dir := range []string{"plans", "skills", "agents", "commands", "tasks"} {
+		root := filepath.Join(cfg.ClaudeDir, dir)
+		w := watch.New(root, func() { go a.runSync(service.SyncRequest{}, false) })
+		if dir == "skills" {
+			w.SetFilter(func(path string) bool {
+				rel, err := filepath.Rel(root, path)
+				if err != nil {
+					return false
+				}
+				for _, part := range strings.Split(strings.ToLower(filepath.ToSlash(rel)), "/") {
+					if part == "synced" || part == ".trash" {
+						return false
+					}
+				}
+				return true
+			})
+		}
+		watchers = append(watchers, w)
+	}
+	for _, w := range watchers {
 		if w.Start() == nil {
 			a.watchers = append(a.watchers, w)
 		}
@@ -404,6 +432,36 @@ func (a *App) GetAutostart() service.AutostartInfo { return service.GetAutostart
 func (a *App) SetAutostart(on bool) (service.AutostartInfo, error) {
 	err := service.SetAutostart(on)
 	return service.GetAutostart(), err
+}
+
+// ---------- 全局同步内容、冲突 ----------
+
+func (a *App) GetContent() (*service.ContentOverview, error) { return service.LoadContent() }
+
+func (a *App) SetContentEnabled(category string, enabled bool) error {
+	return service.SetContentEnabled(category, enabled)
+}
+
+func (a *App) SetContentOwner(category, owner string) error {
+	return service.SetContentOwner(category, owner)
+}
+
+func (a *App) ListConflicts() ([]service.ConflictItem, error) { return service.ListConflicts() }
+
+func (a *App) ReadConflict(id string) (*service.ConflictContent, error) {
+	return service.ReadConflict(id)
+}
+
+func (a *App) ResolveConflict(id, choice, merged string) error {
+	if err := service.ResolveConflict(context.Background(), id, choice, merged); err != nil {
+		return err
+	}
+	go a.runSync(service.SyncRequest{}, false)
+	return nil
+}
+
+func (a *App) RestoreContentItem(category, rel string) error {
+	return service.RestoreContentItem(context.Background(), category, rel)
 }
 
 // ---------- 日志 ----------

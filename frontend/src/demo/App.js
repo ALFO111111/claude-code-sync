@@ -2,7 +2,8 @@
 // 用途：README 截图（不会露出个人用户名、路径、bucket）、不启动 Wails 也能改界面。
 // 和 wailsjs/go/gui/App.js 导出同样的函数；vite.config.js 在 demo 模式下把那个模块换成这个。
 //
-// 地址参数：?page=backups 打开哪一页；&theme=dark 深色；&lang=en 英文；&key=1 模拟口令被别的设备改了；&click=… 见文件末尾
+// 地址参数：?page=backups 打开哪一页；&theme=dark 深色；&lang=en 英文；&key=1 模拟口令被别的设备改了；
+// &cc=1 模拟 CC Switch 开着自动同步（规则、技能、MCP 待选择负责人）；&click=… 见文件末尾
 import { go } from '@/stores/nav'
 
 const q = new URLSearchParams(location.search)
@@ -66,11 +67,22 @@ const LOG = [
   [40 * min, '同步完成：上传 2，下载 3，合并 1，分叉 0，失败 0，输入历史补进 6 条，用时 1.4s', 'Sync finished: 2 uploaded, 3 downloaded, 1 merged, 0 forked, 0 failed, 6 input-history entries added, took 1.4s'],
 ].map(([ago, zh, e]) => `${fmt(NOW - ago)}:00 [4120] ${L(zh, e)}`).join('\n') + '\n'
 
+const CC = q.get('cc') === '1'
+const CONFLICTS = [
+  { id: 'c1', kind: 'file', category: 'rules', rel: 'CLAUDE.md', localPath: 'C:\\Users\\alex\\.claude\\CLAUDE.md', time: NOW - 50 * min, timeText: fmt(NOW - 50 * min) },
+]
+const CONFLICT_BASE = L('# 全局规则\n\n- 用中文回答\n- 改完代码跑测试\n', '# Global rules\n\n- Answer concisely\n- Run tests after changing code\n')
+const CONFLICT_LOCAL = L('# 全局规则\n\n- 用中文回答，通俗易懂\n- 改完代码跑测试\n', '# Global rules\n\n- Answer concisely, in plain words\n- Run tests after changing code\n')
+const CONFLICT_REMOTE = L('# 全局规则\n\n- 用中文回答，代码保持英文\n- 改完代码跑测试\n', '# Global rules\n\n- Answer concisely, keep code in English\n- Run tests after changing code\n')
+const CONTENT_CATS = ['rules', 'plans', 'skills', 'agents', 'commands', 'tasks', 'settings', 'mcp']
+const CC_CATS = ['rules', 'skills', 'mcp']
+
 const wait = (v, ms = 120) => new Promise((r) => setTimeout(() => r(v), ms))
 
 export const GetStatus = () => wait({
   initialized: true, deviceName: 'office-pc', deviceId: '3f9a1c2b7d4e5f60', lastSync: fmt(NOW - 3 * min), lastSyncAt: NOW - 3 * min,
   projects: 4, syncing: false, autoSync: true, sandboxed: false, keyMismatch: q.get('key') === '1',
+  conflicts: CONFLICTS.length, pendingContent: CC ? ['rules', 'skills', 'mcp'] : [],
   stats: { pushed: 2, pulled: 3, merged: 1, forked: 0, errors: 0, history: 6 },
   devices: [
     { id: 'a81c4e2f90b3d7e1', name: 'home-laptop', projects: 5, lastSeen: NOW - 20 * min },
@@ -128,6 +140,20 @@ export const ListBackups = () => wait({ items: BACKUPS, dir: 'C:\\Users\\alex\\.
 export const ReadBackup = () => wait({ backup: BACKUP_TEXT, current: CURRENT_TEXT, currentExists: true, same: false, binary: false, tooLarge: false })
 export const RestoreBackup = () => wait(null, 600)
 export const OpenBackupFolder = () => wait(null)
+
+export const ListConflicts = () => wait(CONFLICTS)
+export const ReadConflict = (id) => wait({
+  conflict: CONFLICTS.find((c) => c.id === id), base: CONFLICT_BASE, local: CONFLICT_LOCAL, remote: CONFLICT_REMOTE,
+  hasBase: true, binary: false, tooLarge: false, canBoth: false,
+})
+export const ResolveConflict = () => wait(null, 500)
+export const RestoreContentItem = () => wait(null)
+export const GetContent = () => wait({
+  ccSwitch: CC ? 'enabled' : 'notInstalled', ccSwitchKnown: true, pending: CC ? CC_CATS : [],
+  items: CONTENT_CATS.map((c) => ({ category: c, enabled: !(CC && CC_CATS.includes(c)), pending: CC && CC_CATS.includes(c), ccOverlap: CC_CATS.includes(c) })),
+})
+export const SetContentEnabled = () => wait(null)
+export const SetContentOwner = () => wait(null)
 
 export const Confirm = () => wait(true)
 export const GetSettings = () => wait({

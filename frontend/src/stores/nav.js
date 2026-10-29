@@ -1,7 +1,7 @@
 // 页面导航：侧边栏点哪页就显示哪页；页面之间也能互相跳（比如备份页"查看会话"跳到会话页并打开那个会话）。
 import { reactive } from 'vue'
 
-export const PAGES = ['home', 'sessions', 'bindings', 'backups', 'settings', 'logs']
+export const PAGES = ['home', 'sessions', 'bindings', 'backups', 'conflicts', 'settings', 'logs']
 
 export const nav = reactive({
   page: 'home',

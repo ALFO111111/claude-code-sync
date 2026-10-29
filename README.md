@@ -38,6 +38,7 @@ Claude Code 的会话记录存在本机的 `~/.claude/projects/` 里。家里一
 claude-code-sync 专门解决这个问题：
 
 - **会话同步**：`~/.claude/projects` 下的会话、子代理记录、项目记忆（MEMORY.md），外加输入历史（按 ↑ 翻到的那些）
+- **个人配置同步**：全局规则 `CLAUDE.md`、计划 `plans/`、技能 `skills/`、子代理 `agents/`、自定义命令 `commands/`、任务 `tasks/`、用户级 MCP 服务器，以及 settings.json 里的几个安全字段（语言、自动记忆、署名）。模型、API Key、hooks、权限、MCP 里的密钥和环境变量**都不上传**。设置页可以逐类开关
 - **路径自动翻译**：A 电脑的 `D:\work\app` 拉到 B 电脑时自动换成 `E:\code\app`，`claude --resume` 直接能用
 - **项目自动对上**：git 项目按远程仓库地址自动匹配（ssh / https 写法都认）；普通文件夹在界面上点一下“认领”
 - **端到端加密**：上传前用你的口令加密（Argon2id + AES-256-GCM），云端只看得到乱码
@@ -188,6 +189,9 @@ D:\work\app                       v1/history.jsonl                           翻
 
   备份在 `~/.claude-code-sync/backup/`，保留 14 天。程序的“备份”页可以查看、和本机现在的版本逐行对比、一键恢复（恢复前的版本也会先备份，可以再换回来）。
 
+- **个人配置（规则、技能、MCP 等）的合并**：记住“上次两边一致时的样子”，做三方合并。两台电脑改了不同的行 / 不同的字段 → 自动合并；改到同一处 → 进“冲突”页，本机文件保持原样能用，等你选“保留本机 / 用另一台的 / 两份都留 / 手工合并”。**删除不会传播**：一台电脑上删掉的文件，不会去删另一台的，也不会在本机被拉回来。
+- **和 CC Switch 一起用**：CC Switch 负责供应商地址、Key、模型；如果它的自动同步开着，全局规则、技能、MCP 可能被两边重复同步，这三类会先暂停，在设置页选一个负责（CC Switch 没开自动同步就不会打扰你）。
+
 - **四层触发**：Claude Code hooks（`SessionStart` / `Stop`）是主力；程序开机自启、在托盘常驻时盯文件变化（设置页可以关掉开机自启）；Windows 定时任务每小时兜底一次；也可以随时手动点“立即同步”。
 
 ## 命令行
@@ -202,6 +206,12 @@ claude-code-sync status                     # 查看绑定情况和待认领项�
 claude-code-sync claim <项目ID> <本机路径>   # 认领其他电脑上的项目
 claude-code-sync ignore <项目ID>             # 忽略 / 停止同步一个项目（不删文件）
 claude-code-sync unignore <项目ID>           # 取消忽略
+claude-code-sync content                    # 查看哪些个人配置在同步
+claude-code-sync content disable skills     # 关掉一类（不删文件）；enable 打开
+claude-code-sync content owner mcp sync     # CC Switch 也开着自动同步时，选谁负责（sync / ccswitch）
+claude-code-sync conflicts                  # 列出待处理的冲突
+claude-code-sync resolve <冲突ID> local     # 解决冲突：local / remote / both，或 merged <文件>
+claude-code-sync restore-content plans a.md # 本机删掉的个人配置文件，从云端拉回来
 claude-code-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
 claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启）
 claude-code-sync version

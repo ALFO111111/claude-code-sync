@@ -5,6 +5,28 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 新增 / Added
+
+- 同步个人配置：全局规则 `CLAUDE.md`、`plans/`、`skills/`、`agents/`、`commands/`、`tasks/`、用户级 MCP 服务器、settings.json 的安全字段（`language`、`autoMemoryEnabled`、`includeCoAuthoredBy`）。模型、Key、hooks、权限、MCP 的密钥和环境变量不上传；设置页“同步内容”可逐类开关
+  Sync personal config: global `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers and safe settings.json fields (`language`, `autoMemoryEnabled`, `includeCoAuthoredBy`). Models, keys, hooks, permissions and MCP secrets/env vars are never uploaded; each category can be turned off under Settings → What to sync
+- 三方合并：记住上次两边一致的版本，不同行 / 不同 JSON 字段 / 不同任务 ID 的修改自动合并；改到同一处时进新的“冲突”页（保留本机 / 用另一台的 / 两份都留 / 手工合并），本机文件在此期间保持可用
+  Three-way merge: changes to different lines, JSON fields or task IDs merge automatically; edits to the same spot go to the new Conflicts page (keep mine / use theirs / keep both / merge manually) while the local file stays usable
+- CC Switch 共存：检测到 CC Switch 自动同步开着时，全局规则、技能、MCP 先暂停，在设置页选择由谁负责；没开就不提示
+  CC Switch coexistence: when CC Switch auto sync is on, global rules, skills and MCP pause until you choose an owner in Settings; nothing is shown otherwise
+- 命令行：`content`、`conflicts`、`resolve`、`restore-content`
+  CLI: `content`, `conflicts`, `resolve`, `restore-content`
+
+### 改进 / Changed
+
+- 个人配置的删除不会传播：一台电脑删掉的文件不会删其他电脑的，本机也不会被拉回来（`restore-content` 可手动拉回）
+  Deleting personal config never propagates: other machines keep the file and it is not pulled back locally (`restore-content` brings it back on purpose)
+- hooks 自愈和同步改写 settings.json 时共用一把锁，并在写入前确认文件没被其他程序（如 CC Switch）刚改过
+  Hook self-repair and sync share a lock when rewriting settings.json and check it was not just changed by another program (such as CC Switch)
+- 文件监听：启动时还不存在的目录（如第一次建 `skills/`）创建后会自动开始监听
+  File watching: folders that don't exist yet at startup (such as a first `skills/`) are picked up once created
+
 ## [0.2.0] - 2026-10-19
 
 ### 新增 / Added

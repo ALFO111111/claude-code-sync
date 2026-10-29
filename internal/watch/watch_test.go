@@ -3,6 +3,7 @@ package watch
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -133,4 +134,109 @@ func TestFileWatcherOnlyTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitEvent(t, ch, 3*time.Second, "改名后再次写入触发")
+}
+
+func TestWatcherDelayedRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "created-later")
+	ch := make(chan struct{}, 1)
+	w := New(root, func() { ch <- struct{}{} })
+	w.Debounce = 100 * time.Millisecond
+	w.MaxWait = time.Minute
+	if err := w.Start(); err != nil {
+		t.Fatalf("根目录不存在也该启动成功: %v", err)
+	}
+	defer w.Stop()
+
+	// 创建后立刻写入，不等待后台挂载；挂载成功时会补记变化，保证不漏。
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "late.jsonl"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitEvent(t, ch, 3*time.Second, "延迟出现的根目录里的文件变化")
+}
+
+func TestWatcherStopWhileWaitingForRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "never-created")
+	ch := make(chan struct{}, 1)
+	w := New(root, func() { ch <- struct{}{} })
+	w.Debounce = 50 * time.Millisecond
+	if err := w.Start(); err != nil {
+		t.Fatal(err)
+	}
+	w.Stop()
+
+	// Stop 返回时重试 goroutine 必须已经退出。
+	select {
+	case <-w.doneCh:
+	default:
+		t.Fatal("Stop 返回后监听 goroutine 仍在运行")
+	}
+
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "after-stop.txt"), []byte("no event"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-ch:
+		t.Fatal("Stop 后不该再触发回调")
+	case <-time.After(350 * time.Millisecond):
+	}
+}
+
+func TestWatcherFilter(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{filepath.Join("skills", "synced"), ".trash"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ch := make(chan struct{}, 1)
+	w := New(root, func() { ch <- struct{}{} })
+	w.Debounce = 100 * time.Millisecond
+	w.MaxWait = time.Minute
+	w.SetFilter(func(path string) bool {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return true
+		}
+		rel = filepath.ToSlash(rel)
+		for _, dir := range []string{"skills/synced", ".trash"} {
+			if rel == dir || strings.HasPrefix(rel, dir+"/") {
+				return false
+			}
+		}
+		base := filepath.Base(path)
+		return !strings.HasSuffix(base, ".lock") && !strings.HasSuffix(base, ".tmp")
+	})
+	if err := w.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer w.Stop()
+
+	ignored := []string{
+		filepath.Join("skills", "synced", "hidden.jsonl"),
+		filepath.Join(".trash", "deleted.jsonl"),
+		"sync.lock",
+		"unfinished.tmp",
+	}
+	for _, name := range ignored {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("ignore"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-ch:
+		t.Fatal("被过滤的路径不该触发")
+	case <-time.After(400 * time.Millisecond):
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "visible.jsonl"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	waitEvent(t, ch, 3*time.Second, "未过滤的文件变化")
 }

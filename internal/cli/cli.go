@@ -58,7 +58,23 @@ func dispatch(ctx context.Context, cmd string, o flags, version string) error {
 			service.RepairHooks()
 		}
 		_, err := service.Sync(ctx, service.SyncRequest{Quiet: o.quiet, OnlyCwd: o.cwd, Dry: o.dry, WaitLock: 5 * time.Second})
+		if err == nil && !o.quiet && o.cwd == "" {
+			if content, cerr := service.LoadContent(); cerr == nil && len(content.Pending) > 0 {
+				fmt.Println(i18n.T("以下类别可能也在由 CC Switch 同步，本轮已暂停，请用 content owner 选择负责人:"), strings.Join(content.Pending, ", "))
+			}
+		}
 		return err
+	case "content":
+		return cmdContent(o.positional)
+	case "conflicts":
+		return cmdConflicts()
+	case "resolve":
+		return cmdResolve(ctx, o.positional)
+	case "restore-content":
+		if len(o.positional) != 2 {
+			return fmt.Errorf(i18n.T("用法: %s restore-content <类别> <相对路径>"), appName)
+		}
+		return service.RestoreContentItem(ctx, o.positional[0], o.positional[1])
 	case "status":
 		return cmdStatus(ctx)
 	case "claim":
@@ -142,6 +158,13 @@ func usage() {
   {app} sync                 双向同步（最常用）
   {app} sync --dry           只显示会做什么，不真正改动
   {app} status               查看本机项目绑定和云端待认领的项目
+  {app} content              查看全局同步内容开关
+  {app} content enable|disable <类别>   开关一个全局内容类别
+  {app} content owner <类别> sync|ccswitch   选择可能重复的类别由谁同步
+  {app} conflicts            列出待解决的冲突
+  {app} resolve <冲突ID> local|remote|both   解决冲突
+  {app} resolve <冲突ID> merged <文件>       使用手工合并后的文件解决
+  {app} restore-content <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
@@ -157,6 +180,70 @@ func usage() {
 }
 
 // ---------- 子命令 ----------
+
+func cmdContent(args []string) error {
+	if len(args) == 0 {
+		content, err := service.LoadContent()
+		if err != nil {
+			return err
+		}
+		fmt.Println(i18n.T("CC Switch Auto Sync:"), content.CCSwitch)
+		for _, item := range content.Items {
+			status := i18n.T("关闭")
+			if item.Enabled {
+				status = i18n.T("开启")
+			}
+			if item.Pending {
+				status = i18n.T("待选择负责人（本轮暂停）")
+			}
+			fmt.Printf("%-10s %s\n", item.Category, status)
+		}
+		return nil
+	}
+	if len(args) == 2 && (args[0] == "enable" || args[0] == "disable") {
+		return service.SetContentEnabled(args[1], args[0] == "enable")
+	}
+	if len(args) == 3 && args[0] == "owner" {
+		return service.SetContentOwner(args[1], args[2])
+	}
+	return fmt.Errorf(i18n.T("用法: %s content [enable|disable <类别> | owner <类别> sync|ccswitch]"), appName)
+}
+
+func cmdConflicts() error {
+	items, err := service.ListConflicts()
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		fmt.Println(i18n.T("没有待解决的冲突"))
+		return nil
+	}
+	for _, c := range items {
+		fmt.Printf("%s  %s/%s  %s\n", c.ID, c.Category, c.Rel, c.LocalPath)
+	}
+	fmt.Println(i18n.T("用 resolve 命令选择保留哪一边；手工合并请在图形界面操作。"))
+	return nil
+}
+
+func cmdResolve(ctx context.Context, args []string) error {
+	if len(args) != 2 && len(args) != 3 {
+		return fmt.Errorf(i18n.T("用法: %s resolve <冲突ID> local|remote|both，或 resolve <冲突ID> merged <文件>"), appName)
+	}
+	merged := []byte{}
+	if args[1] == "merged" {
+		if len(args) != 3 {
+			return errors.New(i18n.T("merged 需要提供一个手工合并后的文件"))
+		}
+		data, err := os.ReadFile(args[2])
+		if err != nil {
+			return err
+		}
+		merged = data
+	} else if len(args) != 2 {
+		return errUsage
+	}
+	return service.ResolveConflict(ctx, args[0], args[1], string(merged))
+}
 
 // cliProvider 命令行初始化时可选的服务商：要问哪些参数、默认值是什么。
 type cliProvider struct {

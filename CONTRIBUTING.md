@@ -52,7 +52,10 @@ main.go                 唯一入口：无参数 → 图形界面，有参数 �
 internal/
   cli/  gui/            命令行 / 图形界面：只负责收参数、展示结果，不写业务判断
   service/              两种界面共用的业务操作
-  engine/               同步引擎：比对、合并、分叉、路径翻译、项目绑定、备份、改口令
+  engine/               同步引擎：比对、合并、分叉、路径翻译、项目绑定、备份、改口令；
+                        个人配置（规则、技能、MCP…）的三方合并、冲突记录与解决
+  claudeconfig/         settings.json 白名单、MCP 去秘密的提取与回填
+  ccswitch/             只读检测 CC Switch 自动同步是否开着
   state/                state.json（上次同步时的样子）+ sync.lock
   project/              项目身份证（pid）
   storage/              云端接口：S3 兼容（minio-go）+ 本地文件夹（测试用）
@@ -129,7 +132,10 @@ main.go                 single entry: no args → GUI, args → CLI
 internal/
   cli/  gui/            terminal / window front ends: collect input, show results, no business logic
   service/              operations shared by both front ends
-  engine/               sync engine: diff, merge, fork, path translation, project binding, backups, passphrase change
+  engine/               sync engine: diff, merge, fork, path translation, project binding, backups, passphrase change;
+                        three-way merge, conflict records and resolution for personal config (rules, skills, MCP…)
+  claudeconfig/         extract/apply the settings.json allow-list and secret-free MCP config
+  ccswitch/             read-only detection of CC Switch auto sync
   state/                state.json (what things looked like at the last sync) + sync.lock
   project/              project identity (pid)
   storage/              cloud interface: S3-compatible (minio-go) + local folder (tests)

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ALFO111111/claude-code-sync/internal/claudeconfig"
 	"github.com/ALFO111111/claude-code-sync/internal/config"
 	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
@@ -46,15 +47,17 @@ const runLayout = "20060102-150405"
 
 // BackupRecord 一条备份记录。
 type BackupRecord struct {
-	ID   string    `json:"-"` // 备份文件相对 backup/ 的路径；分叉为 "fork:<本轮时间>/<新会话文件>"
-	Kind string    `json:"kind"`
-	Time time.Time `json:"time"`
-	PID  string    `json:"pid,omitempty"`
-	Dir  string    `json:"dir"`            // ~/.claude/projects 下的项目目录
-	Rel  string    `json:"rel"`            // 相对项目目录的路径（/ 分隔）
-	File string    `json:"file,omitempty"` // 备份文件，相对 backup/（/ 分隔）
-	Size int64     `json:"size"`
-	Fork string    `json:"fork,omitempty"` // 分叉另存的新会话（相对项目目录）
+	ID       string    `json:"-"` // 备份文件相对 backup/ 的路径；分叉为 "fork:<本轮时间>/<新会话文件>"
+	Kind     string    `json:"kind"`
+	Time     time.Time `json:"time"`
+	PID      string    `json:"pid,omitempty"`
+	Scope    string    `json:"scope,omitempty"`    // 空/project=项目文件；global=Claude 全局文件
+	Category string    `json:"category,omitempty"` // 全局内容类别
+	Dir      string    `json:"dir"`                // ~/.claude/projects 下的项目目录
+	Rel      string    `json:"rel"`                // 相对项目目录的路径（/ 分隔）
+	File     string    `json:"file,omitempty"`     // 备份文件，相对 backup/（/ 分隔）
+	Size     int64     `json:"size"`
+	Fork     string    `json:"fork,omitempty"` // 分叉另存的新会话（相对项目目录）
 }
 
 // BackupDir 备份根目录。
@@ -80,6 +83,16 @@ func (b *backups) save(kind, pid, dir, rel string, data []byte) {
 		return
 	}
 	b.record(BackupRecord{Kind: kind, PID: pid, Dir: dir, Rel: rel, File: file, Size: int64(len(data))})
+}
+
+func (b *backups) saveGlobal(kind, category, rel string, data []byte) {
+	file := path.Join(b.runTS, "_global", category, rel+"."+kind)
+	p := filepath.Join(BackupDir(), filepath.FromSlash(file))
+	if err := fsutil.WriteFileAtomic(p, data); err != nil {
+		b.log.Printf("备份失败 %s: %v", p, err)
+		return
+	}
+	b.record(BackupRecord{Kind: kind, Scope: "global", Category: category, Rel: rel, File: file, Size: int64(len(data))})
 }
 
 // fork 记一条"会话分叉"。
@@ -186,6 +199,13 @@ func readRun(run string, runTime time.Time) []BackupRecord {
 		}
 		info, _ := d.Info()
 		r := BackupRecord{ID: file, Kind: kind, Time: runTime, Dir: parts[1], Rel: relPath, File: file}
+		if parts[1] == "_global" {
+			category, globalRel, ok := strings.Cut(relPath, "/")
+			if !ok {
+				return nil
+			}
+			r.Scope, r.Category, r.Dir, r.Rel = "global", category, "", globalRel
+		}
 		if info != nil {
 			r.Size = info.Size()
 		}
@@ -238,22 +258,138 @@ func RestoreBackup(id string) (*BackupRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.Contains(r.Dir, "..") || strings.Contains(r.Rel, "..") {
-		return nil, errors.New(i18n.T("非法路径"))
+	target, err := backupTarget(cfg, r)
+	if err != nil {
+		return nil, err
 	}
-	target := filepath.Join(cfg.ProjectsDir(), r.Dir, filepath.FromSlash(r.Rel))
+	if r.Scope == "global" && (r.Category == config.ContentSettings || r.Category == config.ContentMCP) {
+		return r, restoreStructuredBackup(cfg, target, r, data)
+	}
 	cur, err := os.ReadFile(target)
 	switch {
 	case err == nil && bytes.Equal(cur, data):
 		return r, nil // 本来就是这份
 	case err == nil:
-		newBackups(logging.New(true)).save(BackupRestore, r.PID, r.Dir, r.Rel, cur)
+		if r.Scope == "global" {
+			newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Category, r.Rel, cur)
+		} else {
+			newBackups(logging.New(true)).save(BackupRestore, r.PID, r.Dir, r.Rel, cur)
+		}
 	case !errors.Is(err, fs.ErrNotExist):
 		return nil, err
 	}
 	if err := fsutil.WriteFileAtomic(target, data); err != nil {
 		return nil, err
 	}
-	logging.New(true).Printf("已从备份恢复 %s/%s", r.Dir, r.Rel)
+	logging.New(true).Printf("已从备份恢复 %s/%s", r.Dir+r.Category, r.Rel)
 	return r, nil
+}
+
+// ReadBackupCurrent 读取备份对应的本机当前内容；结构化配置只返回受管投影，不返回秘密字段。
+func ReadBackupCurrent(cfg *config.Config, r *BackupRecord) ([]byte, bool, error) {
+	target, err := backupTarget(cfg, r)
+	if err != nil {
+		return nil, false, err
+	}
+	cur, err := os.ReadFile(target)
+	if errors.Is(err, fs.ErrNotExist) {
+		if r.Scope == "global" && (r.Category == config.ContentSettings || r.Category == config.ContentMCP) {
+			cur = []byte("{}")
+		} else {
+			return nil, false, nil
+		}
+	} else if err != nil {
+		return nil, false, err
+	}
+	if r.Scope == "global" && r.Category == config.ContentSettings {
+		data, err := claudeconfig.SettingsProjection(cur)
+		return data, true, err
+	}
+	if r.Scope == "global" && r.Category == config.ContentMCP {
+		st, err := state.Load()
+		if err != nil {
+			return nil, false, err
+		}
+		e := &Engine{cfg: cfg, st: st}
+		data, _, err := claudeconfig.MCPProjection(cur, e.mcpToCloud)
+		return data, true, err
+	}
+	return cur, true, nil
+}
+
+func restoreStructuredBackup(cfg *config.Config, target string, r *BackupRecord, data []byte) error {
+	cur, err := os.ReadFile(target)
+	if errors.Is(err, fs.ErrNotExist) {
+		cur = []byte("{}")
+	} else if err != nil {
+		return err
+	}
+	var current []byte
+	var mapper claudeconfig.PathMapper
+	if r.Category == config.ContentMCP {
+		st, err := state.Load()
+		if err != nil {
+			return err
+		}
+		e := &Engine{cfg: cfg, st: st}
+		mapper = e.mcpToLocal
+		current, _, err = claudeconfig.MCPProjection(cur, e.mcpToCloud)
+		if err != nil {
+			return err
+		}
+	} else {
+		current, err = claudeconfig.SettingsProjection(cur)
+		if err != nil {
+			return err
+		}
+	}
+	if bytes.Equal(current, data) {
+		return nil
+	}
+	newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Category, r.Rel, current)
+	var next []byte
+	if r.Category == config.ContentSettings {
+		next, err = claudeconfig.ApplySettings(cur, data)
+	} else {
+		next, _, err = claudeconfig.ApplyMCP(cur, data, mapper)
+	}
+	if err != nil {
+		return err
+	}
+	if err := fsutil.WriteFileAtomic(target, next); err != nil {
+		return err
+	}
+	logging.New(true).Printf("已从备份恢复 %s/%s", r.Category, r.Rel)
+	return nil
+}
+
+func backupTarget(cfg *config.Config, r *BackupRecord) (string, error) {
+	if r.Dir != "" && !filepath.IsLocal(r.Dir) || !filepath.IsLocal(filepath.FromSlash(r.Rel)) {
+		return "", errors.New(i18n.T("非法路径"))
+	}
+	if r.Scope != "global" {
+		return filepath.Join(cfg.ProjectsDir(), r.Dir, filepath.FromSlash(r.Rel)), nil
+	}
+	if r.Category == config.ContentSettings {
+		return filepath.Join(cfg.ClaudeDir, "settings.json"), nil
+	}
+	if r.Category == config.ContentMCP {
+		return cfg.ClaudeStatePath(), nil
+	}
+	for _, def := range []profileDef{
+		{category: config.ContentRules, root: filepath.Join(cfg.ClaudeDir, "CLAUDE.md")},
+		{category: config.ContentPlans, root: filepath.Join(cfg.ClaudeDir, "plans")},
+		{category: config.ContentSkills, root: filepath.Join(cfg.ClaudeDir, "skills")},
+		{category: config.ContentAgents, root: filepath.Join(cfg.ClaudeDir, "agents")},
+		{category: config.ContentCommands, root: filepath.Join(cfg.ClaudeDir, "commands")},
+		{category: config.ContentTasks, root: filepath.Join(cfg.ClaudeDir, "tasks")},
+	} {
+		if def.category == r.Category {
+			if def.category == config.ContentRules {
+				return def.root, nil
+			}
+			return filepath.Join(def.root, filepath.FromSlash(r.Rel)), nil
+		}
+	}
+	return "", errors.New(i18n.T("未知的全局内容类别"))
 }

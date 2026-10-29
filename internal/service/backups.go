@@ -2,9 +2,6 @@ package service
 
 import (
 	"bytes"
-	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -23,6 +20,8 @@ type BackupItem struct {
 	Time     int64  `json:"time"` // 毫秒时间戳
 	TimeText string `json:"timeText"`
 	PID      string `json:"pid"`
+	Scope    string `json:"scope,omitempty"`
+	Category string `json:"category,omitempty"`
 	Project  string `json:"project"` // 项目显示名
 	Rel      string `json:"rel"`     // 相对项目目录的路径
 	Size     int64  `json:"size"`
@@ -55,7 +54,10 @@ func ListBackups() (*BackupOverview, error) {
 	for _, r := range recs {
 		it := BackupItem{
 			ID: r.ID, Kind: r.Kind, Time: r.Time.UnixMilli(), TimeText: fmtTime(r.Time),
-			PID: r.PID, Project: r.Dir, Rel: r.Rel, Size: r.Size, Fork: r.Fork,
+			PID: r.PID, Scope: r.Scope, Category: r.Category, Project: r.Dir, Rel: r.Rel, Size: r.Size, Fork: r.Fork,
+		}
+		if r.Scope == "global" {
+			it.Project = r.Category
 		}
 		if b := byDir[strings.ToLower(r.Dir)]; b != nil {
 			it.PID, it.Bound = b.PID, true
@@ -97,14 +99,12 @@ func ReadBackup(id string) (*BackupContent, error) {
 		return nil, err
 	}
 	out := &BackupContent{}
-	cur, err := os.ReadFile(filepath.Join(cfg.ProjectsDir(), r.Dir, filepath.FromSlash(r.Rel)))
-	switch {
-	case err == nil:
-		out.CurrentExists = true
-		out.Same = bytes.Equal(cur, data)
-	case !errors.Is(err, fs.ErrNotExist):
+	cur, exists, err := engine.ReadBackupCurrent(cfg, r)
+	if err != nil {
 		return nil, err
 	}
+	out.CurrentExists = exists
+	out.Same = exists && bytes.Equal(cur, data)
 	if sniff := truncUTF8(data, 8192); !utf8.Valid(sniff) || bytes.IndexByte(sniff, 0) >= 0 {
 		out.Binary = true
 		return out, nil
