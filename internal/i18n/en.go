@@ -173,6 +173,7 @@ var en = map[string]string{
   {app} passwd               修改同步口令（所有设备一起换）；别的设备改过口令后，在本机输入新口令
   {app} uninstall            删除自动同步（hooks、定时任务、开机自启），不动会话和云端数据
   {app} version              显示版本
+  {app} update               检查更新，有新版本就下载安装（--dry 只检查）
 
 选项：
   -q, --quiet    静默，日志照样写进 sync.log
@@ -199,6 +200,7 @@ Usage:
   {app} passwd               change the sync passphrase (for all devices); after another device changed it, enter the new one here
   {app} uninstall            remove automatic sync (hooks, scheduled task, start-at-login); sessions and cloud data stay
   {app} version              show version
+  {app} update               check for updates and install a newer version (--dry: only check)
 
 Options:
   -q, --quiet    quiet; the log is still written to sync.log
@@ -300,4 +302,30 @@ Options:
 	"定时同步任务未安装":                                         "Scheduled sync task is not installed",
 	"文件监听启动失败: %v":                                      "Failed to start file watcher: %v",
 	"后台同步已启动":                                           "Background sync started",
+	// 2026-10：检查更新
+	"连不上 GitHub: %w": "Could not reach GitHub: %w",
+	"GitHub 返回 %s":   "GitHub returned %s",
+	"这个系统没有可以自动安装的版本，请到发布页手动下载":      "There is no automatically installable build for this system; please download it from the release page",
+	"发布里没有 SHA256SUMS.txt，没法校验下载的文件": "The release has no SHA256SUMS.txt, so the download cannot be verified",
+	"下载的文件校验不通过（可能下载不完整），请重试":        "The downloaded file failed verification (it may be incomplete); please try again",
+	"下载失败: %w":              "Download failed: %w",
+	"下载失败: %s":              "Download failed: %s",
+	"SHA256SUMS.txt 里没有 %s": "SHA256SUMS.txt does not list %s",
+	"没有权限写 %s，没法自动更新，请到发布页手动下载": "No permission to write to %s, so the app cannot update itself; please download it from the release page",
+	"不是从 App 里运行的，没法自动更新":       "Not running from an app bundle, so it cannot update itself",
+	"打开安装包失败: %v %s":            "Could not open the installer: %v %s",
+	"安装包里没有找到 App":              "No app found in the installer",
+	"已是最新版本":                    "You're up to date",
+	"请先完成初始化":                   "Please finish setup first",
+	"检查更新失败: %v":                "Update check failed: %v",
+	"发现新版本 %s（当前 %s）":           "New version %s available (current %s)",
+	"正在更新，请稍候":                  "Updating, please wait",
+	"请先检查更新":                    "Please check for updates first",
+	"更新失败: %v":                  "Update failed: %v",
+	"已更新到 %s，正在重新打开":            "Updated to %s, reopening",
+	"当前是开发版，不自动更新。最新正式版: %s":    "This is a development build and does not update itself. Latest release: %s",
+	"已是最新版本（%s）":                "You're up to date (%s)",
+	"发现新版本 %s（当前 %s）: %s":       "New version %s available (current %s): %s",
+	"下载中":                       "Downloading",
+	"已更新到 %s。正在运行的图形界面要关掉重新打开才是新版本。": "Updated to %s. A running app window must be closed and reopened to use the new version.",
 }

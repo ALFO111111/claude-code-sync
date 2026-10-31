@@ -18,17 +18,19 @@ import (
 const AppName = "claude-code-sync"
 
 type Config struct {
-	DeviceID    string         `json:"deviceId"`
-	DeviceName  string         `json:"deviceName"`
-	Home        string         `json:"home,omitempty"`      // 用户目录，默认取系统值
-	ClaudeDir   string         `json:"claudeDir,omitempty"` // 默认 <Home>/.claude
-	CodexDir    string         `json:"codexDir,omitempty"`  // 默认 $CODEX_HOME 或 <Home>/.codex
-	Storage     storage.Config `json:"storage"`
-	ScanRoots   []string       `json:"scanRoots,omitempty"`   // 额外的 git 仓库扫描目录
-	Ignore      []string       `json:"ignore,omitempty"`      // 不同步的本地目录名或项目 ID
-	Language    string         `json:"language,omitempty"`    // 界面语言 zh-CN / en；空 = 跟随系统
-	Theme       string         `json:"theme,omitempty"`       // 界面主题 light / dark；空 = 跟随系统
-	NoAutostart bool           `json:"noAutostart,omitempty"` // 用户关掉了开机自启（默认开）
+	DeviceID      string         `json:"deviceId"`
+	DeviceName    string         `json:"deviceName"`
+	Home          string         `json:"home,omitempty"`      // 用户目录，默认取系统值
+	ClaudeDir     string         `json:"claudeDir,omitempty"` // 默认 <Home>/.claude
+	CodexDir      string         `json:"codexDir,omitempty"`  // 默认 $CODEX_HOME 或 <Home>/.codex
+	Storage       storage.Config `json:"storage"`
+	ScanRoots     []string       `json:"scanRoots,omitempty"`     // 额外的 git 仓库扫描目录
+	Ignore        []string       `json:"ignore,omitempty"`        // 不同步的本地目录名或项目 ID
+	Language      string         `json:"language,omitempty"`      // 界面语言 zh-CN / en；空 = 跟随系统
+	Theme         string         `json:"theme,omitempty"`         // 界面主题 light / dark；空 = 跟随系统
+	NoAutostart   bool           `json:"noAutostart,omitempty"`   // 用户关掉了开机自启（默认开）
+	NoUpdateCheck bool           `json:"noUpdateCheck,omitempty"` // 用户关掉了自动检查更新（默认开）
+	SkipVersion   string         `json:"skipVersion,omitempty"`   // 用户点了"以后再说"的版本：这个版本不再提醒，更新的版本照样提醒
 
 	ContentDisabled []string        `json:"contentDisabled,omitempty"` // 用户关闭的内容类别；默认全部开启
 	ContentApproved map[string]bool `json:"contentApproved,omitempty"` // CC Switch 自动同步开着，仍明确选择由本工具同步

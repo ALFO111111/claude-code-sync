@@ -4,12 +4,10 @@ package gui
 
 import (
 	"math"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/getlantern/systray"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
 	"github.com/ALFO111111/claude-code-sync/internal/icon"
@@ -79,14 +77,7 @@ func (t *tray) start(app *App) {
 				case <-mOpen.ClickedCh:
 					app.showWindow()
 				case <-mQuit.ClickedCh:
-					app.quitting.Store(true) // 不然 OnBeforeClose 会把 Quit 当成"最小化到托盘"
-					if app.ctx != nil {
-						wailsRuntime.Quit(app.ctx)
-					}
-					systray.Quit()
-					// 兜底：正常退出时 main 早就返回了，这个定时器不会触发；
-					// 万一窗口关不掉，3 秒后强退，避免进程残留
-					time.AfterFunc(3*time.Second, func() { os.Exit(0) })
+					app.quit()
 					return
 				}
 			}
@@ -127,6 +118,9 @@ func (t *tray) relabel() {
 }
 
 // languageChanged 切换语言后刷新菜单和悬停提示（同步中不打断转圈，下一次换图标时提示自然更新）。
+// stop 去掉托盘图标（退出时调）。
+func (t *tray) stop() { systray.Quit() }
+
 func (t *tray) languageChanged() {
 	if t == nil {
 		return

@@ -17,6 +17,7 @@ import (
 	"github.com/ALFO111111/claude-code-sync/internal/cli"
 	"github.com/ALFO111111/claude-code-sync/internal/gui"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/claude-code-sync/internal/update"
 )
 
 // version 发布时可用 -ldflags "-X main.version=x.y.z" 覆盖。
@@ -34,9 +35,10 @@ func main() {
 		os.Args = os.Args[:1]
 	}
 	if len(os.Args) < 2 || len(os.Args) == 2 && os.Args[1] == gui.BackgroundArg {
+		update.WaitPrevious() // 刚更新完重新打开：等旧版本退出，不然单实例锁会把这个当成"第二个"
 		assets, err := fs.Sub(frontendDist, "frontend/dist")
 		if err == nil {
-			err = gui.Run(assets, len(os.Args) == 2)
+			err = gui.Run(assets, len(os.Args) == 2, version)
 		}
 		if err != nil {
 			os.Stderr.WriteString(i18n.T("错误:") + " " + err.Error() + "\n")

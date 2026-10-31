@@ -49,6 +49,9 @@ func removeAutostart() error {
 	return nil
 }
 
+// restartDaemon Windows 没有常驻的后台进程（托盘就是界面本身，定时任务每次都重新启动 exe）。
+func restartDaemon() {}
+
 func openFolder(path string) error { return exec.Command("explorer.exe", path).Start() }
 
 // openTerminal 有 Windows Terminal 用它，没有就开 cmd；command 在 dir 里执行，执行完窗口不关。

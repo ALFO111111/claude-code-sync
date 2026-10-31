@@ -7,6 +7,13 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-31
+
+### 新增 / Added
+
+- 检查更新：打开程序时和之后每天一次去 GitHub 查新版本，有新版本时侧边栏“设置”挂红点；“设置 → 关于”里一键更新（下载 → 按 SHA256SUMS.txt 校验 → 替换 → 重新打开；Mac 上后台进程也一起换），“以后再说”跳过这个版本，“设置 → 通用”可关掉自动检查。命令行 `update`（`--dry` 只检查）。访问 GitHub 会用系统代理
+  Update check: the app looks for a new version on GitHub when it opens and once a day after that, and puts a red dot on "Settings" when there is one; Settings → About updates in one click (download → verify against SHA256SUMS.txt → replace → reopen; on the Mac the background process is switched too), "Not now" skips that version, and automatic checks can be turned off in Settings → General. Command line: `update` (`--dry` to only check). GitHub is reached through the system proxy
+
 ## [0.3.2] - 2026-10-31
 
 ### 修复 / Fixed

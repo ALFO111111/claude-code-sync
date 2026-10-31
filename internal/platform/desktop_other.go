@@ -16,6 +16,7 @@ func autostartCommand(exe string) string                    { return `"` + exe +
 func autostart() (string, bool)                             { return "", false }
 func setAutostart(string) error                             { return errUnsupported }
 func removeAutostart() error                                { return nil }
+func restartDaemon()                                        {}
 func openFolder(path string) error                          { return exec.Command("xdg-open", path).Start() }
 func openTerminal(dir string, command []string) error       { return errUnsupported }
 func darkMode() bool                                        { return false }

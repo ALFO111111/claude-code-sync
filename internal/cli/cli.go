@@ -119,6 +119,8 @@ func dispatch(ctx context.Context, cmd string, o flags, version string) error {
 	case "version":
 		fmt.Println(appName, version)
 		return nil
+	case "update":
+		return cmdUpdate(ctx, version, o.dry)
 	default:
 		usage()
 		return errUsage
@@ -180,6 +182,7 @@ func usage() {
   {app} passwd               修改同步口令（所有设备一起换）；别的设备改过口令后，在本机输入新口令
   {app} uninstall            删除自动同步（hooks、定时任务、开机自启），不动会话和云端数据
   {app} version              显示版本
+  {app} update               检查更新，有新版本就下载安装（--dry 只检查）
 
 选项：
   -q, --quiet    静默，日志照样写进 sync.log
@@ -189,6 +192,38 @@ func usage() {
 }
 
 // ---------- 子命令 ----------
+
+func cmdUpdate(ctx context.Context, version string, dry bool) error {
+	info, err := service.CheckUpdate(ctx, version)
+	if err != nil {
+		return err
+	}
+	switch {
+	case info.Dev:
+		fmt.Println(i18n.T("当前是开发版，不自动更新。最新正式版: %s", info.Latest))
+		return nil
+	case !info.Available:
+		fmt.Println(i18n.T("已是最新版本（%s）", info.Current))
+		return nil
+	}
+	fmt.Println(i18n.T("发现新版本 %s（当前 %s）: %s", info.Latest, info.Current, info.URL))
+	if dry {
+		return nil
+	}
+	last := -1
+	_, err = service.InstallUpdate(ctx, info, func(done, total int64) {
+		if total > 0 && int(done*100/total)/10 != last {
+			last = int(done*100/total) / 10
+			fmt.Printf("\r%s %d%%", i18n.T("下载中"), done*100/total)
+		}
+	}, nil)
+	fmt.Println()
+	if err != nil {
+		return err
+	}
+	fmt.Println(i18n.T("已更新到 %s。正在运行的图形界面要关掉重新打开才是新版本。", info.Latest))
+	return nil
+}
 
 func cmdContent(args []string) error {
 	if len(args) == 0 {

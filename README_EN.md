@@ -93,6 +93,14 @@ Download `claude-code-sync-<version>-macos-arm64.dmg` from [Releases](https://gi
   ```
   If that's too long, add an alias: `alias claude-code-sync=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`
 
+### Updating
+
+The app checks GitHub for a new version when it opens (and once a day after that); when there is one, a red dot appears on "Settings" in the sidebar. In **Settings → About**, click "Update to vX.Y.Z": it downloads the new version, verifies it against `SHA256SUMS.txt`, replaces itself and reopens. Sessions and settings are not touched. "Not now" stops reminders for that version.
+
+- On Windows the exe itself is replaced, so it can't update itself from a folder that needs admin rights (such as `C:\Program Files`); `%LOCALAPPDATA%\Programs\` is recommended.
+- On the Mac the whole app in Applications is replaced, and the background process is switched to the new version too.
+- GitHub can be hard to reach from some networks: the app uses the system proxy. If it still can't connect, download the new version from Releases.
+
 ## Get started in 5 minutes
 
 > [!WARNING]
@@ -286,6 +294,7 @@ claude-code-sync restore-content codex rules AGENTS.md # restore Codex global ru
 claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
 claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login; the two LaunchAgents on the Mac)
 claude-code-sync version
+claude-code-sync update                     # check for updates and install a newer version (--dry: only check)
 ```
 
 ## FAQ
@@ -346,7 +355,7 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 ## Security and privacy
 
 - Sessions are encrypted locally before upload: the passphrase is stretched with Argon2id into a 256-bit key; content is gzip-compressed and encrypted with AES-256-GCM, with the object path as associated data to prevent swapping.
-- The app only talks to **the object storage you configured**. No telemetry, analytics or any other network requests.
+- The app only talks to **the object storage you configured**. No telemetry or analytics. The one exception is **update checks**: when the app opens and once a day after that, it asks GitHub for the latest version number (`api.github.com`, nothing personal is sent), and it downloads the installer from GitHub only when you click "Update". Turn off "Check for updates automatically" in Settings → General if you don't want this.
 - Found a security issue? Please see [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
 ## Contributing

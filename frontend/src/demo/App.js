@@ -192,6 +192,19 @@ export const OpenLogFolder = () => wait(null)
 export const DefaultDeviceName = () => wait('alex')
 export const Initialize = () => wait('created', 600)
 
+// 检查更新：&update=1 模拟有新版本（侧边栏"设置"挂红点、关于里显示更新说明）
+const UPDATE = q.get('update') === '1'
+const UPDATE_INFO = {
+  current: '0.3.2', latest: UPDATE ? '0.4.0' : '0.3.2', available: UPDATE, dev: false,
+  url: 'https://github.com/ALFO111111/claude-code-sync/releases', published: '2026-11-08T08:00:00Z', asset: 'claude-code-sync.exe',
+  notes: '### 新增 / Added\n\n- 检查更新：设置页“关于”里一键更新\n  Check for updates: one-click update in Settings → About\n- 侧边栏有新版本提示\n  The sidebar shows when a new version is out\n\n### 修复 / Fixed\n\n- 残留的同步锁马上接管\n  A leftover sync lock is taken over immediately',
+}
+export const GetUpdateState = () => wait({ current: '0.3.2', auto: true, skipped: '', info: UPDATE ? UPDATE_INFO : null }, 0)
+export const CheckUpdate = () => wait(UPDATE_INFO, 900)
+export const InstallUpdate = () => wait(null, 1500)
+export const SkipUpdate = () => wait(null)
+export const SetAutoUpdateCheck = () => wait(null)
+
 // &click=选择器1,选择器2：页面渲染好后依次点这些元素（截图时用来展开详情、打开会话；只在演示模式里，不碰正式页面的代码）
 if (q.get('click')) {
   q.get('click').split(',').forEach((sel, i) => {

@@ -93,6 +93,14 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
   ```
   嫌长的话可以加个别名：`alias claude-code-sync=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`
 
+### 更新
+
+打开程序时会自动去 GitHub 看有没有新版本（之后每天一次），有的话侧边栏“设置”上出现红点。到 **设置 → 关于** 点“更新到 vX.Y.Z”：自动下载、按 `SHA256SUMS.txt` 校验、替换、重新打开，会话和配置都不受影响。点“以后再说”这个版本就不再提醒。
+
+- Windows 替换的是 exe 本身，放在需要管理员权限的目录（如 `C:\Program Files`）里没法自动更新，所以推荐放在 `%LOCALAPPDATA%\Programs\`。
+- Mac 替换的是“应用程序”里的整个 App，后台进程也会一起换成新版本。
+- 国内连 GitHub 不稳定：程序会用系统代理（Clash 等开了“系统代理”就行）。实在连不上就到 Releases 手动下载。
+
 ## 5 分钟上手
 
 > [!WARNING]
@@ -286,6 +294,7 @@ claude-code-sync restore-content codex rules AGENTS.md # 拉回 Codex 全局规�
 claude-code-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
 claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启；Mac 上是两个 LaunchAgent）
 claude-code-sync version
+claude-code-sync update                     # 检查更新，有新版本就下载安装（--dry 只检查）
 ```
 
 ## 常见问题
@@ -352,7 +361,7 @@ claude-code-sync version
 ## 安全与隐私
 
 - 会话内容在本机加密后才上传：口令经 Argon2id 推导出 256 位密钥，内容 gzip 压缩后用 AES-256-GCM 加密，对象路径作为附加数据防止调包。
-- 程序只和**你自己配置的**对象存储通信，没有任何遥测、统计或其他网络请求。
+- 程序只和**你自己配置的**对象存储通信，没有任何遥测、统计。唯一的例外是**检查更新**：打开程序时和之后每天一次，向 GitHub 问一下最新版本号（`api.github.com`，不带任何个人信息），点“更新”时才从 GitHub 下载安装包。不想要的话在“设置 → 通用”里关掉“自动检查更新”。
 - 发现安全问题请看 [SECURITY.md](SECURITY.md)，不要直接发公开 issue。
 
 ## 参与开发

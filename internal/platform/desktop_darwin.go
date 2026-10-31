@@ -27,6 +27,12 @@ func setAutostart(exe string) error {
 
 func removeAutostart() error { return removeAgent(daemonLabel) }
 
+func restartDaemon() {
+	if _, ok := readAgent(daemonLabel); ok {
+		launchctl("kickstart", "-k", guiDomain()+"/"+daemonLabel)
+	}
+}
+
 func openFolder(path string) error { return exec.Command("open", path).Start() }
 
 // shQuote 给 shell 用的单引号转义：整体用单引号包起来，里面原有的单引号先结束引号、转义、再重新开始。

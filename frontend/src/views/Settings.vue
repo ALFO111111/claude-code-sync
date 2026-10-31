@@ -26,6 +26,16 @@
               <span></span>
             </label>
           </div>
+          <div class="setting">
+            <div>
+              <div class="label">{{ t('settings.autoUpdate') }}</div>
+              <div class="desc">{{ t('settings.autoUpdateDesc') }}</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" :checked="upd.auto" @change="toggleAutoUpdate($event.target.checked)" />
+              <span></span>
+            </label>
+          </div>
         </div>
 
         <!-- 除了会话之外还同步哪些东西：改了马上生效 -->
@@ -126,6 +136,44 @@
             <textarea v-model="scanRoots" rows="3" placeholder="D:\code"></textarea>
           </div>
         </div>
+
+        <!-- 关于 + 检查更新（参照 CC Switch：一个按钮四种状态，有新版本时下面展开说明） -->
+        <div class="card about">
+          <div class="about-head">
+            <img :src="logo" alt="" class="about-logo" />
+            <div class="grow">
+              <div class="about-name">claude-code-sync</div>
+              <div class="muted small">{{ upd.current && upd.current !== 'dev' ? t('about.version', { v: upd.current }) : t('about.devBuild') }}</div>
+            </div>
+            <button :class="{ primary: hasUpdate }" :disabled="upd.checking || upd.installing" @click="onUpdateClick">
+              <span v-if="upd.checking || upd.installing" class="spin">↻</span>
+              {{ upd.installing ? t('about.updating') : hasUpdate ? t('about.updateTo', { v: upd.info.latest }) : upd.checking ? t('about.checking') : t('about.check') }}
+            </button>
+          </div>
+          <div v-if="hasUpdate" class="update-box">
+            <div class="row wrap">
+              <b>{{ t('about.available', { v: upd.info.latest }) }}</b>
+              <span v-if="upd.info.published" class="muted small">{{ t('about.published', { date: upd.info.published.slice(0, 10) }) }}</span>
+            </div>
+            <div v-if="notes" class="notes">{{ notes }}</div>
+            <template v-if="upd.installing">
+              <div class="progress mt"><div :style="{ width: dlPct + '%' }"></div></div>
+              <div class="muted small mt">
+                {{ dlPct >= 100 ? t('about.installing') : t('about.downloading', { done: fmtSize(upd.progress.done), total: fmtSize(upd.progress.total) }) }}
+              </div>
+            </template>
+            <div v-if="!upd.info.asset" class="muted small mt">{{ t('about.manual') }}</div>
+            <div class="row wrap mt">
+              <button class="sm ghost" @click="BrowserOpenURL(upd.info.url)">{{ t('about.notes') }}</button>
+              <button v-if="upd.info.latest !== upd.skipped" class="sm ghost" :disabled="upd.installing" @click="skip">{{ t('about.skip') }}</button>
+              <span v-else class="muted small">{{ t('about.skipped') }}</span>
+            </div>
+          </div>
+          <div class="row wrap links">
+            <button class="sm ghost" @click="BrowserOpenURL(REPO)">{{ t('about.github') }}</button>
+            <button class="sm ghost" @click="BrowserOpenURL(REPO + '/releases')">{{ t('about.releases') }}</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -141,11 +189,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { api, EventsOn } from '@/api'
+import { api, EventsOn, BrowserOpenURL } from '@/api'
 import { useNotice } from '@/composables/useNotice'
 import { BLANK_STORAGE } from '@/utils/storageTypes'
 import { themeSetting, changeTheme } from '@/utils/theme'
-import { contentLabel, contentDesc } from '@/utils/format'
+import { contentLabel, contentDesc, fmtSize, releaseNotes } from '@/utils/format'
+import { upd, hasUpdate, checkUpdate, installUpdate, skipUpdate, setAutoUpdate } from '@/stores/update'
+import logo from '@/assets/logo.png'
 import Notice from '@/components/Notice.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
 import StorageForm from '@/components/StorageForm.vue'
@@ -154,7 +204,7 @@ import Skeleton from '@/components/Skeleton.vue'
 import Refreshing from '@/components/Refreshing.vue'
 import { resources } from '@/stores/data'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const form = ref({ deviceName: '', hasSecret: false })
 const st = ref({ ...BLANK_STORAGE })
 const scanRoots = ref('')
@@ -175,6 +225,46 @@ async function toggleAutostart(on) {
     autostart.value = await api.GetAutostart()
   } finally {
     autoBusy.value = false
+  }
+}
+
+// ---------- 检查更新 ----------
+const REPO = 'https://github.com/ALFO111111/claude-code-sync'
+const notes = computed(() => releaseNotes(upd.info?.notes, locale.value))
+const dlPct = computed(() => (upd.progress.total ? Math.min(100, Math.round((upd.progress.done / upd.progress.total) * 100)) : 0))
+
+async function onUpdateClick() {
+  clear()
+  try {
+    if (!hasUpdate.value) {
+      const info = await checkUpdate()
+      if (info.dev) ok(t('about.devLatest', { v: info.latest }))
+      else if (!info.available) ok(t('about.upToDate'))
+      return
+    }
+    if (!upd.info.asset) {
+      BrowserOpenURL(upd.info.url) // 这个系统没有安装包：去发布页手动下载
+      return
+    }
+    await installUpdate() // 成功的话程序会自己退出、重新打开新版本
+  } catch (e) {
+    fail(t(hasUpdate.value ? 'about.updateFailed' : 'about.checkFailed', { err: String(e) }))
+  }
+}
+
+async function skip() {
+  try {
+    await skipUpdate()
+  } catch (e) {
+    fail(String(e))
+  }
+}
+
+async function toggleAutoUpdate(on) {
+  try {
+    await setAutoUpdate(on)
+  } catch (e) {
+    fail(String(e))
   }
 }
 
@@ -319,6 +409,17 @@ onUnmounted(() => offRekey?.())
 .storage { order: 4; }
 .scan { order: 5; }
 .pass { order: 6; }
+.about { order: 7; }
+.about-head { display: flex; align-items: center; gap: 12px; }
+.about-logo { width: 40px; height: 40px; border-radius: 8px; }
+.about-name { font-weight: 600; font-size: 15px; }
+.update-box { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.update-box .row { gap: 8px; align-items: baseline; }
+.notes {
+  margin-top: 6px; white-space: pre-line; font-size: 12.5px; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.links { gap: 8px; margin-top: 10px; }
 .owner { gap: 8px; margin-top: 6px; }
 .content-group { margin-top: 12px; }
 .content-group + .content-group { padding-top: 2px; border-top: 1px solid var(--border); }

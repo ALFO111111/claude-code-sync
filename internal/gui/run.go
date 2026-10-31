@@ -26,10 +26,11 @@ import (
 const BackgroundArg = platform.BackgroundArg
 
 // Run 打开主窗口，阻塞到退出。assets 是前端构建产物（frontend/dist）。
-// background=true（开机自启）时不弹窗口，只在托盘里运行，点托盘"打开主窗口"才显示。
-func Run(assets fs.FS, background bool) error {
+// background=true（开机自启）时不弹窗口，只在托盘里运行，点托盘"打开主窗口"才显示。version 是当前版本（检查更新用）。
+func Run(assets fs.FS, background bool, version string) error {
 	service.ApplyLanguage()
 	app := NewApp()
+	app.version = version
 	app.tray = newTray()
 	app.tray.start(app)
 	bg := &options.RGBA{R: 245, G: 246, B: 248, A: 1}

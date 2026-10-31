@@ -8,6 +8,9 @@ const BackgroundArg = "--background"
 // DaemonArg macOS 开机自启运行的子命令：没有窗口，只盯文件变化做同步（Mac 版没有托盘，见 launchd_darwin.go）。
 const DaemonArg = "daemon"
 
+// RestartDaemon 更新完重启 macOS 的后台进程，让它跑新版本；没装（关了开机自启）或别的系统什么都不做。
+func RestartDaemon() { restartDaemon() }
+
 // AutostartCommand 开机自启要执行的命令（和 Autostart 返回的格式一致，用来判断登记的是不是当前 exe）。
 func AutostartCommand(exe string) string { return autostartCommand(exe) }
 

@@ -45,3 +45,28 @@ export function highlight(text, q) {
   if (i < text.length) out.push({ t: text.slice(i), hit: false })
   return out
 }
+
+// releaseNotes 更新说明（CHANGELOG 那一节）只留当前界面语言：每条是 "- 中文" 下面跟一行缩进的英文。
+// 小标题"### 修复 / Fixed"按语言取一半；认不出这种格式的原样返回（去掉 Markdown 记号）。
+export function releaseNotes(body, lang) {
+  const en = lang === 'en'
+  const out = []
+  let bilingual = false
+  for (const line of (body || '').replace(/\r\n/g, '\n').split('\n')) {
+    if (!line.trim()) continue
+    const head = line.match(/^#+\s*(.*)$/)
+    if (head) {
+      const [zh, eng] = head[1].split(' / ')
+      out.push(((en ? eng : zh) || head[1]).trim())
+    } else if (/^\s+\S/.test(line) && out.length) {
+      bilingual = true
+      if (en) out.push('• ' + line.trim())
+    } else {
+      const item = line.replace(/^[-*]\s+/, '')
+      if (!en || !line.match(/^[-*]\s/)) out.push((item !== line ? '• ' : '') + item)
+    }
+  }
+  // 不是双语格式（没有缩进的英文行）：英文界面也把每一条都显示出来
+  if (en && !bilingual) return releaseNotes(body, 'zh-CN')
+  return out.join('\n').replace(/`/g, '')
+}

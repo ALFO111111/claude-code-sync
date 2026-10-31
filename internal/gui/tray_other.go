@@ -13,3 +13,4 @@ func (t *tray) start(*App)          {}
 func (t *tray) syncStarted()        {}
 func (t *tray) syncFinished(string) {}
 func (t *tray) languageChanged()    {}
+func (t *tray) stop()               {}

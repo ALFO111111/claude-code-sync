@@ -38,3 +38,12 @@ it('highlight 不分大小写切段', () => {
   ])
   expect(highlight('abc', '')).toEqual([{ t: 'abc', hit: false }])
 })
+
+it('releaseNotes 按界面语言取一半', async () => {
+  const { releaseNotes } = await import('@/utils/format')
+  const body = '### 修复 / Fixed\n\n- 修了 `A`\n  Fixed `A`\n- 修了 B\n  Fixed B\n'
+  expect(releaseNotes(body, 'zh-CN')).toBe('修复\n• 修了 A\n• 修了 B')
+  expect(releaseNotes(body, 'en')).toBe('Fixed\n• Fixed A\n• Fixed B')
+  expect(releaseNotes('- only one language', 'en')).toBe('• only one language')
+  expect(releaseNotes('', 'en')).toBe('')
+})

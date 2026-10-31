@@ -18,6 +18,7 @@ import (
 	"github.com/ALFO111111/claude-code-sync/internal/service"
 	"github.com/ALFO111111/claude-code-sync/internal/state"
 	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/claude-code-sync/internal/update"
 	"github.com/ALFO111111/claude-code-sync/internal/watch"
 )
 
@@ -41,6 +42,7 @@ import (
 //	自动同步 RepairAutoSync（平时自动装好，不展示；GetStatus.autoSync=false 时界面才提示修复）
 //	日志     ReadLog  ClearLog  OpenLogFolder
 //	向导     DefaultDeviceName  Initialize
+//	更新     GetUpdateState  CheckUpdate  InstallUpdate（+ 事件 "update"、"update-progress"）  SkipUpdate  SetAutoUpdateCheck
 type App struct {
 	ctx       context.Context // Wails 运行时上下文（发事件、弹对话框用）
 	syncing   atomic.Bool
@@ -52,6 +54,11 @@ type App struct {
 	watcherMu sync.Mutex
 	tray      *tray        // 系统托盘（测试里为 nil）
 	lastEmit  atomic.Int64 // 上次推进度事件的时间（纳秒），限流用
+
+	version    string       // 当前版本（main.version），检查更新用
+	updMu      sync.Mutex   // 保护 updInfo
+	updInfo    *update.Info // 最近一次检查更新的结果
+	installing atomic.Bool  // 正在下载 / 安装更新
 }
 
 func NewApp() *App { return &App{} }
@@ -60,6 +67,8 @@ func NewApp() *App { return &App{} }
 // 然后启动文件监听（会话一有变化就自动同步）。
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	update.CleanupOld() // 上次更新留下的旧版本
+	go a.autoCheckUpdate()
 	a.ensuring.Add(1)
 	go func() {
 		defer a.ensuring.Done()
