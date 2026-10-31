@@ -48,14 +48,14 @@ claude-code-sync solves exactly that:
 - **Session browser**: sessions listed by title for every project, search across all projects, and continue any session with `claude --resume` in a terminal with one click
 - **Change the passphrase any time**: every cloud file is re-encrypted with the new passphrase; other machines continue once you enter it there
 - **Bring your own storage**: any S3-compatible object storage: Cloudflare R2, AWS S3, Alibaba Cloud OSS, Tencent Cloud COS, MinIO (self-hosted / NAS), …
-- **GUI + CLI**: a single portable exe on Windows, one universal app on the Mac; the interface is available in English and Simplified Chinese
+- **GUI + CLI**: a single portable exe on Windows, a DMG on the Mac (drag to Applications); the interface is available in English and Simplified Chinese
 
 ## Supported systems
 
 | System | Requirements |
 |---|---|
 | **Windows 10 / 11** (64-bit) | The GUI uses WebView2, which ships with Windows 11 and is usually present on Windows 10; if it's missing the app will offer to install it |
-| **macOS 13 or later** | One universal app for both Intel and Apple silicon |
+| **macOS 13 or later** | Apple silicon (M1 or later) only; Intel Macs are not supported |
 
 Claude Code and Codex are supported on both, and Windows and Mac machines can sync with each other. Linux is not supported yet.
 
@@ -71,17 +71,18 @@ Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude
 
 ### macOS
 
-Download `claude-code-sync-<version>-macos-universal.zip` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases), unzip it and drag `claude-code-sync.app` into Applications (`/Applications`).
+Download `claude-code-sync-<version>-macos-arm64.dmg` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases), open it, drag `claude-code-sync.app` onto the Applications icon next to it, then eject the DMG from the Finder sidebar.
 
 > [!IMPORTANT]
-> The app is not notarized by Apple (it only has an ad-hoc signature, for the same reason as above), so Gatekeeper blocks the first launch with a "developer cannot be verified" message. Either:
-> - **right-click** the app in Finder → **Open**, then click "Open" in the dialog (first time only)
+> The app is not notarized by Apple (it only has an ad-hoc signature, for the same reason as above), so Gatekeeper blocks the first launch. Allow it once in any of these ways:
+> - macOS 15 or later: double-click the app once (it gets blocked), then open **System Settings → Privacy & Security**, click **Open Anyway** near the bottom and confirm with your login password
+> - macOS 13 / 14: **right-click** the app in Finder → **Open**, then click "Open" in the dialog
 > - or run this in Terminal:
 >   ```bash
 >   xattr -dr com.apple.quarantine /Applications/claude-code-sync.app
 >   ```
 >
-> You can verify the zip against `SHA256SUMS.txt` as well.
+> You can verify the dmg against `SHA256SUMS.txt` as well.
 
 **Differences from the Windows version**:
 

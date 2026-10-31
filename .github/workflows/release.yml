@@ -22,7 +22,7 @@ jobs:
           - os: windows-latest
             platform: windows/amd64
           - os: macos-latest
-            platform: darwin/universal # 一个 App 同时支持 Intel 和 Apple 芯片
+            platform: darwin/arm64 # 只支持 Apple 芯片，Intel Mac 不再提供
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -75,8 +75,7 @@ jobs:
         run: |
           v='${{ steps.ver.outputs.version }}'
           mkdir dist
-          # ditto 打包会保留 .app 里的符号链接和签名，普通 zip 会把 App 弄坏
-          ditto -c -k --keepParent build/bin/claude-code-sync.app "dist/claude-code-sync-$v-macos-universal.zip"
+          scripts/package-dmg.sh build/bin/claude-code-sync.app "dist/claude-code-sync-$v-macos-arm64.dmg"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -119,5 +118,5 @@ jobs:
           files: |
             dist/claude-code-sync.exe
             dist/claude-code-sync-${{ steps.ver.outputs.version }}-windows-amd64.zip
-            dist/claude-code-sync-${{ steps.ver.outputs.version }}-macos-universal.zip
+            dist/claude-code-sync-${{ steps.ver.outputs.version }}-macos-arm64.dmg
             dist/SHA256SUMS.txt

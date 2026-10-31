@@ -25,6 +25,14 @@ func TestTranslatorSameOSAndCrossOS(t *testing.T) {
 			`{"text":"cd D:\\code\\x && ls"}`, `{"text":"cd D:\\code\\x && ls"}`},
 		{"字符串里带转义引号", `D:\code\x`, `/Users/me/x`,
 			`{"f":"D:\\code\\x\\a \"b\".txt","n":1}`, `{"f":"/Users/me/x/a \"b\".txt","n":1}`},
+		{"Git Bash 写法 → Mac", `D:\code\x`, `/Users/me/x`,
+			`{"cwd":"/d/code/x","f":"/D/code/x/src/a.go"}`, `{"cwd":"/Users/me/x","f":"/Users/me/x/src/a.go"}`},
+		{"Git Bash 写法 → Windows 保持 Git Bash 写法", `D:\code\x`, `E:\work\x`,
+			`{"cwd":"/d/code/x/src"}`, `{"cwd":"/e/work/x/src"}`},
+		{"Git Bash 写法的兄弟目录不动", `D:\code\x`, `/Users/me/x`,
+			`{"cwd":"/d/code/x2"}`, `{"cwd":"/d/code/x2"}`},
+		{"同一台电脑同一路径的 Git Bash 写法不动", `D:\code\x`, `d:\code\x`,
+			`{"cwd":"/d/code/x"}`, `{"cwd":"/d/code/x"}`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

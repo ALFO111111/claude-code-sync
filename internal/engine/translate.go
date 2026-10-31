@@ -17,6 +17,9 @@ import (
 //
 // 跨系统（Windows ↔ macOS）时，根路径后面那一段的分隔符也一起换成本机的写法：
 // D:\code\x\src\a.go 到 Mac 上是 /Users/me/code/x/src/a.go，而不是 /Users/me/code/x\src\a.go。
+//
+// Windows 上 Claude Code 用 Git Bash 跑过命令后，cwd 会记成 /d/code/x 这种写法，也一起换：
+// 到 Mac 上换成 Mac 的路径，到另一台 Windows 上换成那台的 Git Bash 写法（/e/work/x）。
 
 type translateRule struct {
 	re      *regexp.Regexp
@@ -50,6 +53,16 @@ func newPairTranslator(pairs [][2]string) *translator {
 		}
 		seen[k] = true
 		list = append(list, pair{f, l})
+		if mf := msysPath(f); mf != "" {
+			ml := l
+			if isWindowsPath(l) {
+				ml = msysPath(l) // UNC 等没有 Git Bash 写法的，返回空，跳过
+			}
+			if mk := strings.ToLower(mf); ml != "" && !strings.EqualFold(mf, ml) && !seen[mk] {
+				seen[mk] = true
+				list = append(list, pair{mf, ml})
+			}
+		}
 	}
 	if len(list) == 0 {
 		return nil
@@ -70,6 +83,14 @@ func newPairTranslator(pairs [][2]string) *translator {
 // isWindowsPath 带盘符（C:）、带反斜杠或 UNC 的算 Windows 写法，其他（/Users/...）算 Unix 写法。
 func isWindowsPath(p string) bool {
 	return strings.Contains(p, `\`) || len(p) >= 2 && p[1] == ':' && (p[0] >= 'a' && p[0] <= 'z' || p[0] >= 'A' && p[0] <= 'Z')
+}
+
+// msysPath Windows 路径的 Git Bash 写法：D:\code\x → /d/code/x；不带盘符的返回空。
+func msysPath(p string) string {
+	if len(p) < 2 || p[1] != ':' || !(p[0] >= 'a' && p[0] <= 'z' || p[0] >= 'A' && p[0] <= 'Z') {
+		return ""
+	}
+	return "/" + strings.ToLower(p[:1]) + strings.ReplaceAll(p[2:], `\`, "/")
 }
 
 // rootPattern 生成匹配 JSON 文本中某个路径的正则：分隔符既可以是 \\（JSON 转义后的反斜杠）也可以是 /。

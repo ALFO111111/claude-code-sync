@@ -7,6 +7,23 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-31
+
+### 变更 / Changed
+
+- macOS 改用 DMG 安装包（`claude-code-sync-<版本>-macos-arm64.dmg`）：打开后把 App 拖到“应用程序”图标上即可，不再提供 zip。Mac 版只支持 Apple 芯片，不再支持 Intel 芯片的 Mac
+  macOS now ships as a DMG installer (`claude-code-sync-<version>-macos-arm64.dmg`): open it and drag the app onto the Applications icon; the zip is gone. The Mac build is Apple silicon only, Intel Macs are no longer supported
+
+### 修复 / Fixed
+
+- 路径翻译漏了 Git Bash 写法：Windows 上 Claude Code 用 Bash 跑过命令后，会话里的 cwd 会记成 `/d/code/x`，以前原样拉到 Mac 上，现在会换成 Mac 的项目路径（到另一台 Windows 上换成那台的 `/e/work/x`）
+  Path translation missed the Git Bash form: after Claude Code on Windows runs a Bash command the session records cwd as `/d/code/x`, which used to reach the Mac unchanged; it is now mapped to the Mac's project path (or to `/e/work/x` on another Windows machine)
+
+### 文档 / Docs
+
+- macOS 15 及以上首次打开未公证的 App 要在“系统设置 → 隐私与安全性”点“仍要打开”（右键 → 打开已不再放行）
+  On macOS 15 and later, the first launch of the unnotarized app is allowed via System Settings → Privacy & Security → Open Anyway (right-click → Open no longer works there)
+
 ## [0.3.0] - 2026-10-31
 
 ### 新增 / Added

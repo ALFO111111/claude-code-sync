@@ -261,12 +261,13 @@ claude --resume
 
 ## 7.8 阶段 H：macOS
 
-前提：一台 macOS 13 及以上的 Mac（Intel 或 Apple 芯片都可以）。`scripts\` 里的 PowerShell 脚本 Mac 上默认没有，下面用 `cp`、`diff` 代替。下文 `$APP` 指 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`，可以先 `APP=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
+前提：一台 macOS 13 及以上、Apple 芯片的 Mac。`scripts\` 里的 PowerShell 脚本 Mac 上默认没有，下面用 `cp`、`diff` 代替。下文 `$APP` 指 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`，可以先 `APP=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
 
-1. **安装与 Gatekeeper**：从 Releases 下载 `claude-code-sync-<版本>-macos-universal.zip`，用 `shasum -a 256` 和 `SHA256SUMS.txt` 核对，解压后拖进“应用程序”。预期：
-   - 直接双击会被 Gatekeeper 拦下（无法验证开发者）；在“访达”里右键 → 打开 → 再点“打开”后能启动，之后双击不再拦。
+1. **安装与 Gatekeeper**：从 Releases 下载 `claude-code-sync-<版本>-macos-arm64.dmg`，用 `shasum -a 256` 和 `SHA256SUMS.txt` 核对，双击打开后把 App 拖到“应用程序”图标上。预期：
+   - DMG 窗口里有 App 和“应用程序”快捷方式两个图标。
+   - 直接双击会被 Gatekeeper 拦下；macOS 15 及以上在“系统设置 → 隐私与安全性”点“仍要打开”后能启动（macOS 13/14 用右键 → 打开），之后双击不再拦。
    - 换一台（或删掉重装）验证另一种方式：`xattr -dr com.apple.quarantine /Applications/claude-code-sync.app` 后直接双击能打开。
-   - `lipo -archs "$APP"` 输出同时包含 `x86_64` 和 `arm64`（通用版）。
+   - `lipo -archs "$APP"` 输出 `arm64`。
 
 2. **命令行**：`"$APP" version` 显示版本号；`"$APP" status`、`"$APP" sync --dry` 能正常输出（还没初始化时提示先初始化）。
 

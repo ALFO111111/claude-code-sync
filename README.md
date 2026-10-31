@@ -48,14 +48,14 @@ claude-code-sync 专门解决这个问题：
 - **会话浏览**：按标题列出每个项目的会话，跨项目搜索聊天内容，一键在终端里 `claude --resume` 接着聊
 - **随时改口令**：所有云端文件用新口令重新加密，其他电脑输入新口令后接着同步
 - **用你自己的存储**：任何 S3 兼容的对象存储都行：阿里云 OSS、腾讯云 COS、Cloudflare R2、AWS S3、MinIO（自建/NAS）……
-- **图形界面 + 命令行**：Windows 是单个 exe，免安装；Mac 是一个通用版 App；界面支持简体中文和 English
+- **图形界面 + 命令行**：Windows 是单个 exe，免安装；Mac 是 DMG 安装包，拖进“应用程序”即可；界面支持简体中文和 English
 
 ## 支持的系统
 
 | 系统 | 要求 |
 |---|---|
 | **Windows 10 / 11**（64 位） | 图形界面依赖 WebView2，Windows 11 自带；Windows 10 一般也已经装好，没有的话程序会提示安装 |
-| **macOS 13 及以上** | 一个通用版 App 同时支持 Intel 和 Apple 芯片 |
+| **macOS 13 及以上** | 只支持 Apple 芯片（M1 及以后），不支持 Intel 芯片的 Mac |
 
 Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以互相同步。Linux 暂不支持。
 
@@ -71,17 +71,18 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 
 ### macOS
 
-到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync-<版本>-macos-universal.zip`，解压后把 `claude-code-sync.app` 拖进“应用程序”（`/Applications`）。
+到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync-<版本>-macos-arm64.dmg`，双击打开，把 `claude-code-sync.app` 拖到旁边的“应用程序”（Applications）图标上，然后在“访达”侧边栏推出这个 DMG。
 
 > [!IMPORTANT]
-> App 没有经过 Apple 公证（只有 ad-hoc 自签名，原因同上），第一次打开会被 Gatekeeper 拦下，提示“无法验证开发者”。任选一种方式放行：
-> - 在“访达”里**右键** App → **打开**，再在弹窗里点“打开”（只需要第一次）
+> App 没有经过 Apple 公证（只有 ad-hoc 自签名，原因同上），第一次打开会被 Gatekeeper 拦下。任选一种方式放行（只需要第一次）：
+> - macOS 15 及以上：先双击一次 App（会被拦下），然后打开 **系统设置 → 隐私与安全性**，在页面下方点 **仍要打开**，输入开机密码确认
+> - macOS 13 / 14：在“访达”里**右键** App → **打开**，再在弹窗里点“打开”
 > - 或者在终端运行：
 >   ```bash
 >   xattr -dr com.apple.quarantine /Applications/claude-code-sync.app
 >   ```
 >
-> 同样可以用 `SHA256SUMS.txt` 核对 zip。
+> 同样可以用 `SHA256SUMS.txt` 核对 dmg。
 
 **和 Windows 版的区别**：
 

@@ -35,10 +35,11 @@ wails build                      # Windows：打包单个 exe → build\bin\clau
 .\打包.bat                        # 同上，双击运行：先关掉正在运行的程序；PATH 里没有 Go 时会到常见安装位置找，打包后还原 frontend/package.json.md5
 ```
 
-Mac 上打通用版 App（同时支持 Intel 和 Apple 芯片）：
+Mac 上打 Apple 芯片版 App 和 DMG 安装包：
 
 ```bash
-wails build -platform darwin/universal   # → build/bin/claude-code-sync.app
+wails build -platform darwin/arm64   # → build/bin/claude-code-sync.app
+scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-macos-arm64.dmg
 ```
 
 **gofmt 要用 `go.mod` 指定版本的**：不同 Go 版本的 gofmt 对中文字符的对齐算法不一样，用错版本会和 CI 对不上。用 `go fmt ./...`，或者：
@@ -124,7 +125,7 @@ frontend/src/           Vue 3：api/ 调后端，i18n/ 界面文字，views/ 页
 
 1. 在 `CHANGELOG.md` 把 `## [Unreleased]` 改成 `## [0.x.y] - 日期`，在上面再留一个空的 `## [Unreleased]`，提交
 2. `git tag v0.x.y && git push origin v0.x.y`
-3. GitHub Actions 自动测试、构建（Windows：exe + zip；macOS：universal zip），然后发布到 Releases，`SHA256SUMS.txt` 包含全部文件，说明取自 CHANGELOG 对应的那一节
+3. GitHub Actions 自动测试、构建（Windows：exe + zip；macOS：Apple 芯片 dmg），然后发布到 Releases，`SHA256SUMS.txt` 包含全部文件，说明取自 CHANGELOG 对应的那一节
 
 ---
 
@@ -159,10 +160,11 @@ wails build                      # Windows: build the single exe → build\bin\c
 .\打包.bat                        # same, by double-click: closes the running app first; finds Go in common install locations if it's not on PATH, and restores frontend/package.json.md5 afterwards
 ```
 
-On the Mac, build the universal app (Intel + Apple silicon):
+On the Mac, build the Apple silicon app and the DMG installer:
 
 ```bash
-wails build -platform darwin/universal   # → build/bin/claude-code-sync.app
+wails build -platform darwin/arm64   # → build/bin/claude-code-sync.app
+scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-macos-arm64.dmg
 ```
 
 **Use the gofmt from the Go version in `go.mod`**: gofmt aligns CJK characters differently across Go versions, so the wrong one disagrees with CI. Use `go fmt ./...`, or:
@@ -250,4 +252,4 @@ frontend/src/           Vue 3: api/ calls the backend, i18n/ UI text, views/ pag
 
 1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [0.x.y] - date`, add a fresh empty `## [Unreleased]` above it, commit
 2. `git tag v0.x.y && git push origin v0.x.y`
-3. GitHub Actions tests, builds (Windows: exe + zip; macOS: universal zip) and publishes the release with every file in `SHA256SUMS.txt`, using that CHANGELOG section as the notes
+3. GitHub Actions tests, builds (Windows: exe + zip; macOS: Apple silicon dmg) and publishes the release with every file in `SHA256SUMS.txt`, using that CHANGELOG section as the notes
