@@ -93,6 +93,9 @@ func (a *App) startWatcher() {
 		}),
 		watch.NewFile(filepath.Join(cfg.ClaudeDir, "CLAUDE.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
 		watch.NewFile(cfg.ClaudeStatePath(), func() { go a.runSync(service.SyncRequest{}, false) }),
+		watch.NewFile(filepath.Join(cfg.CodexDir, "AGENTS.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
+		watch.NewFile(filepath.Join(cfg.CodexDir, "AGENTS.override.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
+		watch.New(filepath.Join(cfg.Home, ".agents", "skills"), func() { go a.runSync(service.SyncRequest{}, false) }),
 	}
 	for _, dir := range []string{"plans", "skills", "agents", "commands", "tasks"} {
 		root := filepath.Join(cfg.ClaudeDir, dir)
@@ -442,6 +445,10 @@ func (a *App) SetContentEnabled(category string, enabled bool) error {
 	return service.SetContentEnabled(category, enabled)
 }
 
+func (a *App) SetToolContentEnabled(tool, category string, enabled bool) error {
+	return service.SetToolContentEnabled(tool, category, enabled)
+}
+
 func (a *App) SetContentOwner(category, owner string) error {
 	return service.SetContentOwner(category, owner)
 }
@@ -462,6 +469,10 @@ func (a *App) ResolveConflict(id, choice, merged string) error {
 
 func (a *App) RestoreContentItem(category, rel string) error {
 	return service.RestoreContentItem(context.Background(), category, rel)
+}
+
+func (a *App) RestoreToolContentItem(tool, category, rel string) error {
+	return service.RestoreToolContentItem(context.Background(), tool, category, rel)
 }
 
 // ---------- 日志 ----------

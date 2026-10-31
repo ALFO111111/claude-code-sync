@@ -194,6 +194,7 @@ export default {
     title: '同步内容',
     intro: '除了会话和项目记忆，还可以同步这些。关掉只是不再同步，本机和云端的文件都不会删。一台电脑上删掉的文件也不会去删别的电脑上的。',
     ccWarn: 'CC Switch 开着自动同步，它也会同步全局规则、技能和 MCP。两边一起同步可能互相覆盖，请为下面标出的类别选一个负责的。',
+    tool: { claude: 'Claude Code', codex: 'Codex' },
     cat: {
       rules: '全局规则 CLAUDE.md',
       plans: '计划 plans',
@@ -213,6 +214,16 @@ export default {
       tasks: '任务清单',
       settings: '只同步语言、自动记忆、署名这几项；模型、Key、hooks、权限都留在本机',
       mcp: '用户级 MCP 服务器；密钥、环境变量和认不出的本机路径不上传',
+    },
+    codex: {
+      cat: {
+        rules: '全局规则 AGENTS.md',
+        skills: '技能 skills',
+      },
+      desc: {
+        rules: '只同步 ~/.codex/AGENTS.md 和 ~/.codex/AGENTS.override.md',
+        skills: '只同步 ~/.agents/skills 下的技能',
+      },
     },
     ownerSync: '已选择由本工具同步（CC Switch 也开着自动同步）',
     ownerCC: '已交给 CC Switch 同步',

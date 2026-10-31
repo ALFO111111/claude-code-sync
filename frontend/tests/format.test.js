@@ -3,7 +3,7 @@ import { it, expect, vi } from 'vitest'
 // format.js 通过 i18n 间接引用后端接口（wailsjs）；测试里用不到，换成空的
 vi.mock('@/api', () => ({ api: {}, EventsOn: () => () => {}, BrowserOpenURL: () => {} }))
 
-const { fmtSize, fromNow, highlight } = await import('@/utils/format')
+const { fmtSize, fromNow, highlight, toolLabel, contentLabel, contentDesc } = await import('@/utils/format')
 
 it('fmtSize', () => {
   expect(fmtSize(0)).toBe('0 B')
@@ -20,6 +20,14 @@ it('fromNow', () => {
   expect(fromNow(now - 5 * 60_000, now)).toBe('5 分钟前')
   expect(fromNow(now - 3 * 3600_000, now)).toBe('3 小时前')
   expect(fromNow(now - 2 * 86400_000, now)).toBe('2 天前')
+})
+
+it('全局内容按工具显示，旧数据默认 Claude Code', () => {
+  expect(toolLabel('')).toBe('Claude Code')
+  expect(toolLabel('codex')).toBe('Codex')
+  expect(contentLabel('', 'rules')).toBe('全局规则 CLAUDE.md')
+  expect(contentLabel('codex', 'rules')).toBe('全局规则 AGENTS.md')
+  expect(contentDesc('codex', 'skills')).toContain('~/.agents/skills')
 })
 
 it('highlight 不分大小写切段', () => {

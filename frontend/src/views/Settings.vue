@@ -36,22 +36,25 @@
           <div v-if="content?.pending.length" class="warn-box mt">{{ t('content.ccWarn') }}</div>
           <div v-if="!content" class="mt"><Skeleton :lines="4" /></div>
           <template v-else>
-            <div v-for="it in content.items" :key="it.category" class="setting">
-              <div class="grow">
-                <div class="label">{{ t(`content.cat.${it.category}`) }}</div>
-                <div class="desc">{{ t(`content.desc.${it.category}`) }}</div>
-                <div v-if="it.ccOverlap && content.ccSwitch === 'enabled' && !it.pending" class="desc">
-                  {{ it.enabled ? t('content.ownerSync') : t('content.ownerCC') }}
+            <div v-for="group in contentGroups" :key="group.tool" class="content-group">
+              <h4 class="content-tool">{{ t(`content.tool.${group.tool}`) }}</h4>
+              <div v-for="it in group.items" :key="`${group.tool}:${it.category}`" class="setting">
+                <div class="grow">
+                  <div class="label">{{ contentLabel(group.tool, it.category) }}</div>
+                  <div class="desc">{{ contentDesc(group.tool, it.category) }}</div>
+                  <div v-if="group.tool === 'claude' && it.ccOverlap && content.ccSwitch === 'enabled' && !it.pending" class="desc">
+                    {{ it.enabled ? t('content.ownerSync') : t('content.ownerCC') }}
+                  </div>
+                  <div v-if="group.tool === 'claude' && it.pending" class="row wrap owner">
+                    <button class="sm primary" :disabled="contentBusy" @click="setOwner(it.category, 'sync')">{{ t('content.pickSync') }}</button>
+                    <button class="sm" :disabled="contentBusy" @click="setOwner(it.category, 'ccswitch')">{{ t('content.pickCC') }}</button>
+                  </div>
                 </div>
-                <div v-if="it.pending" class="row wrap owner">
-                  <button class="sm primary" :disabled="contentBusy" @click="setOwner(it.category, 'sync')">{{ t('content.pickSync') }}</button>
-                  <button class="sm" :disabled="contentBusy" @click="setOwner(it.category, 'ccswitch')">{{ t('content.pickCC') }}</button>
-                </div>
+                <label v-if="!it.pending" class="switch">
+                  <input type="checkbox" :checked="it.enabled" :disabled="contentBusy" @change="toggleContent(group.tool, it.category, $event.target.checked)" />
+                  <span></span>
+                </label>
               </div>
-              <label v-if="!it.pending" class="switch">
-                <input type="checkbox" :checked="it.enabled" :disabled="contentBusy" @change="toggleContent(it.category, $event.target.checked)" />
-                <span></span>
-              </label>
             </div>
           </template>
         </div>
@@ -142,6 +145,7 @@ import { api, EventsOn } from '@/api'
 import { useNotice } from '@/composables/useNotice'
 import { BLANK_STORAGE } from '@/utils/storageTypes'
 import { themeSetting, changeTheme } from '@/utils/theme'
+import { contentLabel, contentDesc } from '@/utils/format'
 import Notice from '@/components/Notice.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
 import StorageForm from '@/components/StorageForm.vue'
@@ -177,6 +181,12 @@ async function toggleAutostart(on) {
 // ---------- 同步内容 ----------
 const contentRes = resources.content
 const content = computed(() => contentRes.data)
+const contentGroups = computed(() => ['claude', 'codex']
+  .map((tool) => ({
+    tool,
+    items: (content.value?.items || []).filter((it) => (it.tool || 'claude') === tool),
+  }))
+  .filter((group) => group.items.length))
 const contentBusy = ref(false)
 async function changeContent(fn) {
   contentBusy.value = true
@@ -191,7 +201,7 @@ async function changeContent(fn) {
     resources.status.refresh() // 首页的"待选择"提示
   }
 }
-const toggleContent = (category, on) => changeContent(() => api.SetContentEnabled(category, on))
+const toggleContent = (tool, category, on) => changeContent(() => api.SetToolContentEnabled(tool, category, on))
 const setOwner = (category, owner) => changeContent(() => api.SetContentOwner(category, owner))
 
 // 决定"数据存在哪"的字段：改了任何一个都等于换了云端仓库（AccessKey 只是换钥匙、路径风格只是换访问方式，都不算）
@@ -310,6 +320,9 @@ onUnmounted(() => offRekey?.())
 .scan { order: 5; }
 .pass { order: 6; }
 .owner { gap: 8px; margin-top: 6px; }
+.content-group { margin-top: 12px; }
+.content-group + .content-group { padding-top: 2px; border-top: 1px solid var(--border); }
+.content-tool { margin: 0 0 4px; font-size: 13px; }
 /* 宽：左右两列（侧边栏 180 + 边距后，内容区大约 950px 起），每列自己往下排 */
 @media (min-width: 1180px) {
   .settings { flex-direction: row; align-items: flex-start; }

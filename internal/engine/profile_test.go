@@ -33,6 +33,21 @@ func readFile(t *testing.T, path string) string {
 	return string(data)
 }
 
+func writeProfileCCSwitch(t *testing.T, d *device, enabled bool) {
+	t.Helper()
+	path := filepath.Join(d.cfg.Home, ".cc-switch", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	content := `{"s3Sync":{"enabled":false,"autoSync":false}}`
+	if enabled {
+		content = `{"s3Sync":{"enabled":true,"autoSync":true}}`
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestProfileFilesAcrossDevices(t *testing.T) {
 	a := newDevice(t, "devA", nil)
 	b := newDevice(t, "devB", a)
@@ -65,6 +80,75 @@ func TestProfileFilesAcrossDevices(t *testing.T) {
 	eb := b.sync(t, Options{})
 	if eb.stats.Pushed+eb.stats.Pulled+eb.stats.Merged != 0 {
 		t.Fatalf("内容没变时不应重复传输：%+v", eb.stats)
+	}
+}
+
+func TestProfileCCSwitchPendingSkipsOnlyOverlap(t *testing.T) {
+	a := newDevice(t, "devA", nil)
+	b := newDevice(t, "devB", a)
+
+	writeProfileFile(t, a, "CLAUDE.md", "A 的规则\n")
+	writeProfileFile(t, a, "skills/demo/SKILL.md", "A 的技能\n")
+	writeProfileFile(t, a, "plans/from-a.md", "A 的计划\n")
+	writeJSON(t, a.cfg.ClaudeStatePath(), map[string]any{
+		"mcpServers": map[string]any{"from-a": map[string]any{"command": "a"}},
+	})
+	ea := a.sync(t, Options{})
+
+	writeProfileFile(t, b, "CLAUDE.md", "B 的规则\n")
+	writeProfileFile(t, b, "skills/demo/SKILL.md", "B 的技能\n")
+	writeProfileFile(t, b, "plans/from-b.md", "B 的计划\n")
+	writeJSON(t, b.cfg.ClaudeStatePath(), map[string]any{
+		"mcpServers": map[string]any{"from-b": map[string]any{"command": "b"}},
+	})
+	writeProfileCCSwitch(t, b, true)
+
+	paused := []struct {
+		key  string
+		path string
+	}{
+		{profileFilePrefix + "rules/CLAUDE.md", filepath.Join(b.cfg.ClaudeDir, "CLAUDE.md")},
+		{profileFilePrefix + "skills/demo/SKILL.md", filepath.Join(b.cfg.ClaudeDir, "skills", "demo", "SKILL.md")},
+		{profileMCPKey, b.cfg.ClaudeStatePath()},
+	}
+	remoteBefore := map[string]string{}
+	localBefore := map[string]string{}
+	for _, item := range paused {
+		remoteBefore[item.key] = ea.readRemote(t, item.key)
+		localBefore[item.key] = readFile(t, item.path)
+	}
+
+	eb := b.sync(t, Options{})
+	for _, item := range paused {
+		if got := eb.readRemote(t, item.key); got != remoteBefore[item.key] {
+			t.Errorf("pending 类别不应上传 %s：云端变成 %q", item.key, got)
+		}
+		if got := readFile(t, item.path); got != localBefore[item.key] {
+			t.Errorf("pending 类别不应下载 %s：本机变成 %q", item.key, got)
+		}
+		if _, ok := eb.st.Files[item.key]; ok {
+			t.Errorf("pending 类别不应写 state：%s", item.key)
+		}
+		if _, err := os.Stat(basePath(item.key)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("pending 类别不应写 base：%s，Stat 错误 %v", item.key, err)
+		}
+	}
+
+	planAKey := profileFilePrefix + "plans/from-a.md"
+	planBKey := profileFilePrefix + "plans/from-b.md"
+	if got := readFile(t, filepath.Join(b.cfg.ClaudeDir, "plans", "from-a.md")); got != "A 的计划\n" {
+		t.Errorf("plans 不应被 CC Switch 暂停，下载得到 %q", got)
+	}
+	if got := eb.readRemote(t, planBKey); got != "B 的计划\n" {
+		t.Errorf("plans 不应被 CC Switch 暂停，上传得到 %q", got)
+	}
+	for _, key := range []string{planAKey, planBKey} {
+		if eb.st.Files[key] == nil {
+			t.Errorf("正常同步的 plans 应写 state：%s", key)
+		}
+		if _, err := os.Stat(basePath(key)); err != nil {
+			t.Errorf("正常同步的 plans 应写 base：%s: %v", key, err)
+		}
 	}
 }
 
@@ -153,18 +237,34 @@ func TestProfileDeleteNeverPropagates(t *testing.T) {
 func TestProfileDryIsReadOnly(t *testing.T) {
 	a := newDevice(t, "devA", nil)
 	writeProfileFile(t, a, "plans/dry.md", "只预览\n")
+	a.cfg.ContentApproved = map[string]bool{config.ContentRules: true}
+	if err := config.Save(a.cfg); err != nil {
+		t.Fatal(err)
+	}
+	writeProfileCCSwitch(t, a, true) // Dry 会在内存里更新检测结果，但不能落盘
 	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
 	e, err := New(true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	before, _ := os.ReadFile(state.Path())
+	configBefore, err := os.ReadFile(config.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := e.Sync(context.Background(), Options{Dry: true}); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(state.Path())
 	if !bytes.Equal(before, after) {
 		t.Error("Dry 不应修改 state")
+	}
+	configAfter, err := os.ReadFile(config.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(configBefore, configAfter) {
+		t.Error("Dry 不应修改 config（包括 CC Switch 检测状态和 owner 批准）")
 	}
 	objs, err := e.store.List(context.Background(), profileFilePrefix)
 	if err != nil {

@@ -1,10 +1,13 @@
 package gui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/ALFO111111/claude-code-sync/internal/service"
+	"github.com/ALFO111111/claude-code-sync/internal/state"
 	"github.com/ALFO111111/claude-code-sync/internal/testutil"
 )
 
@@ -60,5 +63,63 @@ func TestClaimProjectNeedsDirectory(t *testing.T) {
 	testutil.NewDevice(t, "devA")
 	if err := NewApp().ClaimProject("git:x", ""); err == nil {
 		t.Error("没选目录应报错")
+	}
+}
+
+func TestCodexWatchersAttachAfterDirectoriesAppear(t *testing.T) {
+	cfg := testutil.NewDevice(t, "dev-watch")
+	a := NewApp()
+	a.startWatcher()
+	defer a.shutdown(nil)
+	if len(a.watchers) != 12 {
+		t.Fatalf("应注册 Claude、Codex 和会话监听，实际 %d 个", len(a.watchers))
+	}
+	for _, w := range a.watchers {
+		w.Debounce = 30 * time.Millisecond
+		w.MaxWait = time.Second
+	}
+
+	// 启动时 .codex 和 .agents 都不存在；之后同时创建两个规则文件和 skills 子目录。
+	if err := os.MkdirAll(cfg.CodexDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"AGENTS.md", "AGENTS.override.md"} {
+		if err := os.WriteFile(filepath.Join(cfg.CodexDir, name), []byte(name+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	skill := filepath.Join(cfg.Home, ".agents", "skills", "demo", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(skill), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(skill, []byte("skill\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{
+		"tools/codex/files/rules/AGENTS.md",
+		"tools/codex/files/rules/AGENTS.override.md",
+		"tools/codex/files/skills/demo/SKILL.md",
+	}
+	deadline := time.Now().Add(6 * time.Second)
+	for {
+		st, err := state.Load()
+		if err == nil {
+			found := 0
+			for _, key := range want {
+				if st.Files[key] != nil {
+					found++
+				}
+			}
+			if found == len(want) {
+				a.syncMu.Lock() // 等后台同步彻底结束，再让 TempDir 清理云端目录。
+				a.syncMu.Unlock()
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Codex 目录出现后监听未触发完整同步：%+v", st.Files)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }

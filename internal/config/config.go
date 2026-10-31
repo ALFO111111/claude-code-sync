@@ -22,6 +22,7 @@ type Config struct {
 	DeviceName  string         `json:"deviceName"`
 	Home        string         `json:"home,omitempty"`      // 用户目录，默认取系统值
 	ClaudeDir   string         `json:"claudeDir,omitempty"` // 默认 <Home>/.claude
+	CodexDir    string         `json:"codexDir,omitempty"`  // 默认 $CODEX_HOME 或 <Home>/.codex
 	Storage     storage.Config `json:"storage"`
 	ScanRoots   []string       `json:"scanRoots,omitempty"`   // 额外的 git 仓库扫描目录
 	Ignore      []string       `json:"ignore,omitempty"`      // 不同步的本地目录名或项目 ID
@@ -64,11 +65,23 @@ func (c *Config) ApplyDefaults() {
 			c.ClaudeDir = filepath.Join(c.Home, ".claude")
 		}
 	}
+	if c.CodexDir == "" {
+		if v := os.Getenv("CODEX_HOME"); v != "" {
+			c.CodexDir = v
+		} else {
+			c.CodexDir = filepath.Join(c.Home, ".codex")
+		}
+	}
 	c.Storage.Normalize()
 }
 
 // ProjectsDir Claude Code 存会话的目录 ~/.claude/projects。
 func (c *Config) ProjectsDir() string { return filepath.Join(c.ClaudeDir, "projects") }
+
+const (
+	ToolClaude = "claude"
+	ToolCodex  = "codex"
+)
 
 const (
 	ContentRules    = "rules"
@@ -86,8 +99,28 @@ var ContentCategories = []string{
 	ContentCommands, ContentTasks, ContentSettings, ContentMCP,
 }
 
+var CodexContentCategories = []string{ContentRules, ContentSkills}
+
+// ContentKey 是内容开关的持久化键。旧版裸类别仍表示 Claude，避免迁移老配置。
+func ContentKey(tool, category string) string {
+	if tool == "" || tool == ToolClaude {
+		return category
+	}
+	return tool + "/" + category
+}
+
 func ContentCategoryKnown(category string) bool {
-	for _, known := range ContentCategories {
+	return ContentCategoryKnownFor(ToolClaude, category)
+}
+
+func ContentCategoryKnownFor(tool, category string) bool {
+	categories := ContentCategories
+	if tool == ToolCodex {
+		categories = CodexContentCategories
+	} else if tool != "" && tool != ToolClaude {
+		return false
+	}
+	for _, known := range categories {
 		if category == known {
 			return true
 		}
@@ -99,8 +132,13 @@ func ContentCategoryKnown(category string) bool {
 var CCSwitchCategories = map[string]bool{ContentRules: true, ContentSkills: true, ContentMCP: true}
 
 func (c *Config) ContentEnabled(category string) bool {
+	return c.ContentEnabledFor(ToolClaude, category)
+}
+
+func (c *Config) ContentEnabledFor(tool, category string) bool {
+	key := ContentKey(tool, category)
 	for _, disabled := range c.ContentDisabled {
-		if disabled == category {
+		if disabled == key {
 			return false
 		}
 	}
@@ -108,14 +146,19 @@ func (c *Config) ContentEnabled(category string) bool {
 }
 
 func (c *Config) SetContentEnabled(category string, enabled bool) {
+	c.SetContentEnabledFor(ToolClaude, category, enabled)
+}
+
+func (c *Config) SetContentEnabledFor(tool, category string, enabled bool) {
+	key := ContentKey(tool, category)
 	var out []string
 	for _, disabled := range c.ContentDisabled {
-		if disabled != category {
+		if disabled != key {
 			out = append(out, disabled)
 		}
 	}
 	if !enabled {
-		out = append(out, category)
+		out = append(out, key)
 	}
 	c.ContentDisabled = out
 }
@@ -136,7 +179,7 @@ func (c *Config) UpdateCCSwitch(enabled bool) bool {
 }
 
 func (c *Config) ContentPending(category string, ccSwitchEnabled bool) bool {
-	return ccSwitchEnabled && CCSwitchCategories[category] && !c.ContentApproved[category]
+	return c.ContentEnabled(category) && ccSwitchEnabled && CCSwitchCategories[category] && !c.ContentApproved[category]
 }
 
 // ClaudeStatePath Claude 的全局状态文件：默认在 Home；自定义配置目录/沙箱时跟随 ClaudeDir。

@@ -195,6 +195,7 @@ export default {
     title: 'What to sync',
     intro: 'Besides sessions and project memory, these can be synced too. Turning one off only stops syncing; no local or cloud files are deleted. Deleting a file on one computer never deletes it on the others.',
     ccWarn: 'CC Switch auto sync is on and it also syncs global rules, skills and MCP. Syncing them from both tools may overwrite each other; pick one owner for the categories marked below.',
+    tool: { claude: 'Claude Code', codex: 'Codex' },
     cat: {
       rules: 'Global rules CLAUDE.md',
       plans: 'Plans',
@@ -214,6 +215,16 @@ export default {
       tasks: 'Task lists',
       settings: 'Only language, auto memory and co-author settings; model, keys, hooks and permissions stay on this computer',
       mcp: 'User-level MCP servers; secrets, env vars and unrecognized local paths are never uploaded',
+    },
+    codex: {
+      cat: {
+        rules: 'Global rules AGENTS.md',
+        skills: 'Skills',
+      },
+      desc: {
+        rules: 'Only ~/.codex/AGENTS.md and ~/.codex/AGENTS.override.md are synced',
+        skills: 'Only skills under ~/.agents/skills are synced',
+      },
     },
     ownerSync: 'Synced by this app (CC Switch auto sync is also on)',
     ownerCC: 'Left to CC Switch',

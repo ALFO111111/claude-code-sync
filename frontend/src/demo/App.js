@@ -75,6 +75,11 @@ const CONFLICT_BASE = L('# 全局规则\n\n- 用中文回答\n- 改完代码跑�
 const CONFLICT_LOCAL = L('# 全局规则\n\n- 用中文回答，通俗易懂\n- 改完代码跑测试\n', '# Global rules\n\n- Answer concisely, in plain words\n- Run tests after changing code\n')
 const CONFLICT_REMOTE = L('# 全局规则\n\n- 用中文回答，代码保持英文\n- 改完代码跑测试\n', '# Global rules\n\n- Answer concisely, keep code in English\n- Run tests after changing code\n')
 const CONTENT_CATS = ['rules', 'plans', 'skills', 'agents', 'commands', 'tasks', 'settings', 'mcp']
+const CONTENT_ITEMS = [
+  ...CONTENT_CATS.map((category) => ({ tool: 'claude', category })),
+  { tool: 'codex', category: 'rules' },
+  { tool: 'codex', category: 'skills' },
+]
 const CC_CATS = ['rules', 'skills', 'mcp']
 
 const wait = (v, ms = 120) => new Promise((r) => setTimeout(() => r(v), ms))
@@ -150,9 +155,15 @@ export const ResolveConflict = () => wait(null, 500)
 export const RestoreContentItem = () => wait(null)
 export const GetContent = () => wait({
   ccSwitch: CC ? 'enabled' : 'notInstalled', ccSwitchKnown: true, pending: CC ? CC_CATS : [],
-  items: CONTENT_CATS.map((c) => ({ category: c, enabled: !(CC && CC_CATS.includes(c)), pending: CC && CC_CATS.includes(c), ccOverlap: CC_CATS.includes(c) })),
+  items: CONTENT_ITEMS.map(({ tool, category }) => ({
+    tool, category,
+    enabled: !(tool === 'claude' && CC && CC_CATS.includes(category)),
+    pending: tool === 'claude' && CC && CC_CATS.includes(category),
+    ccOverlap: tool === 'claude' && CC_CATS.includes(category),
+  })),
 })
 export const SetContentEnabled = () => wait(null)
+export const SetToolContentEnabled = () => wait(null)
 export const SetContentOwner = () => wait(null)
 
 export const Confirm = () => wait(true)

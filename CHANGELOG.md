@@ -9,14 +9,16 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### 新增 / Added
 
+- Codex 首个安全切片：同步 `$CODEX_HOME/AGENTS.md`、`AGENTS.override.md`（默认 `~/.codex`）和 `~/.agents/skills`，云端放在 `tools/codex/files/rules/...`、`tools/codex/files/skills/...`。复用加密、全量同步、独立类别开关、三方文本合并、冲突解决、备份恢复、删除不传播、Dry、改口令和 GUI 文件监听；CC Switch 只影响 Claude。暂不支持 Codex sessions/history/session_index、SQLite/WAL、config.toml/MCP、auth、插件/hooks/resume，项目级 AGENTS/skills 仍由 Git 管理，不能用于换机恢复 Codex 会话
+  First safe Codex slice: sync `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` (`~/.codex` by default) and `~/.agents/skills` to `tools/codex/files/rules/...` and `tools/codex/files/skills/...`. Reuses encryption, full sync, independent category switches, three-way text merge, conflict resolution, backup/restore, non-propagating deletions, Dry, passphrase changes and GUI file watching; CC Switch only affects Claude. Codex sessions/history/session_index, SQLite/WAL, config.toml/MCP, auth, plugins/hooks/resume are not supported yet; project-level AGENTS/skills remain managed by Git, and Codex sessions cannot be restored on another machine
 - 同步个人配置：全局规则 `CLAUDE.md`、`plans/`、`skills/`、`agents/`、`commands/`、`tasks/`、用户级 MCP 服务器、settings.json 的安全字段（`language`、`autoMemoryEnabled`、`includeCoAuthoredBy`）。模型、Key、hooks、权限、MCP 的密钥和环境变量不上传；设置页“同步内容”可逐类开关
   Sync personal config: global `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers and safe settings.json fields (`language`, `autoMemoryEnabled`, `includeCoAuthoredBy`). Models, keys, hooks, permissions and MCP secrets/env vars are never uploaded; each category can be turned off under Settings → What to sync
 - 三方合并：记住上次两边一致的版本，不同行 / 不同 JSON 字段 / 不同任务 ID 的修改自动合并；改到同一处时进新的“冲突”页（保留本机 / 用另一台的 / 两份都留 / 手工合并），本机文件在此期间保持可用
   Three-way merge: changes to different lines, JSON fields or task IDs merge automatically; edits to the same spot go to the new Conflicts page (keep mine / use theirs / keep both / merge manually) while the local file stays usable
 - CC Switch 共存：检测到 CC Switch 自动同步开着时，全局规则、技能、MCP 先暂停，在设置页选择由谁负责；没开就不提示
   CC Switch coexistence: when CC Switch auto sync is on, global rules, skills and MCP pause until you choose an owner in Settings; nothing is shown otherwise
-- 命令行：`content`、`conflicts`、`resolve`、`restore-content`
-  CLI: `content`, `conflicts`, `resolve`, `restore-content`
+- 命令行：`content`、`conflicts`、`resolve`、`restore-content`；新增 `content enable|disable codex rules|skills` 和 `restore-content codex <类别> <相对路径>`，旧的 Claude 裸类别写法保留
+  CLI: `content`, `conflicts`, `resolve`, `restore-content`; adds `content enable|disable codex rules|skills` and `restore-content codex <category> <relative-path>`, while keeping the legacy bare-category forms for Claude
 
 ### 改进 / Changed
 

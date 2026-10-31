@@ -55,7 +55,7 @@ func ResolveConflict(ctx context.Context, id, choice string, merged []byte) erro
 		return err
 	}
 	e.changes = map[string]state.Change{}
-	it := &profileItem{key: c.Key, category: c.Category, rel: c.Rel, kind: c.Kind, st: e.st.Files[c.Key]}
+	it := &profileItem{key: c.Key, tool: c.Tool, category: c.Category, rel: c.Rel, kind: c.Kind, st: e.st.Files[c.Key]}
 	abs := e.profileLocalPath(it)
 	fi, statErr := os.Stat(abs)
 	if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
@@ -131,8 +131,8 @@ func (e *Engine) resolveBoth(ctx context.Context, it *profileItem, c *Conflict, 
 		return errors.New(i18n.T("云端刚被其他设备覆盖，冲突尚未解决，请重试"))
 	}
 	copyRel := conflictCopyRel(it.rel, e.cfg.DeviceID, blobs.Remote)
-	copyItem := &profileItem{key: profileFilePrefix + it.category + "/" + copyRel,
-		category: it.category, rel: copyRel, kind: it.kind,
+	copyItem := &profileItem{key: profileFileKey(it.tool, it.category, copyRel),
+		tool: it.tool, category: it.category, rel: copyRel, kind: it.kind,
 		local: &localFile{abs: filepath.Join(filepath.Dir(it.local.abs), filepath.Base(filepath.FromSlash(copyRel))), size: -1}}
 	if _, err := os.Stat(copyItem.local.abs); !errors.Is(err, fs.ErrNotExist) {
 		return errors.New(i18n.T("保留两份用的副本文件已经存在，请先重命名"))
@@ -169,8 +169,13 @@ func conflictCopyRel(rel, deviceID string, remote []byte) string {
 	return fmt.Sprintf("%s.%s.%s%s", base, device, crypt.SHA256Hex(remote)[:8], ext)
 }
 
-// ResolveContentItem 手工恢复一个已删除/忽略的全局内容项：从云端拉回并清除 tombstone。
+// RestoreContentItem 手工恢复一个已删除/忽略的 Claude 全局内容项。
 func RestoreContentItem(ctx context.Context, category, rel string) error {
+	return RestoreToolContentItem(ctx, config.ToolClaude, category, rel)
+}
+
+// RestoreToolContentItem 从云端拉回并清除 tombstone。
+func RestoreToolContentItem(ctx context.Context, tool, category, rel string) error {
 	unlock, err := state.WaitLock(30 * time.Second)
 	if err != nil {
 		return err
@@ -184,11 +189,12 @@ func RestoreContentItem(ctx context.Context, category, rel string) error {
 		return err
 	}
 	e.changes = map[string]state.Change{}
-	if !config.ContentCategoryKnown(category) || category == config.ContentSettings || category == config.ContentMCP || skipProfileRel(category, rel) || !filepath.IsLocal(filepath.FromSlash(rel)) {
+	def, known := findProfileDef(e.cfg, tool, category)
+	if !known || !def.allows(rel) || skipProfileRel(tool, category, rel) || !filepath.IsLocal(filepath.FromSlash(rel)) {
 		return errors.New(i18n.T("非法全局内容路径"))
 	}
-	key := profileFilePrefix + category + "/" + rel
-	it := &profileItem{key: key, category: category, rel: rel, kind: profileKind(category), st: e.st.Files[key]}
+	key := profileFileKey(tool, category, rel)
+	it := &profileItem{key: key, tool: tool, category: category, rel: rel, kind: def.kind, st: e.st.Files[key]}
 	remote, etag, err := e.fetchProfileRemote(ctx, it)
 	if err != nil {
 		return err

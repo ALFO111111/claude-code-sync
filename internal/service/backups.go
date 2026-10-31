@@ -20,6 +20,7 @@ type BackupItem struct {
 	Time     int64  `json:"time"` // 毫秒时间戳
 	TimeText string `json:"timeText"`
 	PID      string `json:"pid"`
+	Tool     string `json:"tool,omitempty"`
 	Scope    string `json:"scope,omitempty"`
 	Category string `json:"category,omitempty"`
 	Project  string `json:"project"` // 项目显示名
@@ -54,7 +55,7 @@ func ListBackups() (*BackupOverview, error) {
 	for _, r := range recs {
 		it := BackupItem{
 			ID: r.ID, Kind: r.Kind, Time: r.Time.UnixMilli(), TimeText: fmtTime(r.Time),
-			PID: r.PID, Scope: r.Scope, Category: r.Category, Project: r.Dir, Rel: r.Rel, Size: r.Size, Fork: r.Fork,
+			PID: r.PID, Tool: r.Tool, Scope: r.Scope, Category: r.Category, Project: r.Dir, Rel: r.Rel, Size: r.Size, Fork: r.Fork,
 		}
 		if r.Scope == "global" {
 			it.Project = r.Category

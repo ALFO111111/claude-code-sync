@@ -4,7 +4,7 @@
 
 # claude-code-sync
 
-**在多台电脑之间同步 Claude Code 的会话记录。端到端加密，路径自动翻译，换台电脑 `claude --resume` 接着聊。**
+**在多台电脑之间同步 Claude Code 的会话记录，以及 Claude Code / Codex 的个人规则和技能。端到端加密，Claude Code 路径自动翻译，换台电脑 `claude --resume` 接着聊。**
 
 [![Release](https://img.shields.io/github/v/release/ALFO111111/claude-code-sync?include_prereleases)](https://github.com/ALFO111111/claude-code-sync/releases)
 [![CI](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml)
@@ -38,7 +38,8 @@ Claude Code 的会话记录存在本机的 `~/.claude/projects/` 里。家里一
 claude-code-sync 专门解决这个问题：
 
 - **会话同步**：`~/.claude/projects` 下的会话、子代理记录、项目记忆（MEMORY.md），外加输入历史（按 ↑ 翻到的那些）
-- **个人配置同步**：全局规则 `CLAUDE.md`、计划 `plans/`、技能 `skills/`、子代理 `agents/`、自定义命令 `commands/`、任务 `tasks/`、用户级 MCP 服务器，以及 settings.json 里的几个安全字段（语言、自动记忆、署名）。模型、API Key、hooks、权限、MCP 里的密钥和环境变量**都不上传**。设置页可以逐类开关
+- **Claude Code 个人配置同步**：全局规则 `CLAUDE.md`、计划 `plans/`、技能 `skills/`、子代理 `agents/`、自定义命令 `commands/`、任务 `tasks/`、用户级 MCP 服务器，以及 settings.json 里的几个安全字段（语言、自动记忆、署名）。模型、API Key、hooks、权限、MCP 里的密钥和环境变量**都不上传**。设置页可以逐类开关
+- **Codex 全局规则与技能**：同步 `$CODEX_HOME/AGENTS.md`、`AGENTS.override.md`（默认 `~/.codex`）和 `~/.agents/skills`；与 Claude 分开开关，复用同一套加密、合并、冲突和备份机制。**不同步 Codex 会话**，具体范围见下文
 - **路径自动翻译**：A 电脑的 `D:\work\app` 拉到 B 电脑时自动换成 `E:\code\app`，`claude --resume` 直接能用
 - **项目自动对上**：git 项目按远程仓库地址自动匹配（ssh / https 写法都认）；普通文件夹在界面上点一下“认领”
 - **端到端加密**：上传前用你的口令加密（Argon2id + AES-256-GCM），云端只看得到乱码
@@ -190,9 +191,22 @@ D:\work\app                       v1/history.jsonl                           翻
   备份在 `~/.claude-code-sync/backup/`，保留 14 天。程序的“备份”页可以查看、和本机现在的版本逐行对比、一键恢复（恢复前的版本也会先备份，可以再换回来）。
 
 - **个人配置（规则、技能、MCP 等）的合并**：记住“上次两边一致时的样子”，做三方合并。两台电脑改了不同的行 / 不同的字段 → 自动合并；改到同一处 → 进“冲突”页，本机文件保持原样能用，等你选“保留本机 / 用另一台的 / 两份都留 / 手工合并”。**删除不会传播**：一台电脑上删掉的文件，不会去删另一台的，也不会在本机被拉回来。
-- **和 CC Switch 一起用**：CC Switch 负责供应商地址、Key、模型；如果它的自动同步开着，全局规则、技能、MCP 可能被两边重复同步，这三类会先暂停，在设置页选一个负责（CC Switch 没开自动同步就不会打扰你）。
+- **和 CC Switch 一起用**：CC Switch 负责供应商地址、Key、模型；如果它的自动同步开着，Claude 的全局规则、技能、MCP 可能被两边重复同步，这三类会先暂停，在设置页选一个负责（CC Switch 没开自动同步就不会打扰你）。这个负责人选择只影响 Claude，不会暂停或接管 Codex。
 
 - **四层触发**：Claude Code hooks（`SessionStart` / `Stop`）是主力；程序开机自启、在托盘常驻时盯文件变化（设置页可以关掉开机自启）；Windows 定时任务每小时兜底一次；也可以随时手动点“立即同步”。
+
+### Codex 目前同步什么
+
+首个安全切片只同步两类全局内容：
+
+| 本机内容 | 云端对象（默认前缀 `v1/`） |
+|---|---|
+| `$CODEX_HOME/AGENTS.md` 和 `$CODEX_HOME/AGENTS.override.md`（未设置 `CODEX_HOME` 时为 `~/.codex`） | `v1/tools/codex/files/rules/...` |
+| `~/.agents/skills/` | `v1/tools/codex/files/skills/...` |
+
+Codex 内容随全量同步处理，复用同一套端到端加密、逐类开关、三方文本合并、冲突解决、备份恢复和删除不传播机制；`sync --dry` 和修改口令也包含这些文件。GUI 常驻托盘时会监听 Codex 规则文件和技能目录，改动后自动触发同步。Claude 与 Codex 的 `rules`、`skills` 开关互不影响。
+
+**明确暂不支持**：Codex `sessions/`、`history`、`session_index`、SQLite/WAL 数据库、`config.toml`（包括 MCP）、`auth` / 登录凭据、插件、hooks 和 resume 状态。**本工具不能用于换机恢复或继续 Codex 会话。** 项目目录里的 AGENTS / skills 仍由 Git 管理，不在同步范围内。
 
 ## 命令行
 
@@ -207,11 +221,13 @@ claude-code-sync claim <项目ID> <本机路径>   # 认领其他电脑上的项
 claude-code-sync ignore <项目ID>             # 忽略 / 停止同步一个项目（不删文件）
 claude-code-sync unignore <项目ID>           # 取消忽略
 claude-code-sync content                    # 查看哪些个人配置在同步
-claude-code-sync content disable skills     # 关掉一类（不删文件）；enable 打开
-claude-code-sync content owner mcp sync     # CC Switch 也开着自动同步时，选谁负责（sync / ccswitch）
+claude-code-sync content disable skills     # 关掉一类 Claude 配置（不删文件）；enable 打开，旧写法保留
+claude-code-sync content disable codex skills # 只关 Codex 技能；enable 打开，类别为 rules / skills
+claude-code-sync content owner mcp sync     # CC Switch 也开着自动同步时，选谁负责 Claude 配置（sync / ccswitch）
 claude-code-sync conflicts                  # 列出待处理的冲突
 claude-code-sync resolve <冲突ID> local     # 解决冲突：local / remote / both，或 merged <文件>
-claude-code-sync restore-content plans a.md # 本机删掉的个人配置文件，从云端拉回来
+claude-code-sync restore-content plans a.md # 本机删掉的 Claude 配置文件，从云端拉回来（旧写法保留）
+claude-code-sync restore-content codex rules AGENTS.md # 拉回 Codex 全局规则；类别为 rules / skills
 claude-code-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
 claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启）
 claude-code-sync version

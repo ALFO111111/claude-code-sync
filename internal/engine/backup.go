@@ -51,7 +51,8 @@ type BackupRecord struct {
 	Kind     string    `json:"kind"`
 	Time     time.Time `json:"time"`
 	PID      string    `json:"pid,omitempty"`
-	Scope    string    `json:"scope,omitempty"`    // 空/project=项目文件；global=Claude 全局文件
+	Tool     string    `json:"tool,omitempty"`     // 全局文件所属工具；旧记录为空 = Claude
+	Scope    string    `json:"scope,omitempty"`    // 空/project=项目文件；global=工具全局文件
 	Category string    `json:"category,omitempty"` // 全局内容类别
 	Dir      string    `json:"dir"`                // ~/.claude/projects 下的项目目录
 	Rel      string    `json:"rel"`                // 相对项目目录的路径（/ 分隔）
@@ -85,14 +86,19 @@ func (b *backups) save(kind, pid, dir, rel string, data []byte) {
 	b.record(BackupRecord{Kind: kind, PID: pid, Dir: dir, Rel: rel, File: file, Size: int64(len(data))})
 }
 
-func (b *backups) saveGlobal(kind, category, rel string, data []byte) {
-	file := path.Join(b.runTS, "_global", category, rel+"."+kind)
+func (b *backups) saveGlobal(kind, tool, category, rel string, data []byte) {
+	parts := []string{b.runTS, "_global"}
+	if tool != "" && tool != config.ToolClaude {
+		parts = append(parts, tool)
+	}
+	parts = append(parts, category, rel+"."+kind)
+	file := path.Join(parts...)
 	p := filepath.Join(BackupDir(), filepath.FromSlash(file))
 	if err := fsutil.WriteFileAtomic(p, data); err != nil {
 		b.log.Printf("备份失败 %s: %v", p, err)
 		return
 	}
-	b.record(BackupRecord{Kind: kind, Scope: "global", Category: category, Rel: rel, File: file, Size: int64(len(data))})
+	b.record(BackupRecord{Kind: kind, Tool: tool, Scope: "global", Category: category, Rel: rel, File: file, Size: int64(len(data))})
 }
 
 // fork 记一条"会话分叉"。
@@ -163,6 +169,9 @@ func readRun(run string, runTime time.Time) []BackupRecord {
 			if json.Unmarshal(sc.Bytes(), &r) != nil {
 				continue
 			}
+			if r.Scope == "global" && r.Tool == "" {
+				r.Tool = config.ToolClaude
+			}
 			if r.Kind == BackupFork {
 				r.ID = "fork:" + run + "/" + r.Dir + "/" + r.Fork
 			} else {
@@ -200,11 +209,16 @@ func readRun(run string, runTime time.Time) []BackupRecord {
 		info, _ := d.Info()
 		r := BackupRecord{ID: file, Kind: kind, Time: runTime, Dir: parts[1], Rel: relPath, File: file}
 		if parts[1] == "_global" {
+			tool := config.ToolClaude
 			category, globalRel, ok := strings.Cut(relPath, "/")
+			if ok && category == config.ToolCodex {
+				tool = category
+				category, globalRel, ok = strings.Cut(globalRel, "/")
+			}
 			if !ok {
 				return nil
 			}
-			r.Scope, r.Category, r.Dir, r.Rel = "global", category, "", globalRel
+			r.Scope, r.Tool, r.Category, r.Dir, r.Rel = "global", tool, category, "", globalRel
 		}
 		if info != nil {
 			r.Size = info.Size()
@@ -271,7 +285,7 @@ func RestoreBackup(id string) (*BackupRecord, error) {
 		return r, nil // 本来就是这份
 	case err == nil:
 		if r.Scope == "global" {
-			newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Category, r.Rel, cur)
+			newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Tool, r.Category, r.Rel, cur)
 		} else {
 			newBackups(logging.New(true)).save(BackupRestore, r.PID, r.Dir, r.Rel, cur)
 		}
@@ -346,7 +360,7 @@ func restoreStructuredBackup(cfg *config.Config, target string, r *BackupRecord,
 	if bytes.Equal(current, data) {
 		return nil
 	}
-	newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Category, r.Rel, current)
+	newBackups(logging.New(true)).saveGlobal(BackupRestore, r.Tool, r.Category, r.Rel, current)
 	var next []byte
 	if r.Category == config.ContentSettings {
 		next, err = claudeconfig.ApplySettings(cur, data)
@@ -370,26 +384,16 @@ func backupTarget(cfg *config.Config, r *BackupRecord) (string, error) {
 	if r.Scope != "global" {
 		return filepath.Join(cfg.ProjectsDir(), r.Dir, filepath.FromSlash(r.Rel)), nil
 	}
-	if r.Category == config.ContentSettings {
-		return filepath.Join(cfg.ClaudeDir, "settings.json"), nil
-	}
-	if r.Category == config.ContentMCP {
-		return cfg.ClaudeStatePath(), nil
-	}
-	for _, def := range []profileDef{
-		{category: config.ContentRules, root: filepath.Join(cfg.ClaudeDir, "CLAUDE.md")},
-		{category: config.ContentPlans, root: filepath.Join(cfg.ClaudeDir, "plans")},
-		{category: config.ContentSkills, root: filepath.Join(cfg.ClaudeDir, "skills")},
-		{category: config.ContentAgents, root: filepath.Join(cfg.ClaudeDir, "agents")},
-		{category: config.ContentCommands, root: filepath.Join(cfg.ClaudeDir, "commands")},
-		{category: config.ContentTasks, root: filepath.Join(cfg.ClaudeDir, "tasks")},
-	} {
-		if def.category == r.Category {
-			if def.category == config.ContentRules {
-				return def.root, nil
-			}
-			return filepath.Join(def.root, filepath.FromSlash(r.Rel)), nil
+	if r.Tool == "" || r.Tool == config.ToolClaude {
+		if r.Category == config.ContentSettings {
+			return filepath.Join(cfg.ClaudeDir, "settings.json"), nil
 		}
+		if r.Category == config.ContentMCP {
+			return cfg.ClaudeStatePath(), nil
+		}
+	}
+	if def, ok := findProfileDef(cfg, r.Tool, r.Category); ok && def.allows(r.Rel) {
+		return filepath.Join(def.root, filepath.FromSlash(r.Rel)), nil
 	}
 	return "", errors.New(i18n.T("未知的全局内容类别"))
 }

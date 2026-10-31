@@ -27,6 +27,7 @@ const (
 type Conflict struct {
 	ID         string    `json:"id"`
 	Key        string    `json:"key"`
+	Tool       string    `json:"tool,omitempty"`
 	Kind       string    `json:"kind"`
 	Category   string    `json:"category"`
 	Rel        string    `json:"rel"`
@@ -90,6 +91,9 @@ func LoadConflict(id string) (*Conflict, error) {
 	var c Conflict
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
+	}
+	if c.Tool == "" {
+		c.Tool = config.ToolClaude
 	}
 	return &c, nil
 }

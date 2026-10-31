@@ -28,14 +28,35 @@ const profileConfigPrefix = "tools/claude/config/"
 const profileSettingsKey = profileConfigPrefix + "settings.json"
 const profileMCPKey = profileConfigPrefix + "mcp.json"
 
+func profileFilePrefixFor(tool string) string { return "tools/" + tool + "/files/" }
+
+func profileFileKey(tool, category, rel string) string {
+	return profileFilePrefixFor(tool) + category + "/" + rel
+}
+
 type profileDef struct {
+	tool     string
 	category string
 	root     string
 	kind     string
+	files    []string // 非空时只同步这些单文件；空表示递归同步整个 root
+}
+
+func (d profileDef) allows(rel string) bool {
+	if len(d.files) == 0 {
+		return true
+	}
+	for _, name := range d.files {
+		if rel == name {
+			return true
+		}
+	}
+	return false
 }
 
 type profileItem struct {
 	key      string
+	tool     string
 	category string
 	rel      string
 	kind     string
@@ -44,15 +65,31 @@ type profileItem struct {
 	st       *state.FileState
 }
 
-func (e *Engine) profileDefs() []profileDef {
+func profileDefsFor(cfg *config.Config) []profileDef {
 	return []profileDef{
-		{category: config.ContentRules, root: filepath.Join(e.cfg.ClaudeDir, "CLAUDE.md"), kind: ConflictFile},
-		{category: config.ContentPlans, root: filepath.Join(e.cfg.ClaudeDir, "plans"), kind: ConflictFile},
-		{category: config.ContentSkills, root: filepath.Join(e.cfg.ClaudeDir, "skills"), kind: ConflictFile},
-		{category: config.ContentAgents, root: filepath.Join(e.cfg.ClaudeDir, "agents"), kind: ConflictFile},
-		{category: config.ContentCommands, root: filepath.Join(e.cfg.ClaudeDir, "commands"), kind: ConflictFile},
-		{category: config.ContentTasks, root: filepath.Join(e.cfg.ClaudeDir, "tasks"), kind: ConflictTasks},
+		{tool: config.ToolClaude, category: config.ContentRules, root: cfg.ClaudeDir, kind: ConflictFile, files: []string{"CLAUDE.md"}},
+		{tool: config.ToolClaude, category: config.ContentPlans, root: filepath.Join(cfg.ClaudeDir, "plans"), kind: ConflictFile},
+		{tool: config.ToolClaude, category: config.ContentSkills, root: filepath.Join(cfg.ClaudeDir, "skills"), kind: ConflictFile},
+		{tool: config.ToolClaude, category: config.ContentAgents, root: filepath.Join(cfg.ClaudeDir, "agents"), kind: ConflictFile},
+		{tool: config.ToolClaude, category: config.ContentCommands, root: filepath.Join(cfg.ClaudeDir, "commands"), kind: ConflictFile},
+		{tool: config.ToolClaude, category: config.ContentTasks, root: filepath.Join(cfg.ClaudeDir, "tasks"), kind: ConflictTasks},
+		{tool: config.ToolCodex, category: config.ContentRules, root: cfg.CodexDir, kind: ConflictFile, files: []string{"AGENTS.md", "AGENTS.override.md"}},
+		{tool: config.ToolCodex, category: config.ContentSkills, root: filepath.Join(cfg.Home, ".agents", "skills"), kind: ConflictFile},
 	}
+}
+
+func (e *Engine) profileDefs() []profileDef { return profileDefsFor(e.cfg) }
+
+func findProfileDef(cfg *config.Config, tool, category string) (profileDef, bool) {
+	if tool == "" {
+		tool = config.ToolClaude
+	}
+	for _, def := range profileDefsFor(cfg) {
+		if def.tool == tool && def.category == category {
+			return def, true
+		}
+	}
+	return profileDef{}, false
 }
 
 // syncProfile 同步 Claude 的全局个人内容。会话 projects 仍走原有 syncFiles，互不混用合并规则。
@@ -74,7 +111,13 @@ func (e *Engine) syncProfile(ctx context.Context) error {
 		}
 	}
 	active := map[string]bool{}
-	for _, category := range config.ContentCategories {
+	for _, def := range e.profileDefs() {
+		if e.cfg.ContentEnabledFor(def.tool, def.category) &&
+			(def.tool != config.ToolClaude || !e.cfg.ContentPending(def.category, ccEnabled)) {
+			active[config.ContentKey(def.tool, def.category)] = true
+		}
+	}
+	for _, category := range []string{config.ContentSettings, config.ContentMCP} {
 		if e.cfg.ContentEnabled(category) && !e.cfg.ContentPending(category, ccEnabled) {
 			active[category] = true
 		}
@@ -119,28 +162,43 @@ func (e *Engine) syncProfile(ctx context.Context) error {
 
 func (e *Engine) collectProfileItems(ctx context.Context, active map[string]bool) (map[string]*profileItem, error) {
 	items := map[string]*profileItem{}
-	objs, err := e.store.List(ctx, profileFilePrefix)
-	if err != nil {
-		return nil, fmt.Errorf(i18n.T("列出云端全局文件失败: %w"), err)
-	}
-	for i := range objs {
-		o := &objs[i]
-		rest := strings.TrimPrefix(o.Key, profileFilePrefix)
-		category, rel, ok := strings.Cut(rest, "/")
-		if !ok || !active[category] || skipProfileRel(category, rel) || category == config.ContentRules && rel != "CLAUDE.md" {
+	defs := e.profileDefs()
+	for _, tool := range []string{config.ToolClaude, config.ToolCodex} {
+		needsList := false
+		for _, def := range defs {
+			if def.tool == tool && active[config.ContentKey(tool, def.category)] {
+				needsList = true
+				break
+			}
+		}
+		if !needsList {
 			continue
 		}
-		items[o.Key] = &profileItem{key: o.Key, category: category, rel: rel, kind: profileKind(category), remote: o}
+		prefix := profileFilePrefixFor(tool)
+		objs, err := e.store.List(ctx, prefix)
+		if err != nil {
+			return nil, fmt.Errorf(i18n.T("列出云端全局文件失败: %w"), err)
+		}
+		for i := range objs {
+			o := &objs[i]
+			rest := strings.TrimPrefix(o.Key, prefix)
+			category, rel, ok := strings.Cut(rest, "/")
+			def, known := findProfileDef(e.cfg, tool, category)
+			if !ok || !known || !active[config.ContentKey(tool, category)] || !def.allows(rel) || skipProfileRel(tool, category, rel) {
+				continue
+			}
+			items[o.Key] = &profileItem{key: o.Key, tool: tool, category: category, rel: rel, kind: def.kind, remote: o}
+		}
 	}
-	for _, def := range e.profileDefs() {
-		if !active[def.category] {
+	for _, def := range defs {
+		if !active[config.ContentKey(def.tool, def.category)] {
 			continue
 		}
 		if err := e.collectProfileLocal(items, def); err != nil {
 			e.log.Printf("遍历全局内容 %s 失败（本类别本轮跳过）: %v", def.root, err)
 			e.count(&e.stats.Errors)
 			for key, it := range items {
-				if it.category == def.category {
+				if it.tool == def.tool && it.category == def.category {
 					delete(items, key)
 				}
 			}
@@ -152,13 +210,6 @@ func (e *Engine) collectProfileItems(ctx context.Context, active map[string]bool
 		}
 	}
 	return items, nil
-}
-
-func profileKind(category string) string {
-	if category == config.ContentTasks {
-		return ConflictTasks
-	}
-	return ConflictFile
 }
 
 func (e *Engine) collectProfileConfig(ctx context.Context, items map[string]*profileItem, active map[string]bool) error {
@@ -178,7 +229,7 @@ func (e *Engine) collectProfileConfig(ctx context.Context, items map[string]*pro
 			continue
 		}
 		if active[category] {
-			items[o.Key] = &profileItem{key: o.Key, category: category, rel: rel, kind: kind, remote: o}
+			items[o.Key] = &profileItem{key: o.Key, tool: config.ToolClaude, category: category, rel: rel, kind: kind, remote: o}
 		}
 	}
 	for _, def := range []struct {
@@ -197,7 +248,7 @@ func (e *Engine) collectProfileConfig(ctx context.Context, items map[string]*pro
 		}
 		it := items[def.key]
 		if it == nil {
-			it = &profileItem{key: def.key, category: def.category, rel: def.rel, kind: def.kind}
+			it = &profileItem{key: def.key, tool: config.ToolClaude, category: def.category, rel: def.rel, kind: def.kind}
 			items[def.key] = it
 		}
 		fi, err := os.Stat(def.abs)
@@ -214,21 +265,40 @@ func (e *Engine) collectProfileConfig(ctx context.Context, items map[string]*pro
 }
 
 func (e *Engine) collectProfileLocal(items map[string]*profileItem, def profileDef) error {
+	add := func(path, rel string, info fs.FileInfo) {
+		key := profileFileKey(def.tool, def.category, rel)
+		it := items[key]
+		if it == nil {
+			it = &profileItem{key: key, tool: def.tool, category: def.category, rel: rel, kind: def.kind}
+			items[key] = it
+		}
+		it.local = &localFile{abs: path, size: info.Size(), mtime: info.ModTime().UnixNano()}
+	}
+	if len(def.files) > 0 {
+		for _, rel := range def.files {
+			abs := filepath.Join(def.root, filepath.FromSlash(rel))
+			fi, err := os.Lstat(abs)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if fi.Mode()&os.ModeSymlink != 0 {
+				continue
+			}
+			if !fi.IsDir() && !skipFile(fi.Name()) {
+				add(abs, rel, fi)
+			}
+		}
+		return nil
+	}
 	fi, err := os.Stat(def.root)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
 		return err
-	}
-	add := func(path, rel string, info fs.FileInfo) {
-		key := profileFilePrefix + def.category + "/" + rel
-		it := items[key]
-		if it == nil {
-			it = &profileItem{key: key, category: def.category, rel: rel, kind: def.kind}
-			items[key] = it
-		}
-		it.local = &localFile{abs: path, size: info.Size(), mtime: info.ModTime().UnixNano()}
 	}
 	if !fi.IsDir() {
 		if skipFile(fi.Name()) {
@@ -246,7 +316,7 @@ func (e *Engine) collectProfileLocal(items map[string]*profileItem, def profileD
 			return relErr
 		}
 		rel = filepath.ToSlash(rel)
-		if path != def.root && skipProfileRel(def.category, rel) {
+		if path != def.root && skipProfileRel(def.tool, def.category, rel) {
 			if d.IsDir() {
 				return fs.SkipDir
 			}
@@ -270,13 +340,16 @@ func (e *Engine) collectProfileLocal(items map[string]*profileItem, def profileD
 	})
 }
 
-func skipProfileRel(category, rel string) bool {
+func skipProfileRel(tool, category, rel string) bool {
+	if !filepath.IsLocal(filepath.FromSlash(rel)) {
+		return true
+	}
 	parts := strings.Split(strings.ToLower(filepath.ToSlash(rel)), "/")
 	for _, part := range parts {
 		if part == "" || part == "." || part == ".." {
 			return true
 		}
-		if category == config.ContentSkills && (part == "synced" || part == ".trash") {
+		if tool == config.ToolClaude && category == config.ContentSkills && (part == "synced" || part == ".trash") {
 			return true
 		}
 	}
@@ -301,10 +374,7 @@ func (e *Engine) profileLocalPath(it *profileItem) string {
 		return e.cfg.ClaudeStatePath()
 	}
 	for _, def := range e.profileDefs() {
-		if def.category == it.category {
-			if it.category == config.ContentRules {
-				return def.root
-			}
+		if def.tool == it.tool && def.category == it.category {
 			return filepath.Join(def.root, filepath.FromSlash(it.rel))
 		}
 	}
@@ -475,7 +545,7 @@ func (e *Engine) conflictProfile(it *profileItem, base []byte, hasBase bool, loc
 	if hasBase {
 		baseHash = crypt.SHA256Hex(base)
 	}
-	c := &Conflict{Key: it.key, Kind: it.kind, Category: it.category, Rel: it.rel,
+	c := &Conflict{Key: it.key, Tool: it.tool, Kind: it.kind, Category: it.category, Rel: it.rel,
 		LocalPath: e.profileLocalPath(it), LocalHash: crypt.SHA256Hex(local), RemoteETag: etag, BaseHash: baseHash}
 	id := conflictID(it.key)
 	if _, err := LoadConflict(id); err == nil {
@@ -525,7 +595,7 @@ func (e *Engine) applyProfileLocal(it *profileItem, data []byte) error {
 		if err != nil {
 			return err
 		}
-		e.bk.saveGlobal(BackupLocal, it.category, it.rel, oldProjection)
+		e.bk.saveGlobal(BackupLocal, it.tool, it.category, it.rel, oldProjection)
 		switch it.kind {
 		case ConflictSettings:
 			next, err = claudeconfig.ApplySettings(cur, data)
@@ -545,7 +615,7 @@ func (e *Engine) applyProfileLocal(it *profileItem, data []byte) error {
 			if err != nil {
 				return err
 			}
-			e.bk.saveGlobal(BackupLocal, it.category, it.rel, cur)
+			e.bk.saveGlobal(BackupLocal, it.tool, it.category, it.rel, cur)
 		}
 		next = data
 	}
@@ -640,5 +710,5 @@ func (e *Engine) noteProfile(it *profileItem, kind string) {
 	if old, ok := e.changes[it.key]; ok && changeRank[old.Kind] >= changeRank[kind] {
 		return
 	}
-	e.changes[it.key] = state.Change{Kind: kind, Dir: it.category, Rel: it.rel}
+	e.changes[it.key] = state.Change{Kind: kind, Tool: it.tool, Dir: it.category, Rel: it.rel}
 }

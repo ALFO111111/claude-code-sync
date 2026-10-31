@@ -34,6 +34,7 @@ func NewDevice(t testing.TB, deviceID string) *config.Config {
 		DeviceName: deviceID,
 		Home:       home,
 		ClaudeDir:  filepath.Join(home, ".claude"), // 显式指定，不受外部 CLAUDE_CONFIG_DIR 影响
+		CodexDir:   filepath.Join(home, ".codex"),  // 同样不碰测试机的真实 CODEX_HOME
 		Storage:    storage.Config{Type: "local", Path: filepath.Join(root, "cloud"), Prefix: "v1/"},
 	}
 	cfg.ApplyDefaults()

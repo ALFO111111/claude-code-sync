@@ -166,6 +166,67 @@ claude --resume
 6. **MCP**：A 加一个用户级 MCP（带 env 密钥）→ B 同步后出现同名服务器，但**没有** A 的 env；B 自己补上 env 后再同步，A 的 env 也不受影响。
 7. **CC Switch**：如果 CC Switch 的 WebDAV/S3 自动同步开着，设置页"同步内容"里规则、技能、MCP 会显示"由本工具同步 / 交给 CC Switch"按钮，选之前这三类不会同步；CC Switch 自动同步关着则不出现任何提示。
 
+## 7.6 阶段 F：Codex 首个安全切片（隔离双设备验收）
+
+目标：只验收 Codex **全局规则和技能**。全程使用假目录、假配置和独立云端前缀，不碰真实的 `~/.codex`、`~/.agents`、`~/.claude`，也不往正式使用的 `v1/` 里写测试数据。
+
+1. **准备隔离环境**：准备一个空 bucket 或空前缀（例如 `codex-acceptance/`），A、B 填同一个，**不要填正式环境的 `v1/`**。两台电脑各自新开一个 PowerShell，在项目根目录执行：
+
+   ```powershell
+   $RealHome = $env:USERPROFILE
+   $S = "D:\ccs-codex-sandbox"
+   $env:CLAUDE_CODE_SYNC_HOME = "$S\app"
+   $env:CLAUDE_CONFIG_DIR     = "$S\claude"
+   $env:CODEX_HOME            = "$S\home\.codex"
+   $env:USERPROFILE           = "$S\home"  # ~/.agents/skills 和 CC Switch 检测也进沙箱
+   New-Item -ItemType Directory -Force "$env:CODEX_HOME", "$S\home\.agents\skills\demo", "$S\claude", "$S\home\.cc-switch" | Out-Null
+   '{"webdavSync":{"enabled":true,"autoSync":true}}' | Set-Content "$S\home\.cc-switch\settings.json" -Encoding utf8
+   ```
+
+   最后一行是在沙箱里伪造“CC Switch 自动同步已开启”，用来确认它只影响 Claude。之后所有 Codex 命令都必须在各自这个窗口里运行；先确认 `$env:USERPROFILE` 是沙箱路径、不等于 `$RealHome`。沙箱模式不会安装 hooks、定时任务或开机自启。
+
+2. **首轮上传、下载和范围检查**：在 A 创建测试文件：
+
+   ```powershell
+   'A 的全局规则' | Set-Content "$env:CODEX_HOME\AGENTS.md" -Encoding utf8
+   'A 的覆盖规则' | Set-Content "$env:CODEX_HOME\AGENTS.override.md" -Encoding utf8
+   'A 的技能' | Set-Content "$S\home\.agents\skills\demo\SKILL.md" -Encoding utf8
+   New-Item -ItemType Directory -Force "$env:CODEX_HOME\sessions", "$S\project\skills\demo" | Out-Null
+   '不应上传' | Set-Content "$env:CODEX_HOME\sessions\rollout.jsonl" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\history.jsonl" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\session_index.jsonl" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\state.sqlite" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\state.sqlite-wal" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\config.toml" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\auth.json" -Encoding utf8
+   '项目级文件仍归 Git' | Set-Content "$S\project\AGENTS.md" -Encoding utf8
+   '项目级文件仍归 Git' | Set-Content "$S\project\skills\demo\SKILL.md" -Encoding utf8
+   ```
+
+   A 运行 `.\claude-code-sync.exe` 走完向导并等首次同步完成，然后托盘退出；B 同样初始化（同一独立前缀、同一测试口令）并再点一次“立即同步”。预期：
+   - B 的 `$CODEX_HOME` 下有内容一致的 `AGENTS.md`、`AGENTS.override.md`，`~/.agents/skills/demo/SKILL.md` 也已下载；这里的 `~` 都是沙箱目录。
+   - B 没有 A 创建的 sessions/history/session_index、SQLite/WAL、config.toml、auth 或项目级测试文件。
+   - 云端 Codex 对象只有 `tools/codex/files/rules/AGENTS.md`、`tools/codex/files/rules/AGENTS.override.md`、`tools/codex/files/skills/demo/SKILL.md`（加上你选择的独立前缀）；下载后能看到 `CCS1` 密文头。
+   - 设置页里 Claude 的规则、技能、MCP 可以因伪造的 CC Switch 状态等待负责人选择，但 Codex 的 rules、skills 仍正常同步，没有“交给 CC Switch”的要求。
+
+3. **GUI 文件监听**：A 从沙箱窗口运行 `.\claude-code-sync.exe` 打开 GUI，分别修改 `AGENTS.md` 和技能文件，不手动点同步；等首页显示自动同步完成后，B 运行 `.\claude-code-sync.exe sync`。预期 B 得到两处修改。测完 A 托盘退出。
+
+4. **三方文本合并**：两端先同步到一致。A 改 `AGENTS.md` 第一行，B 改最后一行，各自保存；A、B、A、B 依次运行 `sync`。预期两台都同时保留两处修改，没有冲突。
+
+5. **冲突与备份恢复**：两端再同时把 `AGENTS.md` 的同一行改成不同内容；A 先 `sync`，B 后 `sync`。预期 B 的“冲突”页出现 Codex 条目，本机文件保持 B 的版本。B 在冲突页选“手工合并”保存，再同步到两端一致。随后 A 修改 `AGENTS.override.md` 并同步，B 同步下载；B 的“备份”页应出现下载前的 Codex 旧版本，先逐行对比再恢复，确认文件写回沙箱 `$CODEX_HOME`，且恢复前的版本也有备份。
+
+6. **删除不传播与手动恢复**：A 删除 `~/.agents/skills/demo/SKILL.md` 并同步，B 再同步。预期 B 的文件仍在；A 连续同步几轮也不会自动拉回。A 运行下面的命令后，文件和内容应恢复：
+
+   ```powershell
+   .\claude-code-sync.exe restore-content codex skills demo/SKILL.md
+   ```
+
+7. **独立类别开关**：B 运行 `content disable codex skills`；A 修改技能文件和 `AGENTS.md` 并同步，B 再同步。预期 B 的规则更新、技能不变；B 运行 `content enable codex skills` 后再同步，技能才更新。再运行旧写法 `content disable skills`，确认它只关闭 Claude skills，不改变 Codex skills 的开关。
+
+8. **Dry 与改口令**：两端先同步到一致。A 修改 `AGENTS.override.md`，运行 `sync --dry`；B 随后正常 `sync`，应仍是旧内容，证明 Dry 没上传。A 再正常同步、B 再同步，B 才得到新内容。最后 A 运行 `passwd` 修改**测试口令**，B 按首页提示输入新口令（或运行 `passwd`），再修改一处 Codex 规则并双向同步，预期改口令后仍能正常合并和下载。
+
+9. **收尾**：两台电脑都在托盘退出 GUI，关闭设置过环境变量的 PowerShell，删除各自的 `D:\ccs-codex-sandbox`，再在存储控制台删除本次独立前缀。不要在真实环境运行 `uninstall` 来清理本次测试；沙箱本来就没有安装自动同步。真实的 `$RealHome\.codex`、`$RealHome\.agents` 和 `$RealHome\.claude` 应保持原样。
+
 ## 8. 第一周的日常观察
 
 - 每天看一眼首页的"失败"数字，有问题去"日志"页看原因。

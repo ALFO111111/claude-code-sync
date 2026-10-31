@@ -26,7 +26,7 @@
         <div class="row line">
           <div class="kind-icon"><NavIcon name="conflict" :size="16" /></div>
           <div class="grow">
-            <div class="what"><b>{{ t(`content.cat.${it.category}`) }}</b> · <span class="mono">{{ it.rel }}</span></div>
+            <div class="what"><b>{{ toolLabel(it.tool) }} · {{ contentLabel(it.tool, it.category) }}</b> · <span class="mono">{{ it.rel }}</span></div>
             <div class="muted small ellipsis" :title="it.localPath">{{ it.localPath }} · {{ it.timeText }}</div>
           </div>
           <button class="sm" @click="toggle(it)">{{ openId === it.id ? t('backups.hide') : t('conflicts.handle') }}</button>
@@ -88,6 +88,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { resources } from '@/stores/data'
 import { lineDiff, collapse } from '@/utils/diff'
+import { toolLabel, contentLabel } from '@/utils/format'
 import { useNotice } from '@/composables/useNotice'
 import Notice from '@/components/Notice.vue'
 import NavIcon from '@/components/NavIcon.vue'

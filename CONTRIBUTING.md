@@ -10,7 +10,7 @@
 
 ### 最重要的原则：不能弄丢用户的会话
 
-这个工具直接读写用户的 `~/.claude`，用户最怕的就是会话丢了。所以：
+这个工具直接读写用户的 `~/.claude`，以及 Codex 的全局规则和技能，用户最怕的就是数据丢了。所以：
 
 - 改同步逻辑（`internal/engine`）前后都要想清楚“最坏情况下会不会丢数据”，并补上测试
 - 测试一律用 `testutil.NewDevice(t, id)` 在临时目录里搭假设备，**绝不碰真实数据**
@@ -35,15 +35,17 @@ wails build                      # 打包单个 exe → build\bin\claude-code-sy
 .\打包.bat                        # 同上，双击运行，会先关掉正在运行的程序
 ```
 
-**用沙箱调试**：两个环境变量把程序的数据和会话目录都指到别处，真实的 `~/.claude` 不会被碰，也不会安装 hooks 和定时任务：
+**用沙箱调试**：环境变量把程序的数据和工具目录都指到别处，真实的 `~/.claude`、`~/.codex` 和 `~/.agents/skills` 不会被碰，也不会安装 hooks 和定时任务：
 
 ```powershell
-$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"     # 本工具的数据（配置、状态、日志）
-$env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"  # 会话目录（可以先复制一份真实的进来）
-wails dev                                             # 或运行打包好的 exe
+$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"          # 本工具的数据（配置、状态、日志）
+$env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"       # Claude 会话目录（可以先复制一份真实的进来）
+$env:CODEX_HOME            = "D:\ccs-sandbox\home\.codex"  # Codex 全局规则
+$env:USERPROFILE           = "D:\ccs-sandbox\home"         # 让 ~/.agents/skills 也落到沙箱
+wails dev                                                  # 或运行打包好的 exe
 ```
 
-两个都要设：只设第一个的话，会话目录还是真实的 `~/.claude`。
+只调试 Claude 时，前两个变量都要设：只设第一个的话，会话目录还是真实的 `~/.claude`。涉及 Codex 时四个都要设：`CODEX_HOME` 只移动规则目录，`~/.agents/skills` 的位置仍由用户目录决定。
 
 ### 项目结构
 
@@ -53,9 +55,9 @@ internal/
   cli/  gui/            命令行 / 图形界面：只负责收参数、展示结果，不写业务判断
   service/              两种界面共用的业务操作
   engine/               同步引擎：比对、合并、分叉、路径翻译、项目绑定、备份、改口令；
-                        个人配置（规则、技能、MCP…）的三方合并、冲突记录与解决
+                        Claude 个人配置（规则、技能、MCP…）和 Codex 全局规则 / 技能的三方合并、冲突记录与解决
   claudeconfig/         settings.json 白名单、MCP 去秘密的提取与回填
-  ccswitch/             只读检测 CC Switch 自动同步是否开着
+  ccswitch/             只读检测 CC Switch 自动同步是否开着（负责人选择只影响 Claude）
   state/                state.json（上次同步时的样子）+ sync.lock
   project/              项目身份证（pid）
   storage/              云端接口：S3 兼容（minio-go）+ 本地文件夹（测试用）
@@ -66,6 +68,8 @@ frontend/src/           Vue 3：api/ 调后端，i18n/ 界面文字，views/ 页
 ```
 
 **依赖只能从上往下**：`main → cli/gui → service → engine → 底层包`。加新功能的套路：业务写进 service（同步算法写进 engine）→ cli、gui 各包一层 → 前端用 `import { api } from '@/api'` 调。
+
+**Codex 同步边界**：首个安全切片只处理 `$CODEX_HOME/AGENTS.md`、`AGENTS.override.md` 和 `~/.agents/skills`，云端键分别是 `tools/codex/files/rules/...`、`tools/codex/files/skills/...`。它们复用全量同步和三方文本合并，不做 Codex 会话、SQLite/WAL、config.toml/MCP、auth、插件/hooks/resume；项目级 AGENTS/skills 仍归 Git。CC Switch 的负责人逻辑只能作用于 Claude，新增共享代码时不要把 Codex 类别误纳进去。
 
 ### 多语言
 
@@ -91,7 +95,7 @@ Thanks for helping out! Issues, docs, bug fixes and features are all welcome.
 
 ### The one rule: never lose a user's sessions
 
-This tool reads and writes the user's `~/.claude` directly, and losing conversations is what users fear most. So:
+This tool reads and writes the user's `~/.claude` plus Codex global rules and skills directly, and losing data is what users fear most. So:
 
 - When changing sync logic (`internal/engine`), think through the worst case before and after, and add tests
 - Tests always use `testutil.NewDevice(t, id)` to set up fake devices in temp folders. **Never touch real data**
@@ -115,15 +119,17 @@ cd frontend; npm run demo                          # run the UI in a browser wit
 wails build                      # build the single exe → build\bin\claude-code-sync.exe
 ```
 
-**Sandbox**: two environment variables redirect the app's data and the session folder, so your real `~/.claude` is never touched and no hooks or scheduled tasks are installed:
+**Sandbox**: environment variables redirect the app's data and tool folders, so your real `~/.claude`, `~/.codex` and `~/.agents/skills` are never touched and no hooks or scheduled tasks are installed:
 
 ```powershell
-$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"     # this tool's data (config, state, log)
-$env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"  # session folder (copy your real one in if you like)
-wails dev                                             # or run a built exe
+$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"          # this tool's data (config, state, log)
+$env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"       # Claude session folder (copy your real one in if you like)
+$env:CODEX_HOME            = "D:\ccs-sandbox\home\.codex"  # Codex global rules
+$env:USERPROFILE           = "D:\ccs-sandbox\home"         # also puts ~/.agents/skills in the sandbox
+wails dev                                                  # or run a built exe
 ```
 
-Set both. With only the first one, the session folder is still your real `~/.claude`.
+For Claude-only work, set both of the first two. With only the first one, the session folder is still your real `~/.claude`. For Codex work, set all four: `CODEX_HOME` moves only the rules folder, while `~/.agents/skills` still follows the user profile.
 
 ### Layout
 
@@ -133,9 +139,9 @@ internal/
   cli/  gui/            terminal / window front ends: collect input, show results, no business logic
   service/              operations shared by both front ends
   engine/               sync engine: diff, merge, fork, path translation, project binding, backups, passphrase change;
-                        three-way merge, conflict records and resolution for personal config (rules, skills, MCP…)
+                        three-way merge, conflict records and resolution for Claude personal config (rules, skills, MCP…) and Codex global rules / skills
   claudeconfig/         extract/apply the settings.json allow-list and secret-free MCP config
-  ccswitch/             read-only detection of CC Switch auto sync
+  ccswitch/             read-only detection of CC Switch auto sync (owner selection only affects Claude)
   state/                state.json (what things looked like at the last sync) + sync.lock
   project/              project identity (pid)
   storage/              cloud interface: S3-compatible (minio-go) + local folder (tests)
@@ -146,6 +152,8 @@ frontend/src/           Vue 3: api/ calls the backend, i18n/ UI text, views/ pag
 ```
 
 **Dependencies only point downwards**: `main → cli/gui → service → engine → low-level packages`. To add a feature: put the logic in service (sync algorithms in engine) → a thin wrapper in cli and gui → call it from the frontend via `import { api } from '@/api'`.
+
+**Codex sync boundary**: the first safe slice handles only `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` and `~/.agents/skills`, stored under `tools/codex/files/rules/...` and `tools/codex/files/skills/...`. They reuse full sync and three-way text merge. Codex sessions, SQLite/WAL, config.toml/MCP, auth, plugins/hooks/resume are out of scope; project-level AGENTS/skills remain managed by Git. CC Switch owner logic must only affect Claude, so do not accidentally include Codex categories when extending shared code.
 
 ### Translations
 

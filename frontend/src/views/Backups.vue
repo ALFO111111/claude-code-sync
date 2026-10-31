@@ -106,7 +106,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { go } from '@/stores/nav'
 import { resources } from '@/stores/data'
-import { fmtSize } from '@/utils/format'
+import { fmtSize, toolLabel, contentLabel } from '@/utils/format'
 import { lineDiff, collapse } from '@/utils/diff'
 import { useNotice } from '@/composables/useNotice'
 import Notice from '@/components/Notice.vue'
@@ -161,8 +161,8 @@ function dayLabel(d) {
 }
 const clock = (ms) => new Date(ms).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 const fileName = (rel) => rel.split('/').pop()
-// 全局内容（规则、技能、settings…）的备份没有项目，显示它的类别
-const projectName = (it) => (it.scope === 'global' ? t(`content.cat.${it.category}`) : it.project)
+// 全局内容（规则、技能、settings…）的备份没有项目，显示工具和类别
+const projectName = (it) => (it.scope === 'global' ? `${toolLabel(it.tool)} · ${contentLabel(it.tool, it.category)}` : it.project)
 
 // ---------- 展开查看 ----------
 const openId = ref('')

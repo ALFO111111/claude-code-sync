@@ -36,6 +36,7 @@ type Status struct {
 type ChangeItem struct {
 	Kind    string `json:"kind"`
 	PID     string `json:"pid"`
+	Tool    string `json:"tool,omitempty"`
 	Project string `json:"project"`
 	Rel     string `json:"rel"`
 }
@@ -44,7 +45,7 @@ type ChangeItem struct {
 func changeItems(st *state.State, changes []state.Change) []ChangeItem {
 	out := []ChangeItem{}
 	for _, c := range changes {
-		it := ChangeItem{Kind: c.Kind, PID: c.PID, Project: c.Dir, Rel: c.Rel}
+		it := ChangeItem{Kind: c.Kind, PID: c.PID, Tool: c.Tool, Project: c.Dir, Rel: c.Rel}
 		if b := st.Bindings[c.PID]; b != nil && b.Display != "" {
 			it.Project = b.Display
 		}

@@ -71,10 +71,13 @@ func dispatch(ctx context.Context, cmd string, o flags, version string) error {
 	case "resolve":
 		return cmdResolve(ctx, o.positional)
 	case "restore-content":
-		if len(o.positional) != 2 {
-			return fmt.Errorf(i18n.T("用法: %s restore-content <类别> <相对路径>"), appName)
+		if len(o.positional) == 2 {
+			return service.RestoreContentItem(ctx, o.positional[0], o.positional[1])
 		}
-		return service.RestoreContentItem(ctx, o.positional[0], o.positional[1])
+		if len(o.positional) == 3 {
+			return service.RestoreToolContentItem(ctx, o.positional[0], o.positional[1], o.positional[2])
+		}
+		return fmt.Errorf(i18n.T("用法: %s restore-content [工具] <类别> <相对路径>"), appName)
 	case "status":
 		return cmdStatus(ctx)
 	case "claim":
@@ -159,12 +162,12 @@ func usage() {
   {app} sync --dry           只显示会做什么，不真正改动
   {app} status               查看本机项目绑定和云端待认领的项目
   {app} content              查看全局同步内容开关
-  {app} content enable|disable <类别>   开关一个全局内容类别
+  {app} content enable|disable [工具] <类别>   开关一个全局内容类别（工具：claude / codex）
   {app} content owner <类别> sync|ccswitch   选择可能重复的类别由谁同步
   {app} conflicts            列出待解决的冲突
   {app} resolve <冲突ID> local|remote|both   解决冲突
   {app} resolve <冲突ID> merged <文件>       使用手工合并后的文件解决
-  {app} restore-content <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
+  {app} restore-content [工具] <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
@@ -196,17 +199,24 @@ func cmdContent(args []string) error {
 			if item.Pending {
 				status = i18n.T("待选择负责人（本轮暂停）")
 			}
-			fmt.Printf("%-10s %s\n", item.Category, status)
+			name := item.Category
+			if item.Tool == config.ToolCodex {
+				name = config.ContentKey(item.Tool, item.Category)
+			}
+			fmt.Printf("%-16s %s\n", name, status)
 		}
 		return nil
 	}
 	if len(args) == 2 && (args[0] == "enable" || args[0] == "disable") {
 		return service.SetContentEnabled(args[1], args[0] == "enable")
 	}
+	if len(args) == 3 && (args[0] == "enable" || args[0] == "disable") {
+		return service.SetToolContentEnabled(args[1], args[2], args[0] == "enable")
+	}
 	if len(args) == 3 && args[0] == "owner" {
 		return service.SetContentOwner(args[1], args[2])
 	}
-	return fmt.Errorf(i18n.T("用法: %s content [enable|disable <类别> | owner <类别> sync|ccswitch]"), appName)
+	return fmt.Errorf(i18n.T("用法: %s content [enable|disable [工具] <类别> | owner <类别> sync|ccswitch]"), appName)
 }
 
 func cmdConflicts() error {

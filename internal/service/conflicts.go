@@ -15,6 +15,7 @@ import (
 // ConflictItem 冲突列表里的一条。时间用毫秒（Wails 绑定不认 time.Time）。
 type ConflictItem struct {
 	ID        string `json:"id"`
+	Tool      string `json:"tool"`
 	Kind      string `json:"kind"`     // file | settings | mcp | tasks
 	Category  string `json:"category"` // 见 config.Content*
 	Rel       string `json:"rel"`
@@ -36,7 +37,7 @@ type ConflictContent struct {
 }
 
 func conflictItem(c engine.Conflict) ConflictItem {
-	return ConflictItem{ID: c.ID, Kind: c.Kind, Category: c.Category, Rel: c.Rel, LocalPath: c.LocalPath,
+	return ConflictItem{ID: c.ID, Tool: c.Tool, Kind: c.Kind, Category: c.Category, Rel: c.Rel, LocalPath: c.LocalPath,
 		Time: c.UpdatedAt.UnixMilli(), TimeText: fmtTime(c.UpdatedAt)}
 }
 
@@ -89,4 +90,9 @@ func ResolveConflict(ctx context.Context, id, choice, merged string) error {
 // RestoreContentItem 本机删掉的全局文件，从云端拉回来（之后照常同步）。
 func RestoreContentItem(ctx context.Context, category, rel string) error {
 	return engine.RestoreContentItem(ctx, category, rel)
+}
+
+// RestoreToolContentItem 恢复指定工具的本机已删除文件。
+func RestoreToolContentItem(ctx context.Context, tool, category, rel string) error {
+	return engine.RestoreToolContentItem(ctx, tool, category, rel)
 }

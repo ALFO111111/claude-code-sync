@@ -13,6 +13,12 @@ export function fmtSize(n) {
 // kindLabel 项目种类（后端 project.Kind：home / git / local）的显示名。
 export const kindLabel = (k) => (['home', 'git', 'local'].includes(k) ? t(`kind.${k}`) : k)
 
+// 全局内容属于哪个工具；旧数据没有 tool，按 Claude Code 显示。
+export const toolLabel = (tool) => t(`content.tool.${tool || 'claude'}`)
+const contentPrefix = (tool) => (tool === 'codex' ? 'content.codex' : 'content')
+export const contentLabel = (tool, category) => t(`${contentPrefix(tool)}.cat.${category}`)
+export const contentDesc = (tool, category) => t(`${contentPrefix(tool)}.desc.${category}`)
+
 // fromNow 毫秒时间戳 → "刚刚 / 3 分钟前 / 2 小时前 / 5 天前"。0 表示从没发生过。
 export function fromNow(ms, now = Date.now()) {
   if (!ms) return t('time.never')

@@ -47,7 +47,7 @@
       <div v-if="showChanges && status?.changes.length" class="changes">
         <div v-for="(c, i) in status.changes" :key="i" class="change">
           <span class="kind" :class="c.kind"><NavIcon :name="CHANGE_ICON[c.kind]" :size="14" /> {{ t(`home.change.${c.kind}`) }}</span>
-          <span class="grow ellipsis" :title="c.rel"><b>{{ c.pid ? c.project : t(`content.cat.${c.project}`) }}</b> <span class="muted mono">{{ c.rel }}</span></span>
+          <span class="grow ellipsis" :title="c.rel"><b>{{ changeName(c) }}</b> <span class="muted mono">{{ c.rel }}</span></span>
           <button v-if="c.kind === 'conflict' && !c.pid" class="link small" @click="go('conflicts')">{{ t('home.seeConflicts') }}</button>
           <button v-else-if="c.kind === 'fork' || c.kind === 'conflict'" class="link small" @click="go('backups')">{{ t('home.seeBackups') }}</button>
         </div>
@@ -142,7 +142,7 @@ import { api } from '@/api'
 import { syncState } from '@/stores/sync'
 import { go } from '@/stores/nav'
 import { resources } from '@/stores/data'
-import { fromNow, fmtSize } from '@/utils/format'
+import { fromNow, fmtSize, toolLabel, contentLabel } from '@/utils/format'
 import Notice from '@/components/Notice.vue'
 import NavIcon from '@/components/NavIcon.vue'
 import Skeleton from '@/components/Skeleton.vue'
@@ -160,6 +160,7 @@ const now = ref(Date.now()) // 每 30 秒走一次，让"3 分钟前"自己更�
 let timer
 
 const CHANGE_ICON = { push: 'upload', pull: 'download', merge: 'merge', fork: 'fork', conflict: 'conflict' }
+const changeName = (c) => (c.pid ? c.project : `${toolLabel(c.tool)} · ${contentLabel(c.tool, c.project)}`)
 
 const refresh = () => statusRes.refresh()
 

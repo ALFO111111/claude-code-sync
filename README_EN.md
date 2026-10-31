@@ -4,7 +4,7 @@
 
 # claude-code-sync
 
-**Sync your Claude Code sessions across machines. End-to-end encrypted, paths translated automatically: switch computers and `claude --resume` right where you left off.**
+**Sync Claude Code sessions across machines, plus personal rules and skills for Claude Code and Codex. End-to-end encrypted, with Claude Code paths translated automatically: switch computers and `claude --resume` right where you left off.**
 
 [![Release](https://img.shields.io/github/v/release/ALFO111111/claude-code-sync?include_prereleases)](https://github.com/ALFO111111/claude-code-sync/releases)
 [![CI](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml)
@@ -38,7 +38,8 @@ Copying the files over doesn't work either: the same project usually lives at di
 claude-code-sync solves exactly that:
 
 - **Session sync**: sessions, sub-agent transcripts and project memory (MEMORY.md) under `~/.claude/projects`, plus your input history (what ↑ brings back)
-- **Personal config sync**: global rules `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers, and a few safe fields from settings.json (language, auto memory, co-author line). Models, API keys, hooks, permissions and MCP secrets/env vars are **never uploaded**. Each category can be turned off in Settings
+- **Claude Code personal config sync**: global rules `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers, and a few safe fields from settings.json (language, auto memory, co-author line). Models, API keys, hooks, permissions and MCP secrets/env vars are **never uploaded**. Each category can be turned off in Settings
+- **Codex global rules and skills**: sync `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` (`~/.codex` by default) and `~/.agents/skills`, with switches independent from Claude and the same encryption, merge, conflict and backup machinery. **Codex sessions are not synced**; see the exact scope below
 - **Automatic path translation**: `D:\work\app` on machine A becomes `E:\code\app` on machine B, so `claude --resume` just works
 - **Projects match up by themselves**: git projects are matched by remote URL (ssh and https forms alike); plain folders are claimed with one click
 - **End-to-end encryption**: everything is encrypted with your passphrase before upload (Argon2id + AES-256-GCM); the cloud only sees ciphertext
@@ -190,9 +191,22 @@ D:\work\app                       v1/history.jsonl                           tra
   Backups live in `~/.claude-code-sync/backup/` for 14 days. The Backups page in the app lets you view them, compare them line by line with the current file, and restore with one click (the version being replaced is backed up too, so you can switch back).
 
 - **Merging personal config (rules, skills, MCP, …)**: the last common version is remembered and a three-way merge is done. Different lines or fields changed on two machines → merged automatically; the same spot changed → it goes to the Conflicts page while your local file stays usable, and you choose keep mine / use theirs / keep both / merge manually. **Deletions never propagate**: deleting a file on one machine never deletes it on another, and it is not pulled back locally either.
-- **Working with CC Switch**: CC Switch owns provider URLs, keys and models. If its auto sync is on, global rules, skills and MCP could be synced twice, so these three are paused until you pick an owner in Settings (nothing is shown if CC Switch auto sync is off).
+- **Working with CC Switch**: CC Switch owns provider URLs, keys and models. If its auto sync is on, Claude's global rules, skills and MCP could be synced twice, so these three are paused until you pick an owner in Settings (nothing is shown if CC Switch auto sync is off). This owner choice only affects Claude; it never pauses or takes over Codex.
 
 - **Four triggers**: Claude Code hooks (`SessionStart` / `Stop`) do most of the work; the app starts at login and watches for file changes from the tray (start-at-login can be turned off in Settings); a Windows scheduled task does a full sync every hour; and you can always click "Sync now".
+
+### What is synced for Codex
+
+The first safe slice covers only two kinds of global content:
+
+| Local content | Cloud objects (with the default `v1/` prefix) |
+|---|---|
+| `$CODEX_HOME/AGENTS.md` and `$CODEX_HOME/AGENTS.override.md` (`~/.codex` when `CODEX_HOME` is unset) | `v1/tools/codex/files/rules/...` |
+| `~/.agents/skills/` | `v1/tools/codex/files/skills/...` |
+
+Codex content is handled by full sync and reuses the same end-to-end encryption, per-category switches, three-way text merge, conflict resolution, backup/restore and non-propagating deletion machinery. It is also covered by `sync --dry` and passphrase changes. While the GUI is in the tray, it watches Codex rule files and the skills folder and automatically triggers a sync after changes. Claude and Codex have independent `rules` and `skills` switches.
+
+**Explicitly not supported yet**: Codex `sessions/`, `history`, `session_index`, SQLite/WAL databases, `config.toml` (including MCP), `auth` / login credentials, plugins, hooks and resume state. **This tool cannot restore or resume Codex sessions on another machine.** Project-level AGENTS / skills remain managed by Git and are outside the sync scope.
 
 ## Command line
 
@@ -207,11 +221,13 @@ claude-code-sync claim <project-id> <path>     # claim a project from another ma
 claude-code-sync ignore <project-id>           # ignore / stop syncing a project (no files deleted)
 claude-code-sync unignore <project-id>         # stop ignoring
 claude-code-sync content                       # which personal config is synced
-claude-code-sync content disable skills        # turn a category off (no files deleted); enable turns it on
-claude-code-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner (sync / ccswitch)
+claude-code-sync content disable skills        # turn a Claude category off (no files deleted); enable turns it on; legacy form kept
+claude-code-sync content disable codex skills  # disable Codex skills only; enable turns them on; categories: rules / skills
+claude-code-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner for Claude config (sync / ccswitch)
 claude-code-sync conflicts                     # list unresolved conflicts
 claude-code-sync resolve <conflict-id> local   # resolve: local / remote / both, or merged <file>
-claude-code-sync restore-content plans a.md    # pull a locally deleted config file back from the cloud
+claude-code-sync restore-content plans a.md    # pull a locally deleted Claude config file back from the cloud; legacy form kept
+claude-code-sync restore-content codex rules AGENTS.md # restore Codex global rules; categories: rules / skills
 claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
 claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login)
 claude-code-sync version

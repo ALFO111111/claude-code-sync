@@ -145,12 +145,12 @@ var en = map[string]string{
 	"--cwd 需要参数": "--cwd requires an argument",
 	"不认识的参数 %s":  "Unknown option %s",
 	"以下类别可能也在由 CC Switch 同步，本轮已暂停，请用 content owner 选择负责人:": "These categories may also be synced by CC Switch and were paused this round; choose an owner with content owner:",
-	"用法: %s restore-content <类别> <相对路径>":                   "Usage: %s restore-content <category> <relative-path>",
+	"用法: %s restore-content [工具] <类别> <相对路径>":              "Usage: %s restore-content [tool] <category> <relative-path>",
 	"CC Switch Auto Sync:": "CC Switch Auto Sync:",
 	"关闭":                   "off",
 	"开启":                   "on",
 	"待选择负责人（本轮暂停）":         "owner needed (paused this round)",
-	"用法: %s content [enable|disable <类别> | owner <类别> sync|ccswitch]": "Usage: %s content [enable|disable <category> | owner <category> sync|ccswitch]",
+	"用法: %s content [enable|disable [工具] <类别> | owner <类别> sync|ccswitch]": "Usage: %s content [enable|disable [tool] <category> | owner <category> sync|ccswitch]",
 	"没有待解决的冲突": "No unresolved conflicts",
 	"用 resolve 命令选择保留哪一边；手工合并请在图形界面操作。":                                    "Use resolve to choose a side; use the app for manual merging.",
 	"用法: %s resolve <冲突ID> local|remote|both，或 resolve <冲突ID> merged <文件>": "Usage: %s resolve <conflict-id> local|remote|both, or resolve <conflict-id> merged <file>",
@@ -164,12 +164,12 @@ var en = map[string]string{
   {app} sync --dry           只显示会做什么，不真正改动
   {app} status               查看本机项目绑定和云端待认领的项目
   {app} content              查看全局同步内容开关
-  {app} content enable|disable <类别>   开关一个全局内容类别
+  {app} content enable|disable [工具] <类别>   开关一个全局内容类别（工具：claude / codex）
   {app} content owner <类别> sync|ccswitch   选择可能重复的类别由谁同步
   {app} conflicts            列出待解决的冲突
   {app} resolve <冲突ID> local|remote|both   解决冲突
   {app} resolve <冲突ID> merged <文件>       使用手工合并后的文件解决
-  {app} restore-content <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
+  {app} restore-content [工具] <类别> <相对路径>    从云端手动恢复本机已删除的全局文件
   {app} claim <项目ID> <本机路径>   认领一个云端项目到本机目录
   {app} ignore <项目ID>      忽略一个项目（已绑定的停止同步，文件都不删）
   {app} unignore <项目ID>    取消忽略
@@ -190,12 +190,12 @@ Usage:
   {app} sync --dry           show what would happen without changing anything
   {app} status               show local project bindings and cloud projects waiting to be claimed
   {app} content              show which global content is synced
-  {app} content enable|disable <category>   turn a global content category on or off
+  {app} content enable|disable [tool] <category>   turn a global content category on or off (tool: claude / codex)
   {app} content owner <category> sync|ccswitch   choose which tool syncs a possibly duplicated category
   {app} conflicts            list unresolved conflicts
   {app} resolve <conflict-id> local|remote|both   resolve a conflict
   {app} resolve <conflict-id> merged <file>       resolve with a manually merged file
-  {app} restore-content <category> <relative-path>   restore a locally deleted global file from the cloud
+  {app} restore-content [tool] <category> <relative-path>   restore a locally deleted global file from the cloud
   {app} claim <project-id> <local-path>   bind a cloud project to a local folder
   {app} ignore <project-id>  ignore a project (stops syncing a bound one; no files are deleted)
   {app} unignore <project-id>  stop ignoring a project

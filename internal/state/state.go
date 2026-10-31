@@ -81,6 +81,7 @@ const (
 type Change struct {
 	Kind string `json:"kind"`
 	PID  string `json:"pid"`
+	Tool string `json:"tool,omitempty"`
 	Dir  string `json:"dir"`
 	Rel  string `json:"rel"`
 }

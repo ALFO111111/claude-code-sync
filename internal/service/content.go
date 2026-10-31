@@ -9,6 +9,7 @@ import (
 )
 
 type ContentItem struct {
+	Tool      string `json:"tool"`
 	Category  string `json:"category"`
 	Enabled   bool   `json:"enabled"`
 	Pending   bool   `json:"pending"`
@@ -38,28 +39,36 @@ func LoadContent() (*ContentOverview, error) {
 	out := &ContentOverview{Items: []ContentItem{}, Pending: []string{}, CCSwitch: string(status), CCSwitchKnown: known}
 	for _, category := range config.ContentCategories {
 		pending := cfg.ContentPending(category, enabled)
-		out.Items = append(out.Items, ContentItem{Category: category,
+		out.Items = append(out.Items, ContentItem{Tool: config.ToolClaude, Category: category,
 			Enabled: cfg.ContentEnabled(category) && !pending, Pending: pending, CCOverlap: config.CCSwitchCategories[category]})
 		if pending {
 			out.Pending = append(out.Pending, category)
 		}
 	}
+	for _, category := range config.CodexContentCategories {
+		out.Items = append(out.Items, ContentItem{Tool: config.ToolCodex, Category: category,
+			Enabled: cfg.ContentEnabledFor(config.ToolCodex, category)})
+	}
 	return out, nil
 }
 
 func SetContentEnabled(category string, enabled bool) error {
+	return SetToolContentEnabled(config.ToolClaude, category, enabled)
+}
+
+func SetToolContentEnabled(tool, category string, enabled bool) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-	if !config.ContentCategoryKnown(category) {
+	if !config.ContentCategoryKnownFor(tool, category) {
 		return errors.New(i18n.T("未知的同步内容类别"))
 	}
 	status := ccswitch.DetectAt(cfg.Home)
-	if enabled && cfg.ContentPending(category, status == ccswitch.Enabled) {
+	if tool == config.ToolClaude && enabled && cfg.ContentPending(category, status == ccswitch.Enabled) {
 		return errors.New(i18n.T("这个类别可能也在由 CC Switch 同步，请先选择由谁负责"))
 	}
-	cfg.SetContentEnabled(category, enabled)
+	cfg.SetContentEnabledFor(tool, category, enabled)
 	return config.Save(cfg)
 }
 
