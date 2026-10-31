@@ -7,6 +7,13 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-01
+
+### 修复 / Fixed
+
+- 同一个会话被反复另存成一堆重复会话：会话里没有编号的辅助记录（如 `api-request-blob`）带着路径，两台电脑把路径翻译成不同写法后内容就不一样了，被误判成“两台电脑各自续写”。现在只按有编号的聊天记录判断，`api-request-blob` 按它自带的 hash 认；真正在两台电脑上各聊了不同内容时照旧两份都保留。所有电脑都要升级，旧版本还会继续另存副本
+  The same session was saved again and again as duplicate sessions: unnumbered helper records (such as `api-request-blob`) contain paths, and once two machines translated those paths differently the lines no longer matched, which was taken as "continued on both machines". Only numbered chat records decide that now, and `api-request-blob` is matched by its own hash; sessions that really were continued differently on two machines are still both kept. Upgrade every machine, old versions keep creating copies
+
 ## [0.4.0] - 2026-10-31
 
 ### 变更 / Changed

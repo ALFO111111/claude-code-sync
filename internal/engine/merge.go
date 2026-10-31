@@ -28,29 +28,55 @@ func SplitLines(data []byte) [][]byte {
 	return out
 }
 
+// lineKey 一行记录的身份：有编号的按编号认（见 recordKey），其余按整行内容认。
 func lineKey(line []byte) string {
-	var v struct {
-		UUID      string `json:"uuid"`
-		MessageID string `json:"messageId"`
-		Type      string `json:"type"`
-	}
-	if json.Unmarshal(line, &v) == nil {
-		if v.UUID != "" {
-			return "u:" + v.UUID
-		}
-		if v.MessageID != "" {
-			return "m:" + v.Type + ":" + v.MessageID
-		}
+	if k, ok := recordKey(line); ok {
+		return k
 	}
 	return "h:" + crypt.SHA256Hex(bytes.TrimSpace(line))
 }
 
+// recordKey 有自己编号的记录（聊天消息、文件快照、api-request-blob）的身份。
+// 没有编号的辅助行（标题、最后一条提示、atis-latch 之类）只能按整行内容认，而内容里常带路径：
+// 两台电脑各自把路径翻译成自己的写法后，同一行就"不一样"了。判断两边是不是各自续写时
+// 只看有编号的记录，否则一行路径写法不同就会把整个会话另存一份（重复会话）。
+func recordKey(line []byte) (string, bool) {
+	var v struct {
+		UUID      string `json:"uuid"`
+		MessageID string `json:"messageId"`
+		Type      string `json:"type"`
+		Hash      string `json:"hash"`
+	}
+	if json.Unmarshal(line, &v) != nil {
+		return "", false
+	}
+	switch {
+	case v.UUID != "":
+		return "u:" + v.UUID, true
+	case v.MessageID != "":
+		return "m:" + v.Type + ":" + v.MessageID, true
+	case v.Type == "api-request-blob" && v.Hash != "":
+		return "b:" + v.Hash, true // hash 是 Claude Code 按原始请求内容算的，路径翻译不影响它
+	}
+	return "", false
+}
+
+// keySet 有编号的记录的身份集合（没有编号的辅助行不参与，见 recordKey）。
 func keySet(data []byte) map[string]bool {
 	set := map[string]bool{}
 	for _, l := range SplitLines(data) {
-		set[lineKey(l)] = true
+		if k, ok := recordKey(l); ok {
+			set[k] = true
+		}
 	}
 	return set
+}
+
+// recordLineKey 只认有编号的记录；没有编号的辅助行返回空，missingLines 跳过它们
+// （对方那份多半只是路径写法不同的同一行，追加过来只会多出重复的行）。
+func recordLineKey(line []byte) string {
+	k, _ := recordKey(line)
+	return k
 }
 
 func isSubset(a, b map[string]bool) bool {
@@ -72,7 +98,7 @@ func missingLines(local, remote []byte, key func([]byte) string) [][]byte {
 	var out [][]byte
 	for _, l := range SplitLines(remote) {
 		l = bytes.TrimRight(l, "\r")
-		if k := key(l); !have[k] {
+		if k := key(l); k != "" && !have[k] {
 			have[k] = true
 			out = append(out, l)
 		}

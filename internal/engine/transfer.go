@@ -538,7 +538,7 @@ func (e *Engine) merge(ctx context.Context, it *item, local []byte) error {
 		return e.push(ctx, it, local)
 	case isSubset(lk, rk):
 		// 另一台设备接着聊了几句：把多出来的记录追加到本机末尾
-		merged, err := e.appendLocal(it, local, missingLines(cmp, remote, lineKey))
+		merged, err := e.appendLocal(it, local, missingLines(cmp, remote, recordLineKey))
 		if err != nil {
 			return err
 		}

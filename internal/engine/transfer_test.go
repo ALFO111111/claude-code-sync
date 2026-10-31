@@ -308,3 +308,46 @@ func TestChangeKeyAcrossDevices(t *testing.T) {
 func homeSession(d *device) string {
 	return filepath.Join(d.cfg.ProjectsDir(), project.EncodeDir(d.cfg.Home), "s1.jsonl")
 }
+
+// 没有编号的辅助行（api-request-blob、标题等）里带路径，两台电脑翻译成不同写法后内容就不一样了。
+// 只有这种差别时不能分叉（以前每次都另存一份，出现一堆重复会话）：对方续写的消息照常追加，
+// 本机多出来的照常上传。
+func TestUnkeyedLineDifferenceDoesNotFork(t *testing.T) {
+	app := newTestApp(t, "devA")
+	root, dir := addProject(t, app, "proj")
+	blob := func(path string) string {
+		return `{"type":"api-request-blob","hash":"abc123","message":{"content":"cwd ` + path + `"}}` + "\n"
+	}
+	title := func(path string) string { return `{"type":"last-prompt","lastPrompt":"看看 ` + path + `"}` + "\n" }
+	rel := "11111111-1111-4111-8111-111111111111.jsonl"
+	abs := writeProjectFile(t, app, dir, rel, sessionLine(root, "u1")+blob("C:/x")+title("C:/x"))
+	app.mustSync(t)
+	key := FileKey(app.theOnlyPID(t), rel)
+
+	// 另一台：同一份记录，路径写法不同，还接着聊了 u2
+	app.overwriteRemote(t, key, sessionLine(root, "u1")+blob("D:/x")+title("D:/x")+sessionLine(root, "u2"))
+	app.mustSync(t)
+	if app.stats.Forked != 0 || len(app.st.Forks) != 0 {
+		t.Fatalf("只有辅助行写法不同，不应分叉: %+v", app.stats)
+	}
+	data, _ := os.ReadFile(abs)
+	if !strings.Contains(string(data), `"uuid":"u2"`) || strings.Count(string(data), "api-request-blob") != 1 || strings.Count(string(data), "last-prompt") != 1 {
+		t.Fatalf("应只追加对方的新消息 u2，不重复辅助行:\n%s", data)
+	}
+
+	// 本机接着聊 u3，同时云端那份辅助行又是另一种写法：本机这份传上去，不分叉
+	appendFile(t, abs, sessionLine(root, "u3"))
+	app.overwriteRemote(t, key, sessionLine(root, "u1")+blob("D:/x")+title("D:/x")+sessionLine(root, "u2"))
+	app.mustSync(t)
+	if app.stats.Forked != 0 {
+		t.Fatalf("本机多了消息、对方只是写法不同，不应分叉: %+v", app.stats)
+	}
+	got, _, err := app.store.Get(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := crypt.Open(app.key, key, got)
+	if err != nil || !strings.Contains(string(plain), `"uuid":"u3"`) {
+		t.Fatalf("本机的 u3 应传到云端: %v", err)
+	}
+}
