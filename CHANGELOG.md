@@ -7,6 +7,15 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-31
+
+### 修复 / Fixed
+
+- 同步途中程序被强制结束（任务管理器结束进程、崩溃、断电）后，留下的同步锁要 15 分钟才失效，这期间同步和安装 hooks 都会失败；现在发现锁文件里的进程已经不在，马上接管
+  If the app was killed mid-sync (Task Manager, crash, power loss), the leftover sync lock blocked syncing and hook installation for 15 minutes; a lock whose process no longer exists is now taken over immediately
+- 换了 exe 的位置后第一次打开，hooks 可能因为撞上首次同步而没改过来；现在每轮同步结束后都会检查并补上
+  After moving the exe, the first launch could fail to update the hooks because the first sync held the lock; hooks are now checked and repaired after every sync
+
 ## [0.3.1] - 2026-10-31
 
 ### 变更 / Changed

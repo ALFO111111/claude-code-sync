@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
 	"github.com/ALFO111111/claude-code-sync/internal/i18n"
 )
 
@@ -17,7 +20,8 @@ var ErrLocked = i18n.Err("另一个同步正在进行")
 // 没有心跳的话，一次超过 15 分钟的真实同步会被当成残留锁，导致两个同步并发跑。
 var lockHeartbeatInterval = time.Minute
 
-// AcquireLock 防止多个同步同时跑（hook、定时任务可能撞车）。超过 15 分钟没心跳的锁视为残留。
+// AcquireLock 防止多个同步同时跑（hook、定时任务可能撞车）。
+// 残留锁：锁文件里记的进程已经不在了（被强制结束、崩溃、断电），或者超过 15 分钟没心跳。
 func AcquireLock() (func(), error) {
 	path := filepath.Join(config.Dir(), "sync.lock")
 	if err := os.MkdirAll(config.Dir(), 0o700); err != nil {
@@ -47,12 +51,22 @@ func AcquireLock() (func(), error) {
 			return func() { close(done); wg.Wait(); os.Remove(path) }, nil
 		}
 		fi, serr := os.Stat(path)
-		if serr != nil || time.Since(fi.ModTime()) < 15*time.Minute {
+		if serr != nil || time.Since(fi.ModTime()) < 15*time.Minute && !holderGone(path) {
 			break
 		}
 		os.Remove(path)
 	}
 	return nil, ErrLocked
+}
+
+// holderGone 锁文件里的进程号确定已经不在了。还没写进程号（别人刚建好锁）、读不出来都算还在。
+func holderGone(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	return err == nil && pid > 0 && pid != os.Getpid() && fsutil.ProcessGone(pid)
 }
 
 // WaitLock 同 AcquireLock，锁被占用时最多等 wait。

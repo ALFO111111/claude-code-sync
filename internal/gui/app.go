@@ -157,6 +157,8 @@ func (a *App) syncOnce(req service.SyncRequest) error {
 	req.WaitLock = 30 * time.Second
 	req.Progress = func(done, total int) { a.emitProgress("sync-progress", done, total) }
 	stats, err := service.Sync(context.Background(), req)
+	// 启动时装 hooks 可能撞上正在跑的同步、30 秒内没拿到锁（比如首次同步很久），同步完顺手补上
+	service.RepairHooks()
 	ev := SyncEvent{Stats: stats}
 	if err != nil {
 		ev.Error = err.Error()

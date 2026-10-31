@@ -20,3 +20,8 @@ func TryLockFile(f *os.File) (bool, error) {
 
 // UnlockFile 释放 TryLockFile 加的锁。
 func UnlockFile(f *os.File) error { return syscall.Flock(int(f.Fd()), syscall.LOCK_UN) }
+
+// ProcessGone 确定这个进程已经不在了才返回 true；没权限查看等拿不准的情况返回 false。
+func ProcessGone(pid int) bool {
+	return errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
+}

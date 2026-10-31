@@ -25,3 +25,18 @@ func UnlockFile(f *os.File) error {
 	var ol windows.Overlapped
 	return windows.UnlockFileEx(windows.Handle(f.Fd()), 0, ^uint32(0), ^uint32(0), &ol)
 }
+
+// ProcessGone 确定这个进程已经不在了才返回 true；没权限查看等拿不准的情况返回 false。
+func ProcessGone(pid int) bool {
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return errors.Is(err, windows.ERROR_INVALID_PARAMETER) // 没有这个进程号
+	}
+	defer windows.CloseHandle(h)
+	var code uint32
+	if err := windows.GetExitCodeProcess(h, &code); err != nil {
+		return false
+	}
+	const stillActive = 259
+	return code != stillActive
+}
