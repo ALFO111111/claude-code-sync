@@ -34,6 +34,14 @@ func (e *Engine) mcpToCloud(path string) (string, bool) {
 }
 
 func (e *Engine) mcpToLocal(path string) (string, bool) {
+	// 占位符后面的部分一律用 / 分隔：出现 \ 或 :（盘符）就是不合法的，macOS 上 filepath.IsLocal 拦不住它们
+	rest := path
+	if i := strings.Index(path, "}"); i >= 0 {
+		rest = path[i+1:]
+	}
+	if strings.ContainsAny(rest, `\:`) {
+		return "", false
+	}
 	if path == mcpHomePlaceholder {
 		return e.cfg.Home, true
 	}

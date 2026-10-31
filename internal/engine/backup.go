@@ -392,6 +392,9 @@ func backupTarget(cfg *config.Config, r *BackupRecord) (string, error) {
 			return cfg.ClaudeStatePath(), nil
 		}
 	}
+	if r.Tool == config.ToolCodex && r.Category == config.ContentSessions && codexRelOK(r.Rel) {
+		return filepath.Join(cfg.CodexDir, "sessions", filepath.FromSlash(r.Rel)), nil
+	}
 	if def, ok := findProfileDef(cfg, r.Tool, r.Category); ok && def.allows(r.Rel) {
 		return filepath.Join(def.root, filepath.FromSlash(r.Rel)), nil
 	}

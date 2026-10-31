@@ -220,10 +220,14 @@ export default {
       cat: {
         rules: 'Global rules AGENTS.md',
         skills: 'Skills',
+        'legacy-skills': 'Skills (old location)',
+        sessions: 'Sessions',
       },
       desc: {
         rules: 'Only ~/.codex/AGENTS.md and ~/.codex/AGENTS.override.md are synced',
         skills: 'Only skills under ~/.agents/skills are synced',
+        'legacy-skills': 'Your own skills under ~/.codex/skills (the built-in .system is not synced)',
+        sessions: 'Chat history (~/.codex/sessions), so you can continue on another computer; if both continue the same chat, the other copy is kept separately instead of overwriting',
       },
     },
     ownerSync: 'Synced by this app (CC Switch auto sync is also on)',
@@ -305,7 +309,7 @@ export default {
     theme: 'Appearance',
     themes: { system: 'Follow system', light: 'Light', dark: 'Dark' },
     autostart: 'Start at login',
-    autostartDesc: 'Runs in the tray after you sign in to Windows and syncs as soon as sessions change (sync still works without it, just less promptly)',
+    autostartDesc: 'Runs in the background after you sign in (in the tray on Windows, windowless on Mac) and syncs as soon as sessions change (sync still works without it, just less promptly)',
     autostartSandbox: 'Not available in sandbox mode',
     device: 'Device',
     deviceName: 'Device name (shown to your other devices)',

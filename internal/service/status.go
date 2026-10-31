@@ -100,7 +100,7 @@ func LoadStatus() *Status {
 		issues = append(issues, i18n.T("Claude Code hooks 未安装"))
 	}
 	if !schedule {
-		issues = append(issues, i18n.T("Windows 定时任务未安装"))
+		issues = append(issues, i18n.T("定时同步任务未安装"))
 	}
 	s.AutoSync = len(issues) == 0
 	s.AutoSyncIssue = strings.Join(issues, i18n.T("，"))

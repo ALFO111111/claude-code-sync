@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
@@ -107,6 +109,10 @@ func dispatch(ctx context.Context, cmd string, o flags, version string) error {
 		fmt.Println(i18n.T("已删除自动同步（Claude Code hooks、定时任务和开机自启）。会话文件、配置和云端数据都没动。"))
 		fmt.Println(i18n.T("注意：再次打开图形界面会自动重新安装。"))
 		return nil
+	case "daemon": // 隐藏命令：macOS 登录时由 launchd 启动，没有窗口，盯着文件变化做同步
+		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		return service.RunDaemon(ctx)
 	case "hook-event": // 隐藏命令：被 Claude Code hooks 调用
 		cmdHookEvent(ctx)
 		return nil

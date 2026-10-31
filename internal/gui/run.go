@@ -6,14 +6,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io/fs"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/claude-code-sync/internal/i18n"
 	"github.com/ALFO111111/claude-code-sync/internal/platform"
 	"github.com/ALFO111111/claude-code-sync/internal/service"
 )
@@ -32,6 +36,16 @@ func Run(assets fs.FS, background bool) error {
 	if service.GetTheme().Dark {
 		bg = &options.RGBA{R: 24, G: 25, B: 28, A: 1} // 和前端深色主题的背景一致，打开时不闪白
 	}
+	// macOS：没有托盘（见 tray_other.go），窗口藏起来就再也叫不回来，所以不"后台启动"、关窗即退出；
+	// 还要有"编辑"菜单，否则输入框里 Cmd+C / Cmd+V 不起作用
+	var appMenu *menu.Menu
+	if runtime.GOOS == "darwin" {
+		background = false
+		appMenu = menu.NewMenu()
+		appMenu.Append(menu.AppMenu())
+		appMenu.Append(menu.EditMenu())
+		appMenu.Append(menu.WindowMenu())
+	}
 	return wails.Run(&options.App{
 		Title:       "claude-code-sync",
 		Width:       1120,
@@ -39,11 +53,13 @@ func Run(assets fs.FS, background bool) error {
 		MinWidth:    900,
 		MinHeight:   600,
 		StartHidden: background,
+		Menu:        appMenu,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		BackgroundColour: bg,
 		Windows:          &windows.Options{Theme: windowsTheme(service.GetTheme().Setting)},
+		Mac:              &mac.Options{About: &mac.AboutInfo{Title: "claude-code-sync", Message: i18n.T("在多台电脑之间同步 Claude Code 和 Codex")}},
 		// 只允许开一个：开机自启已经在托盘里跑着时再双击 exe，就把那个窗口叫出来，不再开第二个
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: instanceID(),
@@ -55,8 +71,8 @@ func Run(assets fs.FS, background bool) error {
 		OnShutdown: app.shutdown,
 		// 点窗口的 X 不是退出，是最小化到托盘（托盘菜单里选"退出"才真退）
 		OnBeforeClose: func(ctx context.Context) bool {
-			if app.quitting.Load() {
-				return false // 托盘退出：放行，真正关掉
+			if app.quitting.Load() || runtime.GOOS != "windows" {
+				return false // 托盘退出 / macOS 关窗：放行，真正关掉
 			}
 			wailsRuntime.WindowHide(ctx)
 			return true

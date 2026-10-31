@@ -66,6 +66,9 @@ type State struct {
 	Forks         map[string]string       `json:"forks,omitempty"`        // 分叉出来的会话 ID → 原会话 ID（会话页标记用）
 	KeycheckETag  string                  `json:"keycheckEtag,omitempty"` // 上次验证通过的云端口令校验文件
 	KeyMismatch   bool                    `json:"keyMismatch,omitempty"`  // 云端口令已在其他设备上修改，本机要输入新口令
+	// CodexForks 两台设备各自续写了同一个 Codex 会话时，对方那份另存成的本机会话：
+	// "<对方设备ID>/<会话相对路径>" → 本机分叉文件的相对路径。对方之后再续写，就追加到这份分叉里。
+	CodexForks map[string]string `json:"codexForks,omitempty"`
 }
 
 // 本轮明细里的变化种类。
@@ -130,6 +133,9 @@ func Load() (*State, error) {
 	}
 	if st.Forks == nil {
 		st.Forks = map[string]string{}
+	}
+	if st.CodexForks == nil {
+		st.CodexForks = map[string]string{}
 	}
 	return st, nil
 }

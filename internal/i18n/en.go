@@ -22,10 +22,8 @@ var en = map[string]string{
 	"Endpoint 格式不对，应该像 https://s3.example.com":   "Invalid Endpoint, it should look like https://s3.example.com",
 
 	// platform
-	"目前只支持 Windows 定时任务，其他系统请用 cron: */%d * * * * %s sync -q": "Only Windows scheduled tasks are supported for now. On other systems use cron: */%d * * * * %s sync -q",
-	"安装定时任务 %s 失败: %v\n%s":                                    "Failed to install scheduled task %s: %v\n%s",
-	"非 Windows 系统请手动删除 cron 里的同步条目":                           "On non-Windows systems, please remove the sync entry from cron manually",
-	"删除定时任务 %s 失败：删除后仍然存在":                                    "Failed to remove scheduled task %s: it still exists after deletion",
+	"安装定时任务 %s 失败: %v\n%s": "Failed to install scheduled task %s: %v\n%s",
+	"删除定时任务 %s 失败：删除后仍然存在": "Failed to remove scheduled task %s: it still exists after deletion",
 
 	// engine（日志 + 错误）
 	"%s 和 %s 是同一个仓库，后者作为独立项目同步": "%s and %s are the same repository; the latter is synced as a separate project",
@@ -115,7 +113,6 @@ var en = map[string]string{
 	"设备名不能为空":   "Device name cannot be empty",
 	"沙箱模式（设置了 CLAUDE_CODE_SYNC_HOME），不安装自动同步，只能手动同步": "Sandbox mode (CLAUDE_CODE_SYNC_HOME is set): automatic sync is not installed, sync manually",
 	"Claude Code hooks 未安装": "Claude Code hooks are not installed",
-	"Windows 定时任务未安装":       "Windows scheduled task is not installed",
 	"[claude-code-sync] 此项目的会话已从其他设备同步。记录中的路径 %s 即本机的 %s，请按本机路径理解。": "[claude-code-sync] Sessions of this project were synced from another device. The path %s in the history corresponds to %s on this machine; please interpret paths accordingly.",
 
 	// gui
@@ -280,4 +277,27 @@ Options:
 	"当前口令: ":         "Current passphrase: ",
 	"重新加密云端文件 %d/%d": "Re-encrypting cloud files %d/%d",
 	"口令已修改。请在其他设备上运行 %s passwd（或打开图形界面）输入新口令。": "Passphrase changed. On your other devices, run %s passwd (or open the app) and enter the new passphrase.",
+
+	// 2026-10：Codex 会话
+	"发现 Codex 项目 %s（%s）":                        "Found Codex project %s (%s)",
+	"列出云端 Codex 会话失败: %w":                       "Failed to list Codex sessions in the cloud: %w",
+	"遍历 Codex 会话目录失败（本轮跳过 Codex 会话）: %w":        "Failed to scan the Codex sessions folder (Codex sessions skipped this round): %w",
+	"Codex 会话上传失败 %s: %v":                       "Failed to upload Codex session %s: %v",
+	"Codex 会话 %s 正在使用，本轮先跳过":                    "Codex session %s is in use; skipped this round",
+	"Codex 会话下载失败 %s: %v":                       "Failed to download Codex session %s: %v",
+	"将上传 Codex 会话 %s":                           "Would upload Codex session %s",
+	"不是有效的 Codex 会话文件: %s":                      "Not a valid Codex session file: %s",
+	"Codex 正在使用这个会话":                            "Codex is using this session",
+	"将比对 Codex 会话 %s（来自 %s）":                    "Would compare Codex session %s (from %s)",
+	"Codex 会话分叉 %s 和 %s 上的版本对不上，对方的版本已放进备份":     "Codex session fork %s does not match the version on %s; that version was saved to backups",
+	"会话所在的项目在本机还没有对上":                           "The session's project is not linked on this device yet",
+	"Codex 会话 %s 在本机和 %s 上各自继续了，对方那份已另存为新会话 %s": "Codex session %s was continued both here and on %s; the other copy was saved as new session %s",
+	"Codex 会话同步失败: %v":                          "Codex session sync failed: %v",
+	// 2026-10：macOS
+	"在多台电脑之间同步 Claude Code 和 Codex":                     "Sync Claude Code and Codex across your computers",
+	"这个系统还不支持自动安装定时同步，请用 cron: */%d * * * * %s sync -q": "Automatic scheduled sync is not supported on this system yet; use cron: */%d * * * * %s sync -q",
+	"launchctl 加载 %s 失败（下次登录时生效）: %v %s":                "launchctl could not load %s (it will take effect at next login): %v %s",
+	"定时同步任务未安装":                                         "Scheduled sync task is not installed",
+	"文件监听启动失败: %v":                                      "Failed to start file watcher: %v",
+	"后台同步已启动":                                           "Background sync started",
 }

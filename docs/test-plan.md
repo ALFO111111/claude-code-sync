@@ -166,9 +166,9 @@ claude --resume
 6. **MCP**：A 加一个用户级 MCP（带 env 密钥）→ B 同步后出现同名服务器，但**没有** A 的 env；B 自己补上 env 后再同步，A 的 env 也不受影响。
 7. **CC Switch**：如果 CC Switch 的 WebDAV/S3 自动同步开着，设置页"同步内容"里规则、技能、MCP 会显示"由本工具同步 / 交给 CC Switch"按钮，选之前这三类不会同步；CC Switch 自动同步关着则不出现任何提示。
 
-## 7.6 阶段 F：Codex 首个安全切片（隔离双设备验收）
+## 7.6 阶段 F：Codex 全局规则与技能（隔离双设备验收）
 
-目标：只验收 Codex **全局规则和技能**。全程使用假目录、假配置和独立云端前缀，不碰真实的 `~/.codex`、`~/.agents`、`~/.claude`，也不往正式使用的 `v1/` 里写测试数据。
+目标：验收 Codex **全局规则和技能**（会话见阶段 G）。全程使用假目录、假配置和独立云端前缀，不碰真实的 `~/.codex`、`~/.agents`、`~/.claude`，也不往正式使用的 `v1/` 里写测试数据。
 
 1. **准备隔离环境**：准备一个空 bucket 或空前缀（例如 `codex-acceptance/`），A、B 填同一个，**不要填正式环境的 `v1/`**。两台电脑各自新开一个 PowerShell，在项目根目录执行：
 
@@ -191,8 +191,10 @@ claude --resume
    'A 的全局规则' | Set-Content "$env:CODEX_HOME\AGENTS.md" -Encoding utf8
    'A 的覆盖规则' | Set-Content "$env:CODEX_HOME\AGENTS.override.md" -Encoding utf8
    'A 的技能' | Set-Content "$S\home\.agents\skills\demo\SKILL.md" -Encoding utf8
-   New-Item -ItemType Directory -Force "$env:CODEX_HOME\sessions", "$S\project\skills\demo" | Out-Null
-   '不应上传' | Set-Content "$env:CODEX_HOME\sessions\rollout.jsonl" -Encoding utf8
+   New-Item -ItemType Directory -Force "$env:CODEX_HOME\sessions", "$S\project\skills\demo", "$env:CODEX_HOME\skills\old", "$env:CODEX_HOME\skills\.system\builtin" | Out-Null
+   'A 的旧位置技能' | Set-Content "$env:CODEX_HOME\skills\old\SKILL.md" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\skills\.system\builtin\SKILL.md" -Encoding utf8
+   '不应上传' | Set-Content "$env:CODEX_HOME\sessions\notes.jsonl" -Encoding utf8   # 不是 rollout-*.jsonl，不算会话
    '不应上传' | Set-Content "$env:CODEX_HOME\history.jsonl" -Encoding utf8
    '不应上传' | Set-Content "$env:CODEX_HOME\session_index.jsonl" -Encoding utf8
    '不应上传' | Set-Content "$env:CODEX_HOME\state.sqlite" -Encoding utf8
@@ -204,12 +206,12 @@ claude --resume
    ```
 
    A 运行 `.\claude-code-sync.exe` 走完向导并等首次同步完成，然后托盘退出；B 同样初始化（同一独立前缀、同一测试口令）并再点一次“立即同步”。预期：
-   - B 的 `$CODEX_HOME` 下有内容一致的 `AGENTS.md`、`AGENTS.override.md`，`~/.agents/skills/demo/SKILL.md` 也已下载；这里的 `~` 都是沙箱目录。
-   - B 没有 A 创建的 sessions/history/session_index、SQLite/WAL、config.toml、auth 或项目级测试文件。
-   - 云端 Codex 对象只有 `tools/codex/files/rules/AGENTS.md`、`tools/codex/files/rules/AGENTS.override.md`、`tools/codex/files/skills/demo/SKILL.md`（加上你选择的独立前缀）；下载后能看到 `CCS1` 密文头。
+   - B 的 `$CODEX_HOME` 下有内容一致的 `AGENTS.md`、`AGENTS.override.md`、`skills/old/SKILL.md`，`~/.agents/skills/demo/SKILL.md` 也已下载；这里的 `~` 都是沙箱目录。
+   - B 没有 A 创建的 `sessions\notes.jsonl`、history/session_index、SQLite/WAL、config.toml、auth、`skills\.system` 或项目级测试文件。
+   - 云端 Codex 对象只有 `tools/codex/files/rules/AGENTS.md`、`tools/codex/files/rules/AGENTS.override.md`、`tools/codex/files/skills/demo/SKILL.md`、`tools/codex/files/legacy-skills/old/SKILL.md`（加上你选择的独立前缀）；下载后能看到 `CCS1` 密文头。
    - 设置页里 Claude 的规则、技能、MCP 可以因伪造的 CC Switch 状态等待负责人选择，但 Codex 的 rules、skills 仍正常同步，没有“交给 CC Switch”的要求。
 
-3. **GUI 文件监听**：A 从沙箱窗口运行 `.\claude-code-sync.exe` 打开 GUI，分别修改 `AGENTS.md` 和技能文件，不手动点同步；等首页显示自动同步完成后，B 运行 `.\claude-code-sync.exe sync`。预期 B 得到两处修改。测完 A 托盘退出。
+3. **GUI 文件监听**：A 从沙箱窗口运行 `.\claude-code-sync.exe` 打开 GUI，分别修改 `AGENTS.md` 和技能文件，不手动点同步；等首页显示自动同步完成后，B 运行 `.\claude-code-sync.exe sync`。预期 B 得到两处修改。测完 A 托盘退出。（在 Mac 上做这一步时，窗口开着就在监听，测完直接关窗。）
 
 4. **三方文本合并**：两端先同步到一致。A 改 `AGENTS.md` 第一行，B 改最后一行，各自保存；A、B、A、B 依次运行 `sync`。预期两台都同时保留两处修改，没有冲突。
 
@@ -227,6 +229,83 @@ claude --resume
 
 9. **收尾**：两台电脑都在托盘退出 GUI，关闭设置过环境变量的 PowerShell，删除各自的 `D:\ccs-codex-sandbox`，再在存储控制台删除本次独立前缀。不要在真实环境运行 `uninstall` 来清理本次测试；沙箱本来就没有安装自动同步。真实的 `$RealHome\.codex`、`$RealHome\.agents` 和 `$RealHome\.claude` 应保持原样。
 
+## 7.7 阶段 G：Codex 会话（隔离双设备验收）
+
+目标：验收 `codex/sessions`：接着聊、各自续写分叉、Codex 打开会话时跳过、删除不拉回、待认领项目。和阶段 F 一样用沙箱和**独立云端前缀**（例如 `codex-sessions-acceptance/`），不碰真实的 `~/.codex`。
+
+1. **准备**：两台电脑按阶段 F 第 1 步新开沙箱窗口（可以不伪造 CC Switch），并额外：
+   - 把真实的 `auth.json` 和 `config.toml` 复制进沙箱 `$env:CODEX_HOME`，让沙箱里的 Codex 能登录、用同一个模型供应商（这两个文件本工具不会上传，第 2 步会顺便确认）。**两台的模型供应商名字要一样**，否则恢复会话时 Codex 找不到供应商。
+   - 两台都克隆同一个 git 测试仓库，**故意放在不同路径**（例如 A 在 `D:\work\demo`，B 在 `E:\code\demo`），另外在 A 上建一个普通文件夹 `D:\plain-demo`（不是 git 仓库）。
+   - 之后所有 `codex` 命令都在这个沙箱窗口里运行（`CODEX_HOME` 指向沙箱）。
+
+2. **接着聊**：A 在 git 仓库目录运行 `codex`，说“记住暗号：蓝鲸”，等回复后退出。A `sync`，B `sync`。预期：
+   - B 的 `$env:CODEX_HOME\sessions\<年>\<月>\<日>\` 下出现同名的 `rollout-*.jsonl`；用记事本看第一行 `session_meta` 里的 `cwd`，是 **B 的路径**（`E:\code\demo`），不是 A 的。
+   - 云端只有 `tools/codex/sessions/<A 的设备ID>/...` 下的 rollout 文件，没有任何 `.sqlite`、`config.toml`、`auth.json`。
+   - B 运行 `codex resume <会话ID>`（ID 就是文件名末尾那段），问“暗号是什么”，答得出“蓝鲸”。不带 ID 的 `codex resume` 选择器可能看不到这个会话（它只查本机数据库），属于已知限制；装了 VS Code 插件或 Codex 桌面版的话，打开一次后会话列表里应该能看到。
+   - B 接着聊一句后退出，B `sync`，A `sync`。A 的文件**只在末尾多出几行**：先把 A 同步前的文件复制一份，同步后用 `fc.exe /b` 或对比工具确认前面的内容一字不差。云端多了 `tools/codex/sessions/<B 的设备ID>/...`。
+
+3. **各自续写 → 分叉**：两端先同步到一致。A、B 都 `codex resume <同一个ID>`，分别说不同的话（A：“分支 A”；B：“分支 B”），都退出；A `sync`、B `sync`、A `sync`。预期：
+   - 两台各自原来的文件都只包含自己那条续写，**没有被改写**。
+   - 两台都多出一个新的 rollout 文件（ID 不同，排在原会话附近），里面是对方的续写；`codex resume <新ID>` 能打开。
+   - B 再 `codex resume` 原会话续写一句并同步，A 再同步：内容**追加进 A 上已有的那份分叉**，不会再多出第三个文件。
+
+4. **Codex 正开着会话时跳过**：两端同步到一致。A `codex resume <ID>` 后**不要退出**；B 续写这个会话并 `sync`；A 另开一个沙箱窗口运行 `sync`。预期 A 的会话文件没被追加，`sync.log` 里记录这个会话本轮跳过（不算失败）。A 退出 Codex 后再 `sync`，B 的续写才追加进来（如果 A 在打开期间也说了话，则按第 3 步分叉另存）。
+
+5. **删除不拉回**：B 删除（或在 Codex 里归档）一个已同步的会话文件，B 连续 `sync` 几轮：文件不会回来。A `sync`：A 上的那份还在（删除不传播）。
+
+6. **待认领项目**：A 在 `D:\plain-demo` 里运行 `codex` 聊一句后退出，A `sync`，B `sync`。预期 B **没有**这个会话，`status` 或“项目绑定”页的“待认领”里出现这个项目。B 认领到本机一个空文件夹后再 `sync`：会话被拉下来，第一行的 `cwd` 是 B 认领的路径。
+
+7. **开关**：B 运行 `content disable codex sessions`，A 新聊一个会话并同步，B 同步：B 不会拉到；`content enable codex sessions` 后再同步才拉到。
+
+8. **收尾**：同阶段 F 第 9 步，删除沙箱目录和本次独立前缀。
+
+## 7.8 阶段 H：macOS
+
+前提：一台 macOS 13 及以上的 Mac（Intel 或 Apple 芯片都可以）。`scripts\` 里的 PowerShell 脚本 Mac 上默认没有，下面用 `cp`、`diff` 代替。下文 `$APP` 指 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`，可以先 `APP=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
+
+1. **安装与 Gatekeeper**：从 Releases 下载 `claude-code-sync-<版本>-macos-universal.zip`，用 `shasum -a 256` 和 `SHA256SUMS.txt` 核对，解压后拖进“应用程序”。预期：
+   - 直接双击会被 Gatekeeper 拦下（无法验证开发者）；在“访达”里右键 → 打开 → 再点“打开”后能启动，之后双击不再拦。
+   - 换一台（或删掉重装）验证另一种方式：`xattr -dr com.apple.quarantine /Applications/claude-code-sync.app` 后直接双击能打开。
+   - `lipo -archs "$APP"` 输出同时包含 `x86_64` 和 `arm64`（通用版）。
+
+2. **命令行**：`"$APP" version` 显示版本号；`"$APP" status`、`"$APP" sync --dry` 能正常输出（还没初始化时提示先初始化）。
+
+3. **沙箱彩排**（不碰真实会话，不装 LaunchAgent）：
+
+   ```bash
+   S=/tmp/ccs-sandbox
+   cp -Rp ~/.claude "$S/claude"
+   cp -Rp "$S/claude/projects" "$S/orig-projects"      # 留一份原样用来核对
+   export CLAUDE_CODE_SYNC_HOME="$S/app" CLAUDE_CONFIG_DIR="$S/claude"
+   "$APP"                                              # 不带参数 → 图形界面；只有从这个终端启动的才是沙箱
+   ```
+
+   走完向导（用独立前缀）→ 等“同步完成”→ 关窗。核对没有文件被删：
+
+   ```bash
+   diff -rq "$S/orig-projects" "$S/claude/projects" | grep "^Only in $S/orig-projects"   # 必须没有输出
+   ```
+
+   `ls ~/Library/LaunchAgents | grep claude-code-sync` 应该没有输出（沙箱模式不装自动同步）。
+
+4. **真实环境：两个 LaunchAgent**：先 `cp -Rp ~/.claude ~/ccs-backup-claude`（用 Codex 的话 `~/.codex` 也备份），再从“应用程序”正常打开 App 走向导。预期：
+   - `ls ~/Library/LaunchAgents` 有 `com.alfo111111.claude-code-sync.sync.plist` 和 `com.alfo111111.claude-code-sync.daemon.plist`，plist 里的程序路径是 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
+   - `launchctl print gui/$(id -u)/com.alfo111111.claude-code-sync.daemon` 显示在运行；`pgrep -fl "claude-code-sync daemon"` 能看到后台进程。
+   - `~/.claude/settings.json` 里多了两条带 `hook-event` 的 hooks。
+   - 设置页关掉“开机自启”：`.daemon.plist` 消失、后台进程退出，`.sync.plist` 还在；再打开，两者都回来。
+   - 注销再登录（或重启）后，不打开 App，`pgrep` 也能看到 daemon。
+
+5. **关窗即退出**：屏幕顶部菜单栏**没有**本工具的图标；关掉 App 窗口后 `pgrep -fl claude-code-sync` 只剩 daemon。此时在 Claude Code 里聊一句，几秒后 `~/.claude-code-sync/sync.log` 有新的同步记录（hooks 和 daemon 在工作）。
+
+6. **Windows ↔ Mac 路径翻译**：Windows 电脑 A 和 Mac B 用同一个 bucket、同一个口令，同一个 git 仓库分别克隆在 `D:\code\demo` 和 `~/code/demo`。
+   - **Claude 会话**：A 上在仓库里聊一个会话，让它读写 `src` 下的某个文件；两边同步后，B 在 `~/code/demo` 里 `claude --resume` 能看到并接着聊。用文本编辑器打开 B 上的会话 jsonl，`cwd`、`file_path` 等字段是 `/Users/<你>/code/demo/src/...`，分隔符全是 `/`，没有残留的 `\`；聊天正文里提到的路径原样保留。
+   - **输入历史**：B 在 Claude Code 里按 ↑ 能翻到 A 上输入过的内容，`~/.claude/history.jsonl` 里对应的项目路径是 B 的路径。
+   - **反方向**：B 上续聊后同步，A 上 `claude --resume` 接着聊，路径都是 `D:\code\demo\...`、分隔符是 `\`。
+   - **MCP**：A 加一个用户级 MCP，参数里用用户目录下的路径（如 `C:\Users\<你>\tools\server.js`）→ B 同步后参数变成 `/Users/<你>/tools/server.js`。A 再加一个**新的** MCP 服务器，参数指向任何项目和用户目录之外的路径（如 `E:\other\tool.exe`）→ 只要有一个路径转换不了，**这整个服务器**都不上传：B 上不出现它，A 上也不会被删；已经同步过的其他服务器不受影响。
+   - **Codex 会话**：按阶段 G 第 2 步在 A 上聊一个 Codex 会话，B 同步后第一行的 `cwd` 是 `/Users/<你>/code/demo`；反过来 B 上续聊，A 上追加的行里路径是 Windows 写法。
+
+7. **卸载**：`"$APP" uninstall`。预期两个 plist 都被删除，`pgrep -fl "claude-code-sync daemon"` 没有输出，`settings.json` 里的 hooks 被去掉，会话和配置都还在。注意：再打开 App 会重新装上。
+
 ## 8. 第一周的日常观察
 
 - 每天看一眼首页的"失败"数字，有问题去"日志"页看原因。
@@ -235,7 +314,7 @@ claude --resume
 
 ## 9. 出问题怎么办
 
-1. **急停**：托盘退出，然后运行 `.\claude-code-sync.exe uninstall`。它会删掉 hooks 和定时任务，之后不会再自动同步。注意：再打开图形界面会重新装上，排查清楚之前先别打开。
+1. **急停**：托盘退出，然后运行 `.\claude-code-sync.exe uninstall`。它会删掉 hooks 和定时任务，之后不会再自动同步。Mac 上关掉窗口后运行 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync uninstall`，会删掉 hooks 和两个 LaunchAgent，后台进程随之停止。注意：再打开图形界面会重新装上，排查清楚之前先别打开。
 2. **看现场**：`~/.claude-code-sync/sync.log` 是同步日志；`~/.claude-code-sync/backup/` 是被覆盖掉的云端版本。
 3. **恢复**：按第 2 节用 `robocopy ... /MIR` 从备份恢复。
 4. 把 `compare.ps1` 的输出和 `sync.log` 发给我。

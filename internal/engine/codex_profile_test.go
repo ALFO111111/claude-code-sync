@@ -364,3 +364,21 @@ func TestCodexRejectsUnsafeRemotePathsAndSkipsSymlinks(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexLegacySkillsSkipSystem(t *testing.T) {
+	a := newDevice(t, "devA", nil)
+	b := newDevice(t, "devB", a)
+	for rel, text := range map[string]string{"skills/mine/SKILL.md": "旧位置的技能\n", "skills/.system/builtin/SKILL.md": "Codex 自带\n"} {
+		p := filepath.Join(a.cfg.CodexDir, filepath.FromSlash(rel))
+		os.MkdirAll(filepath.Dir(p), 0o700)
+		os.WriteFile(p, []byte(text), 0o600)
+	}
+	a.sync(t, Options{})
+	b.sync(t, Options{})
+	if got := readFile(t, filepath.Join(b.cfg.CodexDir, "skills", "mine", "SKILL.md")); got != "旧位置的技能\n" {
+		t.Fatalf("~/.codex/skills 里的个人技能应同步：%q", got)
+	}
+	if _, err := os.Stat(filepath.Join(b.cfg.CodexDir, "skills", ".system")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal(".system 是 Codex 自带的，不应同步")
+	}
+}

@@ -4,12 +4,12 @@
 
 # claude-code-sync
 
-**Sync Claude Code sessions across machines, plus personal rules and skills for Claude Code and Codex. End-to-end encrypted, with Claude Code paths translated automatically: switch computers and `claude --resume` right where you left off.**
+**Sync Claude Code and Codex sessions, personal rules and skills across machines (Windows / macOS). End-to-end encrypted, with paths translated automatically: switch computers and `claude --resume` right where you left off.**
 
 [![Release](https://img.shields.io/github/v/release/ALFO111111/claude-code-sync?include_prereleases)](https://github.com/ALFO111111/claude-code-sync/releases)
 [![CI](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20macOS%2013%2B-0078D6)
 
 [简体中文](README.md) | English
 
@@ -39,24 +39,29 @@ claude-code-sync solves exactly that:
 
 - **Session sync**: sessions, sub-agent transcripts and project memory (MEMORY.md) under `~/.claude/projects`, plus your input history (what ↑ brings back)
 - **Claude Code personal config sync**: global rules `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers, and a few safe fields from settings.json (language, auto memory, co-author line). Models, API keys, hooks, permissions and MCP secrets/env vars are **never uploaded**. Each category can be turned off in Settings
-- **Codex global rules and skills**: sync `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` (`~/.codex` by default) and `~/.agents/skills`, with switches independent from Claude and the same encryption, merge, conflict and backup machinery. **Codex sessions are not synced**; see the exact scope below
-- **Automatic path translation**: `D:\work\app` on machine A becomes `E:\code\app` on machine B, so `claude --resume` just works
+- **Codex sessions, rules and skills**: sync Codex sessions (`$CODEX_HOME/sessions`, `~/.codex` by default) so you can continue on another machine, plus global rules `AGENTS.md`, `AGENTS.override.md`, skills in `~/.agents/skills` and the legacy `$CODEX_HOME/skills`. Switches are independent from Claude, with the same encryption, merge, conflict and backup machinery; see the exact scope and limitations [below](#codex-scope)
+- **Automatic path translation**: `D:\work\app` on machine A becomes `E:\code\app` on machine B, so `claude --resume` just works; between Windows and Mac too (`D:\code\x\src\a.go` ↔ `/Users/me/code/x/src/a.go`)
 - **Projects match up by themselves**: git projects are matched by remote URL (ssh and https forms alike); plain folders are claimed with one click
 - **End-to-end encryption**: everything is encrypted with your passphrase before upload (Argon2id + AES-256-GCM); the cloud only sees ciphertext
 - **No data loss**: sessions are only ever appended to, never overwritten wholesale; if the same session was continued on two machines, both versions are kept (one is saved as a new session); any other file is backed up before it is replaced, and the Backups page lets you compare and restore with one click
-- **Fully automatic**: starts at login and sits in the tray, syncing as soon as files change; syncs the current project whenever a Claude Code conversation starts or a reply finishes; plus a full sync every hour as a safety net
+- **Fully automatic**: starts at login and runs in the background (in the tray on Windows, as a windowless background process on the Mac), syncing as soon as files change; syncs the current project whenever a Claude Code conversation starts or a reply finishes; plus a full sync every hour as a safety net
 - **Session browser**: sessions listed by title for every project, search across all projects, and continue any session with `claude --resume` in a terminal with one click
 - **Change the passphrase any time**: every cloud file is re-encrypted with the new passphrase; other machines continue once you enter it there
 - **Bring your own storage**: any S3-compatible object storage: Cloudflare R2, AWS S3, Alibaba Cloud OSS, Tencent Cloud COS, MinIO (self-hosted / NAS), …
-- **GUI + CLI**: a single portable exe; the interface is available in English and Simplified Chinese
+- **GUI + CLI**: a single portable exe on Windows, one universal app on the Mac; the interface is available in English and Simplified Chinese
 
 ## Supported systems
 
-**Windows 10 / 11** (64-bit) only for now. macOS and Linux are planned.
+| System | Requirements |
+|---|---|
+| **Windows 10 / 11** (64-bit) | The GUI uses WebView2, which ships with Windows 11 and is usually present on Windows 10; if it's missing the app will offer to install it |
+| **macOS 13 or later** | One universal app for both Intel and Apple silicon |
 
-The GUI uses WebView2, which ships with Windows 11 and is usually present on Windows 10; if it's missing the app will offer to install it.
+Claude Code and Codex are supported on both, and Windows and Mac machines can sync with each other. Linux is not supported yet.
 
 ## Download
+
+### Windows
 
 Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases) and put it in a **permanent location**, e.g. `%LOCALAPPDATA%\Programs\claude-code-sync\`. Automatic sync remembers where the exe is; if you move it later, just open the app once and the path is fixed for you.
 
@@ -64,22 +69,48 @@ Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude
 > The executables are not code-signed — this is a personal open-source project and a signing certificate costs more than it can afford. On the first launch Windows may show "Windows protected your PC"; click **More info → Run anyway**. This is Windows' generic warning for any unsigned software, not an indication of a problem.
 > If you'd rather not take that on faith: verify the download against `SHA256SUMS.txt` in the release, audit the source, or [build it yourself](CONTRIBUTING.md).
 
+### macOS
+
+Download `claude-code-sync-<version>-macos-universal.zip` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases), unzip it and drag `claude-code-sync.app` into Applications (`/Applications`).
+
+> [!IMPORTANT]
+> The app is not notarized by Apple (it only has an ad-hoc signature, for the same reason as above), so Gatekeeper blocks the first launch with a "developer cannot be verified" message. Either:
+> - **right-click** the app in Finder → **Open**, then click "Open" in the dialog (first time only)
+> - or run this in Terminal:
+>   ```bash
+>   xattr -dr com.apple.quarantine /Applications/claude-code-sync.app
+>   ```
+>
+> You can verify the zip against `SHA256SUMS.txt` as well.
+
+**Differences from the Windows version**:
+
+- There is **no menu bar icon** on the Mac (the tray library and Wails conflict on macOS), so closing the window quits the app. Background sync keeps working: a windowless background process (`claude-code-sync daemon`) is started at login and syncs in real time; see [triggers](#triggers) below.
+- For the command line, use the executable inside the app, e.g.:
+  ```bash
+  /Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync sync
+  ```
+  If that's too long, add an alias: `alias claude-code-sync=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`
+
 ## Get started in 5 minutes
 
 > [!WARNING]
 > **Back up your sessions before the first sync.** The tool never deletes your session files, but it's your data, so a backup doesn't hurt:
 > ```powershell
-> robocopy "$env:USERPROFILE\.claude" "D:\claude-backup" /E
+> robocopy "$env:USERPROFILE\.claude" "D:\claude-backup" /E      # Windows
+> ```
+> ```bash
+> cp -Rp ~/.claude ~/claude-backup                                # macOS (back up ~/.codex too if you use Codex)
 > ```
 
 1. **Get a bucket and an access key** by following the [cloud storage setup guide](#cloud-storage-setup) below (about 3 minutes).
-2. **First computer**: double-click `claude-code-sync.exe`. The wizard has 4 steps: device name → storage provider → bucket and keys (there's a "Test connection" button) → sync passphrase. After "Finish", automatic sync is enabled and a first sync runs right away.
+2. **First computer**: open the app (double-click `claude-code-sync.exe` on Windows, open `claude-code-sync.app` on the Mac). The wizard has 4 steps: device name → storage provider → bucket and keys (there's a "Test connection" button) → sync passphrase. After "Finish", automatic sync is enabled and a first sync runs right away.
 3. **Second computer**: download and run it the same way, using **the same bucket** and **the same passphrase**. The sessions from the first computer will be pulled down.
 4. **Match up projects**:
    - git projects (with a remote URL) match automatically
    - plain folders: open the "Projects" page and click "Claim" under "To claim", then pick the local folder
    - conversations started from your home folder (no project) map to the other machine's home folder automatically
-5. **Continue on the other machine**: run `claude --resume` in the project folder and the sessions from the other computer are there; or find the session on the app's Sessions page and click "Continue".
+5. **Continue on the other machine**: run `claude --resume` in the project folder and the sessions from the other computer are there; or find the session on the app's Sessions page and click "Continue". Codex sessions show up directly in the session lists of the VS Code extension and the Codex desktop app (for the command line, see the notes [below](#codex-scope)).
 
 > [!TIP]
 > Sessions are synced, **your code is not**: use git for that. Commit and push before switching machines, otherwise the conversation and the code won't match.
@@ -193,24 +224,47 @@ D:\work\app                       v1/history.jsonl                           tra
 - **Merging personal config (rules, skills, MCP, …)**: the last common version is remembered and a three-way merge is done. Different lines or fields changed on two machines → merged automatically; the same spot changed → it goes to the Conflicts page while your local file stays usable, and you choose keep mine / use theirs / keep both / merge manually. **Deletions never propagate**: deleting a file on one machine never deletes it on another, and it is not pulled back locally either.
 - **Working with CC Switch**: CC Switch owns provider URLs, keys and models. If its auto sync is on, Claude's global rules, skills and MCP could be synced twice, so these three are paused until you pick an owner in Settings (nothing is shown if CC Switch auto sync is off). This owner choice only affects Claude; it never pauses or takes over Codex.
 
-- **Four triggers**: Claude Code hooks (`SessionStart` / `Stop`) do most of the work; the app starts at login and watches for file changes from the tray (start-at-login can be turned off in Settings); a Windows scheduled task does a full sync every hour; and you can always click "Sync now".
+<a id="triggers"></a>
+
+- **Four triggers**:
+  1. Claude Code hooks (`SessionStart` / `Stop`) do most of the work, on Windows and Mac alike
+  2. File watching, syncing as soon as something changes: on Windows, the app starts at login and stays in the tray; on the Mac, launchd starts a windowless background process `claude-code-sync daemon` at login (LaunchAgent `com.alfo111111.claude-code-sync.daemon`). The "Start at login" switch in Settings controls both
+  3. A full sync every hour as a safety net: a scheduled task on Windows; the LaunchAgent `com.alfo111111.claude-code-sync.sync` on the Mac (which also runs once at login). Both Mac LaunchAgents live in `~/Library/LaunchAgents`, belong to the current user only and need no admin rights
+  4. You can always click "Sync now"
+
+<a id="codex-scope"></a>
 
 ### What is synced for Codex
 
-The first safe slice covers only two kinds of global content:
+| Local content | Category | Cloud objects (with the default `v1/` prefix) |
+|---|---|---|
+| `$CODEX_HOME/sessions/**/rollout-*.jsonl` (sessions; `~/.codex` when `CODEX_HOME` is unset) | `sessions` | `v1/tools/codex/sessions/<device-id>/...` |
+| `$CODEX_HOME/AGENTS.md` and `$CODEX_HOME/AGENTS.override.md` | `rules` | `v1/tools/codex/files/rules/...` |
+| `~/.agents/skills/` | `skills` | `v1/tools/codex/files/skills/...` |
+| `$CODEX_HOME/skills/` (legacy skills location, still read by Codex; Codex's built-in `.system` is excluded) | `legacy-skills` | `v1/tools/codex/files/legacy-skills/...` |
 
-| Local content | Cloud objects (with the default `v1/` prefix) |
-|---|---|
-| `$CODEX_HOME/AGENTS.md` and `$CODEX_HOME/AGENTS.override.md` (`~/.codex` when `CODEX_HOME` is unset) | `v1/tools/codex/files/rules/...` |
-| `~/.agents/skills/` | `v1/tools/codex/files/skills/...` |
+All four are on by default and can be turned off one by one in Settings or with `content disable codex <category>`. Claude and Codex switches are independent, and the CC Switch owner choice only affects Claude. Rules and skills reuse the same end-to-end encryption, three-way text merge, conflict resolution, backup/restore and non-propagating deletion machinery; `sync --dry` and passphrase changes cover all Codex content too.
 
-Codex content is handled by full sync and reuses the same end-to-end encryption, per-category switches, three-way text merge, conflict resolution, backup/restore and non-propagating deletion machinery. It is also covered by `sync --dry` and passphrase changes. While the GUI is in the tray, it watches Codex rule files and the skills folder and automatically triggers a sync after changes. Claude and Codex have independent `rules` and `skills` switches.
+**How Codex sessions are synced**:
 
-**Explicitly not supported yet**: Codex `sessions/`, `history`, `session_index`, SQLite/WAL databases, `config.toml` (including MCP), `auth` / login credentials, plugins, hooks and resume state. **This tool cannot restore or resume Codex sessions on another machine.** Project-level AGENTS / skills remain managed by Git and are outside the sync scope.
+- **Only rollout files are synced.** Codex's SQLite files (`state_*.sqlite`, `thread_history_*.sqlite`, …) are indexes Codex rebuilds from the rollouts by itself, so they are not synced.
+- **One copy per device in the cloud**: each machine only writes its own, so they never overwrite each other.
+- **Continued on the other machine**: only the new lines are appended to the end of the local file.
+- **Both machines continued the same session**: the other copy is saved as a new session (its new ID is derived from the original ID and the other device; later continuations on that device are appended to this copy).
+- **The session is open in Codex**: Codex's own per-session writer lock (`thread-writer-locks/<ID>.lock`) is taken before appending; if it's held, the session is skipped for this round and retried later.
+- **Sessions deleted or archived locally** are never pulled back.
+- **Path translation and project binding**: a session's folder takes part in project binding just like Claude's (git projects match automatically, plain folders need a "Claim" on the other machine). Until the project is matched locally (waiting to be claimed), its sessions stay in the cloud and are pulled automatically once it is.
+
+**Limitations**:
+
+- **The `codex resume` picker on the command line only queries the local database**, so pulled sessions may not be listed. Use `codex resume <session-id>` directly, or open the VS Code extension / Codex desktop app once (their session lists pick up new sessions automatically).
+- **The target machine needs a model provider with the same name** (e.g. the `custom` provider CC Switch writes into `config.toml`). This tool does not sync `config.toml`.
+- **Grouping in the Codex desktop app is lost**: group membership is not synced with the session, so pulled sessions need to be regrouped in the desktop app.
+- **Not synced**: `history`, `session_index`, SQLite/WAL databases, `config.toml` (including MCP), `auth` / login credentials, plugins, hooks. Project-level AGENTS / skills remain managed by Git and are outside the sync scope.
 
 ## Command line
 
-The same exe works as a CLI when given arguments:
+The same program works as a CLI when given arguments (on the Mac use `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`, or the alias above):
 
 ```powershell
 claude-code-sync init                          # set up from the terminal (same as the wizard)
@@ -222,14 +276,14 @@ claude-code-sync ignore <project-id>           # ignore / stop syncing a project
 claude-code-sync unignore <project-id>         # stop ignoring
 claude-code-sync content                       # which personal config is synced
 claude-code-sync content disable skills        # turn a Claude category off (no files deleted); enable turns it on; legacy form kept
-claude-code-sync content disable codex skills  # disable Codex skills only; enable turns them on; categories: rules / skills
+claude-code-sync content disable codex sessions # disable Codex sessions only; enable turns them on; categories: rules / skills / legacy-skills / sessions
 claude-code-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner for Claude config (sync / ccswitch)
 claude-code-sync conflicts                     # list unresolved conflicts
 claude-code-sync resolve <conflict-id> local   # resolve: local / remote / both, or merged <file>
 claude-code-sync restore-content plans a.md    # pull a locally deleted Claude config file back from the cloud; legacy form kept
-claude-code-sync restore-content codex rules AGENTS.md # restore Codex global rules; categories: rules / skills
+claude-code-sync restore-content codex rules AGENTS.md # restore Codex global rules; categories: rules / skills / legacy-skills
 claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
-claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login)
+claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login; the two LaunchAgents on the Mac)
 claude-code-sync version
 ```
 
@@ -258,13 +312,13 @@ It can't be recovered: the cloud data is encrypted with it. Re-run the setup on 
 <details>
 <summary><b>Does it work alongside CC Switch?</b></summary>
 
-Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` and drop this tool's hooks. They are restored within seconds while the app is running, or at the next hourly sync otherwise.
+Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` and drop this tool's hooks. They are restored within seconds while the app is running in the tray (Windows) or the background process is running (Mac), or at the next hourly sync otherwise.
 </details>
 
 <details>
 <summary><b>Where is my data? Is the access key safe?</b></summary>
 
-- Config: `%USERPROFILE%\.claude-code-sync\config.json`. The access key is stored there in plain text (inside your user profile, readable only by your Windows account and administrators by default), so please use a key that can **only access this one bucket**.
+- Config: `~/.claude-code-sync/config.json` (`%USERPROFILE%\.claude-code-sync\config.json` on Windows). The access key is stored there in plain text (inside your user profile, readable only by your user account and administrators by default), so please use a key that can **only access this one bucket**.
 - Encryption key: the `key` file next to it (derived from your passphrase)
 - Log: `sync.log` in the same folder, also shown on the app's "Logs" page
 - The cloud only stores encrypted data; your provider can't read your sessions.
@@ -273,10 +327,19 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 <details>
 <summary><b>How do I uninstall?</b></summary>
 
+**Windows**:
+
 1. Run `claude-code-sync uninstall` to remove the Claude Code hooks, the scheduled task and start-at-login (sessions, config and cloud data stay)
 2. Right-click the tray icon → Quit
 3. Delete the exe and the `%USERPROFILE%\.claude-code-sync` folder
 4. Cloud data: delete the `v1/` folder in your bucket from the provider's console
+
+**macOS**:
+
+1. Run `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync uninstall` to remove the Claude Code hooks and the two LaunchAgents in `~/Library/LaunchAgents` (`com.alfo111111.claude-code-sync.sync` and `com.alfo111111.claude-code-sync.daemon`); the background process stops with them (sessions, config and cloud data stay)
+2. Close the app window and move `claude-code-sync.app` to the Trash
+3. Delete the `~/.claude-code-sync` folder
+4. Cloud data: same as above
 </details>
 
 ## Security and privacy

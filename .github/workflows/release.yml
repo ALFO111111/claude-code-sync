@@ -1,7 +1,9 @@
-# 发布：推送 v 开头的标签（如 v0.1.0、v0.2.0-beta.1）时自动构建并发布到 GitHub Releases。
+# 发布：推送 v 开头的标签（如 v0.3.0、v0.3.0-beta.1）时自动构建并发布到 GitHub Releases。
 #
-#   1. CHANGELOG.md 里把 [Unreleased] 改成 [0.1.0] - 日期，提交
-#   2. git tag v0.1.0 && git push origin v0.1.0
+#   1. CHANGELOG.md 里把 [Unreleased] 改成 [0.3.0] - 日期，提交
+#   2. git tag -a v0.3.0 -m v0.3.0 && git push github v0.3.0
+#
+# Windows 和 macOS 分别在各自的系统上编译（Wails 的 Mac 版要用 Xcode 工具链），最后合到一个 Release 里。
 name: Release
 
 on:
@@ -12,8 +14,16 @@ permissions:
   contents: write # 创建 Release、上传文件
 
 jobs:
-  release:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows/amd64
+          - os: macos-latest
+            platform: darwin/universal # 一个 App 同时支持 Intel 和 Apple 芯片
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
@@ -33,7 +43,7 @@ jobs:
         run: |
           v="${GITHUB_REF_NAME#v}"
           echo "version=$v" >> "$GITHUB_OUTPUT"
-          # exe 文件属性里的版本号只能是纯数字 x.y.z，去掉 -beta.1 之类的后缀
+          # exe / App 属性里的版本号只能是纯数字 x.y.z，去掉 -beta.1 之类的后缀
           echo "numeric=$(echo "$v" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Test
@@ -46,28 +56,55 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 版本号写进 exe 文件属性（右键 → 属性 → 详细信息）
+          # 版本号写进 exe 文件属性（右键 → 属性 → 详细信息）/ App 的 Info.plist
           node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('wails.json'));j.info.productVersion='${{ steps.ver.outputs.numeric }}';fs.writeFileSync('wails.json',JSON.stringify(j,null,2)+'\n')"
-          wails build -clean -trimpath -ldflags "-X main.version=${{ steps.ver.outputs.version }}"
+          wails build -clean -trimpath -platform ${{ matrix.platform }} -ldflags "-X main.version=${{ steps.ver.outputs.version }}"
 
-      - name: Package
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $v = '${{ steps.ver.outputs.version }}'
           New-Item -ItemType Directory dist | Out-Null
           Copy-Item build/bin/claude-code-sync.exe dist/claude-code-sync.exe
           Compress-Archive -Path build/bin/claude-code-sync.exe, LICENSE, README.md, README_EN.md -DestinationPath "dist/claude-code-sync-$v-windows-amd64.zip"
-          # 先算完全部校验值再写文件：边遍历 dist 边往 dist 里写的话，会读到正在写的 SHA256SUMS.txt，报"被占用"
-          $sums = Get-ChildItem dist -File | ForEach-Object {
-            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
-          }
-          $sums | Out-File dist/SHA256SUMS.txt -Encoding ascii
 
-      - name: Release notes from CHANGELOG
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
         shell: bash
         run: |
+          v='${{ steps.ver.outputs.version }}'
+          mkdir dist
+          # ditto 打包会保留 .app 里的符号链接和签名，普通 zip 会把 App 弄坏
+          ditto -c -k --keepParent build/bin/claude-code-sync.app "dist/claude-code-sync-$v-macos-universal.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ runner.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums and release notes
+        id: ver
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          (cd dist && sha256sum * > ../SHA256SUMS.txt) && mv SHA256SUMS.txt dist/
+          cat dist/SHA256SUMS.txt
           # 取 CHANGELOG.md 里 "## [版本号]" 到下一个 "## [" 之间的内容
-          awk -v ver="${{ steps.ver.outputs.version }}" '
+          awk -v ver="$v" '
             index($0, "## [" ver "]") == 1 { on = 1; next }
             on && /^## \[/ { exit }
             on { print }
@@ -82,4 +119,5 @@ jobs:
           files: |
             dist/claude-code-sync.exe
             dist/claude-code-sync-${{ steps.ver.outputs.version }}-windows-amd64.zip
+            dist/claude-code-sync-${{ steps.ver.outputs.version }}-macos-universal.zip
             dist/SHA256SUMS.txt

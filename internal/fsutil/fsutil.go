@@ -36,9 +36,11 @@ func WriteFileAtomic(path string, data []byte) error {
 // TempPrefix WriteFileAtomic 临时文件的前缀；遍历目录时据此跳过写到一半的文件。
 const TempPrefix = ".ccs-tmp-"
 
-// SamePath 按 Windows 规则（不区分大小写、忽略结尾分隔符）比较路径。
+// SamePath 不区分大小写、\ 和 / 视为一样、忽略结尾分隔符地比较路径
+// （Windows 和 macOS 默认的文件系统都不区分大小写；另一台设备的路径可能是另一种写法）。
 func SamePath(a, b string) bool {
-	return strings.EqualFold(CleanPath(a), CleanPath(b))
+	norm := func(p string) string { return CleanPath(strings.ReplaceAll(p, `\`, "/")) }
+	return strings.EqualFold(norm(a), norm(b))
 }
 
 // CleanPath 规范化路径并去掉结尾分隔符。

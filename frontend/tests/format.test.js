@@ -28,6 +28,8 @@ it('全局内容按工具显示，旧数据默认 Claude Code', () => {
   expect(contentLabel('', 'rules')).toBe('全局规则 CLAUDE.md')
   expect(contentLabel('codex', 'rules')).toBe('全局规则 AGENTS.md')
   expect(contentDesc('codex', 'skills')).toContain('~/.agents/skills')
+  expect(contentLabel('codex', 'legacy-skills')).toBe('旧位置的技能')
+  expect(contentLabel('codex', 'sessions')).toBe('会话')
 })
 
 it('highlight 不分大小写切段', () => {

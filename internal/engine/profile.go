@@ -75,6 +75,7 @@ func profileDefsFor(cfg *config.Config) []profileDef {
 		{tool: config.ToolClaude, category: config.ContentTasks, root: filepath.Join(cfg.ClaudeDir, "tasks"), kind: ConflictTasks},
 		{tool: config.ToolCodex, category: config.ContentRules, root: cfg.CodexDir, kind: ConflictFile, files: []string{"AGENTS.md", "AGENTS.override.md"}},
 		{tool: config.ToolCodex, category: config.ContentSkills, root: filepath.Join(cfg.Home, ".agents", "skills"), kind: ConflictFile},
+		{tool: config.ToolCodex, category: config.ContentLegacySkills, root: filepath.Join(cfg.CodexDir, "skills"), kind: ConflictFile},
 	}
 }
 
@@ -341,15 +342,21 @@ func (e *Engine) collectProfileLocal(items map[string]*profileItem, def profileD
 }
 
 func skipProfileRel(tool, category, rel string) bool {
-	if !filepath.IsLocal(filepath.FromSlash(rel)) {
+	// 云端相对路径一律用 / 分隔：出现 \ 或 : 就是被构造的（Windows 盘符、UNC、..\ 逃逸），
+	// 不能只靠 filepath.IsLocal——在 macOS 上它把 C:/x、..\x 当成普通文件名放行。
+	if strings.ContainsAny(rel, `\:`) || strings.HasPrefix(rel, "/") || !filepath.IsLocal(filepath.FromSlash(rel)) {
 		return true
 	}
-	parts := strings.Split(strings.ToLower(filepath.ToSlash(rel)), "/")
-	for _, part := range parts {
+	parts := strings.Split(strings.ToLower(rel), "/")
+	for i, part := range parts {
 		if part == "" || part == "." || part == ".." {
 			return true
 		}
 		if tool == config.ToolClaude && category == config.ContentSkills && (part == "synced" || part == ".trash") {
+			return true
+		}
+		// $CODEX_HOME/skills/.system 是 Codex 自带的系统技能，每次启动按指纹重装，不同步
+		if tool == config.ToolCodex && category == config.ContentLegacySkills && i == 0 && part == ".system" {
 			return true
 		}
 	}

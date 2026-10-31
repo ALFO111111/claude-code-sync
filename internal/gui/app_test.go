@@ -71,7 +71,7 @@ func TestCodexWatchersAttachAfterDirectoriesAppear(t *testing.T) {
 	a := NewApp()
 	a.startWatcher()
 	defer a.shutdown(nil)
-	if len(a.watchers) != 12 {
+	if len(a.watchers) != 14 {
 		t.Fatalf("应注册 Claude、Codex 和会话监听，实际 %d 个", len(a.watchers))
 	}
 	for _, w := range a.watchers {

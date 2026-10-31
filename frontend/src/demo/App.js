@@ -79,6 +79,8 @@ const CONTENT_ITEMS = [
   ...CONTENT_CATS.map((category) => ({ tool: 'claude', category })),
   { tool: 'codex', category: 'rules' },
   { tool: 'codex', category: 'skills' },
+  { tool: 'codex', category: 'legacy-skills' },
+  { tool: 'codex', category: 'sessions' },
 ]
 const CC_CATS = ['rules', 'skills', 'mcp']
 

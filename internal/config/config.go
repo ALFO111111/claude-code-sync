@@ -99,7 +99,13 @@ var ContentCategories = []string{
 	ContentCommands, ContentTasks, ContentSettings, ContentMCP,
 }
 
-var CodexContentCategories = []string{ContentRules, ContentSkills}
+// Codex 专有的类别：旧位置的技能 $CODEX_HOME/skills（Codex 仍会读，.system 是它自带的不同步）、会话。
+const (
+	ContentLegacySkills = "legacy-skills"
+	ContentSessions     = "sessions"
+)
+
+var CodexContentCategories = []string{ContentRules, ContentSkills, ContentLegacySkills, ContentSessions}
 
 // ContentKey 是内容开关的持久化键。旧版裸类别仍表示 Claude，避免迁移老配置。
 func ContentKey(tool, category string) string {

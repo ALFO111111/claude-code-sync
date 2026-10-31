@@ -219,10 +219,14 @@ export default {
       cat: {
         rules: '全局规则 AGENTS.md',
         skills: '技能 skills',
+        'legacy-skills': '旧位置的技能',
+        sessions: '会话',
       },
       desc: {
         rules: '只同步 ~/.codex/AGENTS.md 和 ~/.codex/AGENTS.override.md',
         skills: '只同步 ~/.agents/skills 下的技能',
+        'legacy-skills': '~/.codex/skills 下自己装的技能（Codex 自带的 .system 不同步）',
+        sessions: '聊天记录（~/.codex/sessions），在另一台电脑上能接着聊；两台各自续写时另存一份，不会互相覆盖',
       },
     },
     ownerSync: '已选择由本工具同步（CC Switch 也开着自动同步）',
@@ -304,7 +308,7 @@ export default {
     theme: '外观',
     themes: { system: '跟随系统', light: '浅色', dark: '深色' },
     autostart: '开机自动启动',
-    autostartDesc: '登录 Windows 后在托盘里后台运行，会话一有变化就同步（关掉也能同步，只是没那么及时）',
+    autostartDesc: '登录电脑后在后台运行（Windows 在托盘里，Mac 没有窗口），会话一有变化就同步（关掉也能同步，只是没那么及时）',
     autostartSandbox: '沙箱模式下不可用',
     device: '设备',
     deviceName: '设备名（显示给其他设备看）',

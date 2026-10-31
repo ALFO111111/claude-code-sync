@@ -7,18 +7,30 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-31
+
 ### 新增 / Added
 
-- Codex 首个安全切片：同步 `$CODEX_HOME/AGENTS.md`、`AGENTS.override.md`（默认 `~/.codex`）和 `~/.agents/skills`，云端放在 `tools/codex/files/rules/...`、`tools/codex/files/skills/...`。复用加密、全量同步、独立类别开关、三方文本合并、冲突解决、备份恢复、删除不传播、Dry、改口令和 GUI 文件监听；CC Switch 只影响 Claude。暂不支持 Codex sessions/history/session_index、SQLite/WAL、config.toml/MCP、auth、插件/hooks/resume，项目级 AGENTS/skills 仍由 Git 管理，不能用于换机恢复 Codex 会话
-  First safe Codex slice: sync `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` (`~/.codex` by default) and `~/.agents/skills` to `tools/codex/files/rules/...` and `tools/codex/files/skills/...`. Reuses encryption, full sync, independent category switches, three-way text merge, conflict resolution, backup/restore, non-propagating deletions, Dry, passphrase changes and GUI file watching; CC Switch only affects Claude. Codex sessions/history/session_index, SQLite/WAL, config.toml/MCP, auth, plugins/hooks/resume are not supported yet; project-level AGENTS/skills remain managed by Git, and Codex sessions cannot be restored on another machine
+- 支持 macOS 13 及以上（Claude Code 和 Codex 都支持）：一个通用版 App 同时支持 Intel 和 Apple 芯片（Release 里的 `claude-code-sync-<版本>-macos-universal.zip`）。Mac 版没有菜单栏图标，关闭窗口就是退出；后台实时同步由登录时自动启动的无窗口进程 `claude-code-sync daemon` 负责（LaunchAgent `com.alfo111111.claude-code-sync.daemon`，设置页“开机自启”控制它），每小时兜底同步由 LaunchAgent `com.alfo111111.claude-code-sync.sync` 负责，都在 `~/Library/LaunchAgents`，不需要管理员权限。App 未经 Apple 公证（只有 ad-hoc 签名），第一次打开需在“访达”里右键 → 打开
+  macOS 13+ support (both Claude Code and Codex): one universal app for Intel and Apple silicon (`claude-code-sync-<version>-macos-universal.zip` in the release). There is no menu bar icon on the Mac and closing the window quits the app; background sync is done by a windowless `claude-code-sync daemon` started at login (LaunchAgent `com.alfo111111.claude-code-sync.daemon`, controlled by the "Start at login" switch), and the hourly safety-net sync by the LaunchAgent `com.alfo111111.claude-code-sync.sync`, both in `~/Library/LaunchAgents` with no admin rights needed. The app is not notarized by Apple (ad-hoc signature only), so the first launch needs right-click → Open in Finder
+- Windows ↔ macOS 路径自动翻译：项目根路径换成本机的，后面的分隔符也一起换（`D:\code\x\src\a.go` ↔ `/Users/me/code/x/src/a.go`），适用于 Claude 会话、输入历史、MCP 路径占位和 Codex 会话
+  Windows ↔ macOS path translation: the project root is replaced with the local one and the separators after it are converted too (`D:\code\x\src\a.go` ↔ `/Users/me/code/x/src/a.go`), for Claude sessions, input history, MCP path placeholders and Codex sessions
+- Codex 会话同步（新类别 `codex/sessions`，默认开）：同步 `$CODEX_HOME/sessions/**/rollout-*.jsonl`，在另一台电脑上接着聊。云端按设备分开存（`tools/codex/sessions/<设备ID>/...`），每台只写自己那份；另一台接着聊时只追加多出来的行，两台各自续写时对方那份另存成新会话；追加前先拿 Codex 自己的会话写锁，Codex 正开着这个会话就本轮跳过；本机删除 / 归档的会话不再拉回；项目还没对上时先留在云端。SQLite 索引和 `config.toml` 不同步，恢复时目标电脑要有同名的模型供应商
+  Codex session sync (new category `codex/sessions`, on by default): syncs `$CODEX_HOME/sessions/**/rollout-*.jsonl` so you can continue on another machine. The cloud keeps one copy per device (`tools/codex/sessions/<device-id>/...`) and each device only writes its own; when the other machine continued a session only the new lines are appended, and if both continued it differently the other copy is saved as a new session; Codex's own per-session writer lock is taken before appending, so a session open in Codex is skipped for this round; sessions deleted or archived locally are not pulled back; sessions of a project not yet matched stay in the cloud until it is. SQLite indexes and `config.toml` are not synced, so the target machine needs a model provider with the same name
+- Codex 旧位置技能（新类别 `codex/legacy-skills`，默认开）：`$CODEX_HOME/skills`（Codex 仍会读取），排除 Codex 自带的 `.system`
+  Codex legacy skills (new category `codex/legacy-skills`, on by default): `$CODEX_HOME/skills`, which Codex still reads, excluding Codex's built-in `.system`
+- Codex 全局规则与技能：同步 `$CODEX_HOME/AGENTS.md`、`AGENTS.override.md`（默认 `~/.codex`）和 `~/.agents/skills`，云端放在 `tools/codex/files/rules/...`、`tools/codex/files/skills/...`。复用加密、全量同步、独立类别开关、三方文本合并、冲突解决、备份恢复、删除不传播、Dry、改口令和文件监听；CC Switch 只影响 Claude。Codex 的 history/session_index、SQLite/WAL、config.toml/MCP、auth、插件/hooks 不同步，项目级 AGENTS/skills 仍由 Git 管理
+  Codex global rules and skills: sync `$CODEX_HOME/AGENTS.md`, `AGENTS.override.md` (`~/.codex` by default) and `~/.agents/skills` to `tools/codex/files/rules/...` and `tools/codex/files/skills/...`. Reuses encryption, full sync, independent category switches, three-way text merge, conflict resolution, backup/restore, non-propagating deletions, Dry, passphrase changes and file watching; CC Switch only affects Claude. Codex history/session_index, SQLite/WAL, config.toml/MCP, auth and plugins/hooks are not synced; project-level AGENTS/skills remain managed by Git
 - 同步个人配置：全局规则 `CLAUDE.md`、`plans/`、`skills/`、`agents/`、`commands/`、`tasks/`、用户级 MCP 服务器、settings.json 的安全字段（`language`、`autoMemoryEnabled`、`includeCoAuthoredBy`）。模型、Key、hooks、权限、MCP 的密钥和环境变量不上传；设置页“同步内容”可逐类开关
   Sync personal config: global `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers and safe settings.json fields (`language`, `autoMemoryEnabled`, `includeCoAuthoredBy`). Models, keys, hooks, permissions and MCP secrets/env vars are never uploaded; each category can be turned off under Settings → What to sync
 - 三方合并：记住上次两边一致的版本，不同行 / 不同 JSON 字段 / 不同任务 ID 的修改自动合并；改到同一处时进新的“冲突”页（保留本机 / 用另一台的 / 两份都留 / 手工合并），本机文件在此期间保持可用
   Three-way merge: changes to different lines, JSON fields or task IDs merge automatically; edits to the same spot go to the new Conflicts page (keep mine / use theirs / keep both / merge manually) while the local file stays usable
 - CC Switch 共存：检测到 CC Switch 自动同步开着时，全局规则、技能、MCP 先暂停，在设置页选择由谁负责；没开就不提示
   CC Switch coexistence: when CC Switch auto sync is on, global rules, skills and MCP pause until you choose an owner in Settings; nothing is shown otherwise
-- 命令行：`content`、`conflicts`、`resolve`、`restore-content`；新增 `content enable|disable codex rules|skills` 和 `restore-content codex <类别> <相对路径>`，旧的 Claude 裸类别写法保留
-  CLI: `content`, `conflicts`, `resolve`, `restore-content`; adds `content enable|disable codex rules|skills` and `restore-content codex <category> <relative-path>`, while keeping the legacy bare-category forms for Claude
+- 命令行：`content`、`conflicts`、`resolve`、`restore-content`；新增 `content enable|disable codex <类别>`（`rules` / `skills` / `legacy-skills` / `sessions`）和 `restore-content codex <类别> <相对路径>`，旧的 Claude 裸类别写法保留
+  CLI: `content`, `conflicts`, `resolve`, `restore-content`; adds `content enable|disable codex <category>` (`rules` / `skills` / `legacy-skills` / `sessions`) and `restore-content codex <category> <relative-path>`, while keeping the legacy bare-category forms for Claude
+- 发布：Release 同时提供 Windows（exe + zip）和 macOS（universal zip），`SHA256SUMS.txt` 包含全部文件
+  Releases: Windows (exe + zip) and macOS (universal zip) are published together, with every file listed in `SHA256SUMS.txt`
 
 ### 改进 / Changed
 
@@ -28,6 +40,15 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
   Hook self-repair and sync share a lock when rewriting settings.json and check it was not just changed by another program (such as CC Switch)
 - 文件监听：启动时还不存在的目录（如第一次建 `skills/`）创建后会自动开始监听
   File watching: folders that don't exist yet at startup (such as a first `skills/`) are picked up once created
+- 安全加固：云端相对路径里出现 `\`、`:` 或以 `/` 开头的一律拒绝（防止在 macOS 上被当成普通文件名放行）；MCP 配置里的 Windows 绝对路径在 Mac 上也能识别，转换不了的留在本机、不上传
+  Hardening: cloud relative paths containing `\` or `:`, or starting with `/`, are always rejected (so they can't slip through as plain file names on macOS); Windows absolute paths in MCP config are recognized on the Mac too, and ones that can't be translated stay local and are not uploaded
+
+### 修复 / Fixed
+
+- GitHub CI 从 v0.2.0 之后一直失败：不同 Go 版本的 gofmt 对中文字符的对齐算法不一样。现在 `go.mod` 统一为 go 1.27.2，CI 用 `go.mod` 指定版本的 gofmt，并同时在 Windows 和 macOS 上运行
+  GitHub CI had been failing since v0.2.0 because gofmt aligns CJK characters differently across Go versions. `go.mod` now pins go 1.27.2, CI uses the gofmt of that version, and CI runs on both Windows and macOS
+- 双击 `打包.bat` 时找不到 Go 就失败：现在会到常见安装位置查找（`GOROOT`、`C:\Program Files\Go`、`%LOCALAPPDATA%\Programs\Go`、`%USERPROFILE%\sdk\go*` 等），并允许 Go 自动下载 `go.mod` 要求的 1.27.2；打包后自动还原 `frontend/package.json.md5`
+  `打包.bat` failed when Go was not on PATH: it now looks in common install locations (`GOROOT`, `C:\Program Files\Go`, `%LOCALAPPDATA%\Programs\Go`, `%USERPROFILE%\sdk\go*`, …) and lets Go download the 1.27.2 toolchain required by `go.mod`; `frontend/package.json.md5` is restored after the build
 
 ## [0.2.0] - 2026-10-19
 

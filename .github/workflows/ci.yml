@@ -1,4 +1,4 @@
-# 每次推送 / PR：格式、静态检查、全部测试、前端文字检查、前端单元测试和构建。
+# 每次推送 / PR：格式、静态检查、全部测试、前端文字检查、前端单元测试和构建。Windows 和 macOS 各跑一遍。
 # 测试全部在临时目录里跑（云端用本地文件夹或内存假 S3 代替），不需要任何密钥。
 name: CI
 
@@ -12,10 +12,16 @@ permissions:
 
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
+      # Go 版本以 go.mod 为准：不同版本的 gofmt 对中文的对齐算法不一样，版本不统一时
+      # 本机格式化过的代码到 CI 上会被判"没格式化"（v0.2.0 之后 CI 一直失败就是这个原因）。
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -36,6 +42,7 @@ jobs:
 
       - name: Frontend (i18n check + unit tests + build)
         working-directory: frontend
+        shell: bash
         run: |
           npm ci
           npm run check-i18n
@@ -45,7 +52,8 @@ jobs:
       - name: gofmt
         shell: bash
         run: |
-          unformatted=$(gofmt -l .)
+          # 用 go.mod 指定的那个版本的 gofmt（go env GOROOT 会跟着自动切换的工具链走）
+          unformatted=$("$(go env GOROOT)/bin/gofmt" -l .)
           if [ -n "$unformatted" ]; then echo "需要 gofmt / not gofmt-ed:"; echo "$unformatted"; exit 1; fi
 
       - name: go vet

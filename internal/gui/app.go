@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -85,37 +84,7 @@ func (a *App) startWatcher() {
 	if err != nil {
 		return
 	}
-	watchers := []*watch.Watcher{
-		watch.New(cfg.ProjectsDir(), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.NewFile(filepath.Join(cfg.ClaudeDir, "settings.json"), func() {
-			service.RepairHooks()
-			go a.runSync(service.SyncRequest{}, false)
-		}),
-		watch.NewFile(filepath.Join(cfg.ClaudeDir, "CLAUDE.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.NewFile(cfg.ClaudeStatePath(), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.NewFile(filepath.Join(cfg.CodexDir, "AGENTS.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.NewFile(filepath.Join(cfg.CodexDir, "AGENTS.override.md"), func() { go a.runSync(service.SyncRequest{}, false) }),
-		watch.New(filepath.Join(cfg.Home, ".agents", "skills"), func() { go a.runSync(service.SyncRequest{}, false) }),
-	}
-	for _, dir := range []string{"plans", "skills", "agents", "commands", "tasks"} {
-		root := filepath.Join(cfg.ClaudeDir, dir)
-		w := watch.New(root, func() { go a.runSync(service.SyncRequest{}, false) })
-		if dir == "skills" {
-			w.SetFilter(func(path string) bool {
-				rel, err := filepath.Rel(root, path)
-				if err != nil {
-					return false
-				}
-				for _, part := range strings.Split(strings.ToLower(filepath.ToSlash(rel)), "/") {
-					if part == "synced" || part == ".trash" {
-						return false
-					}
-				}
-				return true
-			})
-		}
-		watchers = append(watchers, w)
-	}
+	watchers := service.NewWatchers(cfg, func() { go a.runSync(service.SyncRequest{}, false) })
 	for _, w := range watchers {
 		if w.Start() == nil {
 			a.watchers = append(a.watchers, w)

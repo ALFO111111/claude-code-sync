@@ -26,13 +26,15 @@ func autostart() (string, bool) {
 	return v, err == nil
 }
 
-func setAutostart(command string) error {
+func autostartCommand(exe string) string { return `"` + exe + `" ` + BackgroundArg }
+
+func setAutostart(exe string) error {
 	k, _, err := registry.CreateKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
 	if err != nil {
 		return err
 	}
 	defer k.Close()
-	return k.SetStringValue(runValue, command)
+	return k.SetStringValue(runValue, autostartCommand(exe))
 }
 
 func removeAutostart() error {

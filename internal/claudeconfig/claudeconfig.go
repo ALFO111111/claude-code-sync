@@ -140,7 +140,7 @@ func portableValue(value any, mapPath PathMapper) (any, bool) {
 		if looksSecret(v) {
 			return nil, false
 		}
-		if filepath.IsAbs(v) || strings.Contains(v, "${CLAUDE_SYNC_") {
+		if isAbsAnyOS(v) || strings.Contains(v, "${CLAUDE_SYNC_") {
 			if mapPath == nil {
 				return nil, false
 			}
@@ -271,4 +271,14 @@ func DescribeSkipped(kind string, names []string) string {
 		return ""
 	}
 	return fmt.Sprintf(i18n.T("%s 中有 %d 项含秘密或无法映射的本机路径，已保留在本机：%s"), kind, len(names), strings.Join(names, ", "))
+}
+
+// isAbsAnyOS 本机的绝对路径，或者 Windows 写法的绝对路径（C:\x、\\server\x）：
+// macOS 上 filepath.IsAbs 不认 C:\，从 Windows 拷来的配置里的路径会被当成普通文字原样上传。
+// 反过来不把 /x 当路径：Windows 上 MCP 参数里常见 cmd /c 这种开关。
+func isAbsAnyOS(v string) bool {
+	if filepath.IsAbs(v) || strings.HasPrefix(v, `\\`) {
+		return true
+	}
+	return len(v) >= 3 && v[1] == ':' && (v[2] == '\\' || v[2] == '/') && (v[0]|0x20 >= 'a' && v[0]|0x20 <= 'z')
 }

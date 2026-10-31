@@ -1,6 +1,6 @@
 module github.com/ALFO111111/claude-code-sync
 
-go 1.26.0
+go 1.27.2
 
 require (
 	github.com/fsnotify/fsnotify v1.10.1

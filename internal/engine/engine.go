@@ -10,7 +10,8 @@
 //	history.go    输入历史 ~/.claude/history.jsonl（全机一份，只追加合并）
 //	keys.go       口令校验、修改口令（全部云端文件换新密钥重新加密）
 //	usage.go      云端用量统计
-//	translate.go  拉到本机时翻译路径
+//	translate.go  拉到本机时翻译路径（含 Windows ↔ macOS）
+//	codex_sessions.go  Codex 会话（按设备分开存，只追加或另存分叉）
 package engine
 
 import (
@@ -155,6 +156,7 @@ func (e *Engine) Sync(ctx context.Context, opts Options) error {
 			e.log.Printf("已取消忽略项目 %s", opts.Unignore)
 		}
 		e.discover()
+		e.discoverCodex()
 		if opts.Ignore != "" {
 			e.ignore(opts.Ignore)
 		}
@@ -176,6 +178,10 @@ func (e *Engine) Sync(ctx context.Context, opts Options) error {
 	if only == nil {
 		if perr := e.syncProfile(ctx); perr != nil {
 			e.log.Printf("全局内容同步失败: %v", perr)
+			e.count(&e.stats.Errors)
+		}
+		if cerr := e.syncCodexSessions(ctx); cerr != nil {
+			e.log.Printf("Codex 会话同步失败: %v", cerr)
 			e.count(&e.stats.Errors)
 		}
 	}
