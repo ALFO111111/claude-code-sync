@@ -142,7 +142,7 @@
           <div class="about-head">
             <img :src="logo" alt="" class="about-logo" />
             <div class="grow">
-              <div class="about-name">claude-code-sync</div>
+              <div class="about-name">agent-sync</div>
               <div class="muted small">{{ upd.current && upd.current !== 'dev' ? t('about.version', { v: upd.current }) : t('about.devBuild') }}</div>
             </div>
             <button :class="{ primary: hasUpdate }" :disabled="upd.checking || upd.installing" @click="onUpdateClick">
@@ -229,7 +229,7 @@ async function toggleAutostart(on) {
 }
 
 // ---------- 检查更新 ----------
-const REPO = 'https://github.com/ALFO111111/claude-code-sync'
+const REPO = 'https://github.com/ALFO111111/agent-sync'
 const notes = computed(() => releaseNotes(upd.info?.notes, locale.value))
 const dlPct = computed(() => (upd.progress.total ? Math.min(100, Math.round((upd.progress.done / upd.progress.total) * 100)) : 0))
 

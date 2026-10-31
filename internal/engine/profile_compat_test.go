@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 func TestLegacyGlobalRecordsDefaultToClaude(t *testing.T) {

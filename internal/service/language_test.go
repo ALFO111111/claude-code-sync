@@ -4,15 +4,15 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 // 向导阶段（还没初始化）切换语言：只改内存，不能凭空建出 config.json。
 func TestSetLanguageBeforeInit(t *testing.T) {
 	t.Cleanup(func() { i18n.Set(i18n.ZhCN) })
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if err := SetLanguage("en-US"); err != nil {
 		t.Fatal(err)
 	}

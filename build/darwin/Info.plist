@@ -9,7 +9,7 @@
         <key>CFBundleExecutable</key>
         <string>{{.OutputFilename}}</string>
         <key>CFBundleIdentifier</key>
-        <string>io.github.alfo111111.claude-code-sync</string>
+        <string>io.github.alfo111111.agent-sync</string>
         <key>CFBundleVersion</key>
         <string>{{.Info.ProductVersion}}</string>
         <key>CFBundleGetInfoString</key>

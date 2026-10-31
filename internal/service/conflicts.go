@@ -5,8 +5,8 @@ import (
 	"context"
 	"unicode/utf8"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/engine"
 )
 
 // 冲突页：两台电脑把同一个全局文件（规则、计划、技能、settings 等）改成了不同的样子，

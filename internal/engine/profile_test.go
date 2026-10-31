@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 func writeProfileFile(t *testing.T, d *device, rel, content string) string {
@@ -192,7 +192,7 @@ func TestProfileConflictKeepsLocal(t *testing.T) {
 	if got := readFile(t, filepath.Join(b.cfg.ClaudeDir, "CLAUDE.md")); got != "B 的修改\n" {
 		t.Fatalf("冲突时本机必须保持可用，得到 %q", got)
 	}
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", b.home)
+	t.Setenv("AGENT_SYNC_HOME", b.home)
 	list, err := ListConflicts()
 	if err != nil || len(list) != 1 {
 		t.Fatalf("应留下一个可处理冲突：%+v, %v", list, err)
@@ -221,7 +221,7 @@ func TestProfileDeleteNeverPropagates(t *testing.T) {
 	if _, err := os.Stat(absA); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("A 删除后不应自动复活：%v", err)
 	}
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	st, err := state.Load()
 	if err != nil || !st.Files[profileFilePrefix+"plans/keep.md"].Deleted {
 		t.Fatalf("本机删除应留下 tombstone：%+v, %v", st.Files[profileFilePrefix+"plans/keep.md"], err)
@@ -242,7 +242,7 @@ func TestProfileDryIsReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeProfileCCSwitch(t, a, true) // Dry 会在内存里更新检测结果，但不能落盘
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	e, err := New(true)
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func TestGlobalBackupRestoresToClaudeDir(t *testing.T) {
 	ea := a.sync(t, Options{})
 	ea.overwriteRemote(t, profileFilePrefix+"plans/p.md", "远端新版\n")
 	a.sync(t, Options{})
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	list, err := ListBackups()
 	if err != nil {
 		t.Fatal(err)

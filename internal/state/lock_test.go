@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/config"
 )
 
 // 锁有心跳：持有锁的进程还在跑（即使超过 15 分钟），别人不能把它当残留锁删掉。
 func TestLockHeartbeatPreventsTakeover(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	old := lockHeartbeatInterval
 	lockHeartbeatInterval = 50 * time.Millisecond
 	defer func() { lockHeartbeatInterval = old }()
@@ -40,7 +40,7 @@ func TestLockHeartbeatPreventsTakeover(t *testing.T) {
 
 // 真正的残留锁（没有进程维持心跳）还是要能被接管。
 func TestStaleLockTakenOver(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if err := os.MkdirAll(config.Dir(), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestStaleLockTakenOver(t *testing.T) {
 // 拿着锁的进程被强制结束 / 崩溃了：锁文件里的进程号已经不在，马上接管，不用等 15 分钟。
 // 进程还在、或锁文件刚建还没写进程号，都不能接管。
 func TestLockOfDeadProcessTakenOverImmediately(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if err := os.MkdirAll(config.Dir(), 0o700); err != nil {
 		t.Fatal(err)
 	}

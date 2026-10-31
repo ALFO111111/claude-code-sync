@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // 口令（密钥）：

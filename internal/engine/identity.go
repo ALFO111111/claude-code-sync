@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/project"
 )
 
 // identify 根据工作目录算出项目身份证。

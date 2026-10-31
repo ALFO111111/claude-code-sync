@@ -14,11 +14,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 会话浏览：会话列表 + 完整对话查看器的解析（GUI 会话页用）。只读本地文件，不连云端。

@@ -14,12 +14,15 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // 云端文件格式: "CCS1" | 12字节随机数 | AES-256-GCM(gzip(明文))
 // 对象路径作为附加认证数据，防止两个文件被调包。
 var magic = []byte("CCS1")
+
+// 下面三处的 "claude-code-sync" 是改名前的旧名字，属于云端数据格式，不能跟着改名：
+// 改了口令校验就对不上、派生出的密钥也会变，云端旧数据全解不开。
 
 // KeycheckPlain 口令校验文件的明文：用同一口令能解开它，说明两台设备口令一致。
 const KeycheckPlain = "claude-code-sync keycheck v1"
@@ -63,7 +66,7 @@ func Open(key []byte, aad string, data []byte) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) < len(magic)+gcm.NonceSize() || !bytes.Equal(data[:len(magic)], magic) {
-		return nil, errors.New(i18n.T("不是 claude-code-sync 加密格式"))
+		return nil, errors.New(i18n.T("不是 agent-sync 加密格式"))
 	}
 	data = data[len(magic):]
 	nonce, ct := data[:gcm.NonceSize()], data[gcm.NonceSize():]

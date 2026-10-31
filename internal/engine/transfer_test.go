@@ -9,10 +9,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/project"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // hookStorage 在下载指定 key 时先执行 onGet（模拟"下载的这一会儿，Claude Code 往本地文件里写了东西"），并记录每个 key 被 Get 了几次。
@@ -247,7 +247,7 @@ func TestChangeKeyAcrossDevices(t *testing.T) {
 	oldKey := crypt.DeriveKey("test-pass", crypt.KeySalt)
 	newKey := crypt.DeriveKey("new-pass", crypt.KeySalt)
 
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	ea, _ := New(true)
 	kc, _ := SealKeycheck(oldKey)
 	ea.store.Put(context.Background(), KeycheckKey, kc)
@@ -262,7 +262,7 @@ func TestChangeKeyAcrossDevices(t *testing.T) {
 	a.sync(t, Options{})
 	b.sync(t, Options{})
 
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	if err := ChangeKey(context.Background(), newKey, newKey, nil); !errors.Is(err, ErrWrongPassphrase) {
 		t.Errorf("原口令不对时应拒绝，得到 %v", err)
 	}
@@ -279,7 +279,7 @@ func TestChangeKeyAcrossDevices(t *testing.T) {
 	}
 
 	// B 还是旧口令：同步要停下来，并记下 KeyMismatch
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", b.home)
+	t.Setenv("AGENT_SYNC_HOME", b.home)
 	eb, _ := New(true)
 	if err := eb.Sync(context.Background(), Options{}); !errors.Is(err, ErrKeyChanged) {
 		t.Fatalf("B 应发现口令已改，得到 %v", err)
@@ -294,7 +294,7 @@ func TestChangeKeyAcrossDevices(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A 接着聊，B 换上新口令后能正常拿到
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	appendFile(t, homeSession(a), sessionLine(rootA, "u2"))
 	a.sync(t, Options{})
 	eb = b.sync(t, Options{})

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 // ---------- 本包测试共用的小工具 ----------
@@ -19,7 +19,7 @@ import (
 func testInitParams(t *testing.T, pass string) (InitParams, string) {
 	t.Helper()
 	root := t.TempDir()
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", filepath.Join(root, "ccs"))
+	t.Setenv("AGENT_SYNC_HOME", filepath.Join(root, "ccs"))
 	return InitParams{
 		DeviceName: "测试机",
 		Storage:    storage.Config{Type: "local", Path: filepath.Join(root, "cloud"), Prefix: "v1/"},
@@ -86,7 +86,7 @@ func TestInitializeSamePassphraseMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 模拟第二台设备：同一个云端（local 存储目录），不同的数据目录
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", filepath.Join(root, "ccs-deviceB"))
+	t.Setenv("AGENT_SYNC_HOME", filepath.Join(root, "ccs-deviceB"))
 	p.DeviceName = "另一台"
 	res, err := Initialize(context.Background(), p)
 	if err != nil {
@@ -103,7 +103,7 @@ func TestInitializeWrongPassphrase(t *testing.T) {
 	if _, err := Initialize(context.Background(), p); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", filepath.Join(root, "ccs-deviceB"))
+	t.Setenv("AGENT_SYNC_HOME", filepath.Join(root, "ccs-deviceB"))
 	p.Passphrase = "wrong-pass"
 	_, err := Initialize(context.Background(), p)
 	if err == nil || !strings.Contains(err.Error(), "口令") {
@@ -126,7 +126,7 @@ func TestInitializeValidation(t *testing.T) {
 // ---------- 状态 ----------
 
 func TestLoadStatus(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if LoadStatus().Initialized {
 		t.Error("未初始化时 Initialized 应为 false（向导靠它判断）")
 	}

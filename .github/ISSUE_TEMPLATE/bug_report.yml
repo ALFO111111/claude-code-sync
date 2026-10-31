@@ -7,13 +7,13 @@ body:
       value: |
         感谢反馈！**如果担心数据丢失，先别继续操作，备份 `%USERPROFILE%\.claude` 再说。**
         Thanks for reporting! **If you're worried about data loss, stop and back up `%USERPROFILE%\.claude` first.**
-        安全问题请走 [SECURITY.md](https://github.com/ALFO111111/claude-code-sync/blob/HEAD/SECURITY.md)，不要公开提交。 / Security issues: see SECURITY.md, don't file them publicly.
+        安全问题请走 [SECURITY.md](https://github.com/ALFO111111/agent-sync/blob/HEAD/SECURITY.md)，不要公开提交。 / Security issues: see SECURITY.md, don't file them publicly.
   - type: input
     id: version
     attributes:
       label: 版本 / Version
-      description: "`claude-code-sync version` 的输出 / output of `claude-code-sync version`"
-      placeholder: claude-code-sync 0.1.0
+      description: "`agent-sync version` 的输出 / output of `agent-sync version`"
+      placeholder: agent-sync 0.1.0
     validations:
       required: true
   - type: input
@@ -46,6 +46,6 @@ body:
     attributes:
       label: 日志 / Log
       description: |
-        程序“日志”页或 `%USERPROFILE%\.claude-code-sync\sync.log` 里相关的几行。**贴之前请删掉路径里的用户名、项目名等隐私信息。**
-        Relevant lines from the Logs page or `%USERPROFILE%\.claude-code-sync\sync.log`. **Remove user names, project names and other private info first.**
+        程序“日志”页或 `%USERPROFILE%\.agent-sync\sync.log` 里相关的几行。**贴之前请删掉路径里的用户名、项目名等隐私信息。**
+        Relevant lines from the Logs page or `%USERPROFILE%\.agent-sync\sync.log`. **Remove user names, project names and other private info first.**
       render: text

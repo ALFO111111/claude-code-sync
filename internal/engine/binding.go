@@ -1,14 +1,17 @@
 package engine
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/project"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 项目发现与绑定：本机项目目录 ↔ 项目身份证（pid）的对应关系。
@@ -25,7 +28,7 @@ func (e *Engine) discover() {
 	}
 	for _, ent := range entries {
 		name := ent.Name()
-		if !ent.IsDir() || byDir[strings.ToLower(name)] || e.cfg.Ignored(name) {
+		if !ent.IsDir() || byDir[strings.ToLower(name)] || e.cfg.Ignored(name) || e.movedAway(name) {
 			continue
 		}
 		cwd := project.ReadCwd(filepath.Join(e.cfg.ProjectsDir(), name))
@@ -37,8 +40,13 @@ func (e *Engine) discover() {
 			continue
 		}
 		if b, ok := e.st.Bindings[pid]; ok && !strings.EqualFold(b.Dir, name) {
+			lp := e.localPID(name)
+			if e.st.Bindings[lp] != nil {
+				// 这个编号已经属于搬到别处的项目（它搬走前就在这个目录）：不能抢回来
+				continue
+			}
 			e.log.Printf("%s 和 %s 是同一个仓库，后者作为独立项目同步", b.Root, cwd)
-			pid = e.localPID(name)
+			pid = lp
 		}
 		e.st.Bindings[pid] = &state.Binding{PID: pid, Root: cwd, Dir: name, Display: display}
 		byDir[strings.ToLower(name)] = true
@@ -153,8 +161,37 @@ func (e *Engine) bind(pid, root, display string, takeover bool) *state.Binding {
 		}
 	}
 	b := &state.Binding{PID: pid, Root: root, Dir: dir, Display: display}
+	if old := e.st.Bindings[pid]; old != nil && !strings.EqualFold(old.Dir, dir) {
+		for _, r := range append(old.OldRoots, old.Root) {
+			if !fsutil.SamePath(r, root) && !slices.ContainsFunc(b.OldRoots, func(x string) bool { return fsutil.SamePath(x, r) }) {
+				b.OldRoots = append(b.OldRoots, r)
+			}
+		}
+		// 项目搬了文件夹（比如改了文件夹名）：旧的文件状态对应的是旧目录，留着的话新目录里"没有"的文件
+		// 会被当成本地删掉、不再拉回。清掉后按第一次见面重新比对，云端会话照常拉到新目录（路径按新位置翻译）。
+		e.dropFileStates(pid)
+		if e.st.Moved == nil {
+			e.st.Moved = map[string]string{}
+		}
+		e.st.Moved[strings.ToLower(old.Dir)] = old.Root
+		delete(e.st.Moved, strings.ToLower(dir))
+		e.log.Printf("项目 %s 从 %s 搬到了 %s", pid, old.Root, root)
+	} else if old != nil {
+		b.OldRoots = old.OldRoots
+	}
 	e.st.Bindings[pid] = b
 	return b
+}
+
+// movedAway 这个会话目录属于一个已经搬走的项目，而且原来的路径现在不存在。
+// 原路径又出现了（用户在老位置重新建了项目）就照常发现它。
+func (e *Engine) movedAway(dirName string) bool {
+	root, ok := e.st.Moved[strings.ToLower(dirName)]
+	if !ok {
+		return false
+	}
+	_, err := os.Stat(root)
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // ignore 忽略一个项目。已绑定的同时解绑：本机不再同步它，但本机会话文件、云端文件都原样保留。

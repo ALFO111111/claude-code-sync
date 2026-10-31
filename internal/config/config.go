@@ -1,4 +1,4 @@
-// Package config 本工具自己的数据目录（~/.claude-code-sync）、config.json 和密钥文件。
+// Package config 本工具自己的数据目录（~/.agent-sync）、config.json 和密钥文件。
 package config
 
 import (
@@ -10,12 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
-const AppName = "claude-code-sync"
+const AppName = "agent-sync"
+
+// LegacyAppName 改名前的名字（0.3.x 及以前叫 claude-code-sync）：老用户的数据目录、定时任务等还用着它。
+const LegacyAppName = "claude-code-sync"
 
 type Config struct {
 	DeviceID      string         `json:"deviceId"`
@@ -38,18 +41,36 @@ type Config struct {
 	CCSwitchEnabled bool            `json:"ccSwitchEnabled,omitempty"` // 上次明确的 Auto Sync 状态，用于发现关闭后重新开启
 }
 
-// Dir 是本工具自己的数据目录，可用环境变量 CLAUDE_CODE_SYNC_HOME 覆盖（测试/沙箱用）。
+// homeEnv 测试/沙箱用的数据目录环境变量；改名前的 CLAUDE_CODE_SYNC_HOME 也认。
+func homeEnv() string {
+	if v := os.Getenv("AGENT_SYNC_HOME"); v != "" {
+		return v
+	}
+	return os.Getenv("CLAUDE_CODE_SYNC_HOME")
+}
+
+// Dir 是本工具自己的数据目录 ~/.agent-sync，可用环境变量 AGENT_SYNC_HOME 覆盖（测试/沙箱用）。
+// 改名前就装过的电脑继续用原来的 ~/.claude-code-sync，不搬家：搬目录时别的进程（hooks、定时任务）
+// 可能正在读写里面的文件，搬到一半出问题比留着旧名字麻烦得多。
 func Dir() string {
-	if v := os.Getenv("CLAUDE_CODE_SYNC_HOME"); v != "" {
+	if v := homeEnv(); v != "" {
 		return v
 	}
 	h, _ := os.UserHomeDir()
-	return filepath.Join(h, "."+AppName)
+	dir := filepath.Join(h, "."+AppName)
+	if _, err := os.Stat(filepath.Join(dir, "config.json")); err == nil {
+		return dir
+	}
+	legacy := filepath.Join(h, "."+LegacyAppName)
+	if fi, err := os.Stat(legacy); err == nil && fi.IsDir() {
+		return legacy
+	}
+	return dir
 }
 
-// Sandboxed 是否在测试/沙箱模式（设置了 CLAUDE_CODE_SYNC_HOME）。
+// Sandboxed 是否在测试/沙箱模式（设置了 AGENT_SYNC_HOME）。
 // 沙箱里不安装 hooks 和定时任务：它们是全机生效的，装了会让真实环境去调用测试用的 exe。
-func Sandboxed() bool { return os.Getenv("CLAUDE_CODE_SYNC_HOME") != "" }
+func Sandboxed() bool { return homeEnv() != "" }
 
 func Path() string    { return filepath.Join(Dir(), "config.json") }
 func KeyPath() string { return filepath.Join(Dir(), "key") }

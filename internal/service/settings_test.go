@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/config"
 )
 
 // 设置：Secret 不回传给界面；留空保存 = 沿用原值；存储变了先测连接，连不上不落盘。

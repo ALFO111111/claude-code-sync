@@ -13,7 +13,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ALFO111111/claude-code-sync/internal/icon"
+	"github.com/ALFO111111/agent-sync/internal/icon"
 )
 
 func main() {

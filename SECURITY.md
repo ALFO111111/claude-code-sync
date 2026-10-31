@@ -22,8 +22,8 @@ Only the latest release receives security fixes.
   Sessions are encrypted locally before upload: passphrase → Argon2id → 256-bit key; content is gzip-compressed and encrypted with AES-256-GCM using a random nonce per file, with the object path as AAD to prevent swapping
 - 云端（对象存储）只能看到密文和对象路径（路径里的项目部分是哈希）
   The object storage only sees ciphertext and object keys (project parts of the keys are hashed)
-- 本机 `%USERPROFILE%\.claude-code-sync\` 下保存派生出的密钥和存储的 AccessKey（明文），依赖 Windows 账户的文件权限保护。请使用只能访问同步用 bucket 的子账号密钥
-  The derived key and the storage access key (plain text) are stored under `%USERPROFILE%\.claude-code-sync\`, protected by Windows account file permissions. Please use a key scoped to the sync bucket only
+- 本机 `%USERPROFILE%\.agent-sync\` 下保存派生出的密钥和存储的 AccessKey（明文），依赖 Windows 账户的文件权限保护。请使用只能访问同步用 bucket 的子账号密钥
+  The derived key and the storage access key (plain text) are stored under `%USERPROFILE%\.agent-sync\`, protected by Windows account file permissions. Please use a key scoped to the sync bucket only
 - 程序只和用户自己配置的对象存储通信，没有遥测；例外是检查更新（向 GitHub 查最新版本号，可在设置里关掉），下载的安装包按 Release 里的 SHA256SUMS.txt 校验后才替换
   The app only talks to the object storage configured by the user; there is no telemetry. The exception is the update check (it asks GitHub for the latest version and can be turned off in Settings); a downloaded installer replaces the app only after it matches SHA256SUMS.txt from the release
 

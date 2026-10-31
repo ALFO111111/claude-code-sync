@@ -31,15 +31,15 @@
 go test ./...                    # 全部测试（单元 + 双设备集成，全在临时目录，不需要任何密钥）
 cd frontend; npm ci; npm run check-i18n; npm test; cd ..   # 前端文字检查 + 单元测试
 cd frontend; npm run demo                          # 浏览器里用假数据跑界面（不需要 Go 后端，改界面、截图用）
-wails build                      # Windows：打包单个 exe → build\bin\claude-code-sync.exe
+wails build                      # Windows：打包单个 exe → build\bin\agent-sync.exe
 .\打包.bat                        # 同上，双击运行：先关掉正在运行的程序；PATH 里没有 Go 时会到常见安装位置找，打包后还原 frontend/package.json.md5
 ```
 
 Mac 上打 Apple 芯片版 App 和 DMG 安装包：
 
 ```bash
-wails build -platform darwin/arm64   # → build/bin/claude-code-sync.app
-scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-macos-arm64.dmg
+wails build -platform darwin/arm64   # → build/bin/agent-sync.app
+scripts/package-dmg.sh build/bin/agent-sync.app dist/agent-sync-dev-macos-arm64.dmg
 ```
 
 **gofmt 要用 `go.mod` 指定版本的**：不同 Go 版本的 gofmt 对中文字符的对齐算法不一样，用错版本会和 CI 对不上。用 `go fmt ./...`，或者：
@@ -51,7 +51,7 @@ scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-
 **用沙箱调试**：环境变量把程序的数据和工具目录都指到别处，真实的 `~/.claude`、`~/.codex` 和 `~/.agents/skills` 不会被碰，也不会安装 hooks 和定时任务：
 
 ```powershell
-$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"          # 本工具的数据（配置、状态、日志）
+$env:AGENT_SYNC_HOME = "D:\ccs-sandbox\app"          # 本工具的数据（配置、状态、日志）
 $env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"       # Claude 会话目录（可以先复制一份真实的进来）
 $env:CODEX_HOME            = "D:\ccs-sandbox\home\.codex"  # Codex 全局规则
 $env:USERPROFILE           = "D:\ccs-sandbox\home"         # 让 ~/.agents/skills 也落到沙箱
@@ -63,7 +63,7 @@ wails dev                                                  # 或运行打包好�
 Mac 上用户目录由 `HOME` 决定（代替 `USERPROFILE`）：
 
 ```bash
-export CLAUDE_CODE_SYNC_HOME=/tmp/ccs-sandbox/app
+export AGENT_SYNC_HOME=/tmp/ccs-sandbox/app
 export CLAUDE_CONFIG_DIR=/tmp/ccs-sandbox/claude
 export CODEX_HOME=/tmp/ccs-sandbox/home/.codex
 export HOME=/tmp/ccs-sandbox/home
@@ -156,15 +156,15 @@ This tool reads and writes the user's `~/.claude` plus Codex sessions, global ru
 go test ./...                    # all tests (unit + two-device integration, all in temp dirs, no keys needed)
 cd frontend; npm ci; npm run check-i18n; npm test; cd ..   # UI text check + unit tests
 cd frontend; npm run demo                          # run the UI in a browser with fake data (no Go backend; for UI work and screenshots)
-wails build                      # Windows: build the single exe → build\bin\claude-code-sync.exe
+wails build                      # Windows: build the single exe → build\bin\agent-sync.exe
 .\打包.bat                        # same, by double-click: closes the running app first; finds Go in common install locations if it's not on PATH, and restores frontend/package.json.md5 afterwards
 ```
 
 On the Mac, build the Apple silicon app and the DMG installer:
 
 ```bash
-wails build -platform darwin/arm64   # → build/bin/claude-code-sync.app
-scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-macos-arm64.dmg
+wails build -platform darwin/arm64   # → build/bin/agent-sync.app
+scripts/package-dmg.sh build/bin/agent-sync.app dist/agent-sync-dev-macos-arm64.dmg
 ```
 
 **Use the gofmt from the Go version in `go.mod`**: gofmt aligns CJK characters differently across Go versions, so the wrong one disagrees with CI. Use `go fmt ./...`, or:
@@ -176,7 +176,7 @@ scripts/package-dmg.sh build/bin/claude-code-sync.app dist/claude-code-sync-dev-
 **Sandbox**: environment variables redirect the app's data and tool folders, so your real `~/.claude`, `~/.codex` and `~/.agents/skills` are never touched and no hooks or scheduled tasks are installed:
 
 ```powershell
-$env:CLAUDE_CODE_SYNC_HOME = "D:\ccs-sandbox\app"          # this tool's data (config, state, log)
+$env:AGENT_SYNC_HOME = "D:\ccs-sandbox\app"          # this tool's data (config, state, log)
 $env:CLAUDE_CONFIG_DIR     = "D:\ccs-sandbox\claude"       # Claude session folder (copy your real one in if you like)
 $env:CODEX_HOME            = "D:\ccs-sandbox\home\.codex"  # Codex global rules
 $env:USERPROFILE           = "D:\ccs-sandbox\home"         # also puts ~/.agents/skills in the sandbox
@@ -188,7 +188,7 @@ For Claude-only work, set both of the first two. With only the first one, the se
 On the Mac the user folder comes from `HOME` (instead of `USERPROFILE`):
 
 ```bash
-export CLAUDE_CODE_SYNC_HOME=/tmp/ccs-sandbox/app
+export AGENT_SYNC_HOME=/tmp/ccs-sandbox/app
 export CLAUDE_CONFIG_DIR=/tmp/ccs-sandbox/claude
 export CODEX_HOME=/tmp/ccs-sandbox/home/.codex
 export HOME=/tmp/ccs-sandbox/home

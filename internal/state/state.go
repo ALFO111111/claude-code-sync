@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
 )
 
 // Binding：一个项目身份证 ↔ 本机的工作目录和 ~/.claude/projects 下的文件夹。
@@ -21,6 +21,8 @@ type Binding struct {
 	Root    string `json:"root"`
 	Dir     string `json:"dir"`
 	Display string `json:"display,omitempty"`
+	// OldRoots 这台电脑上这个项目以前的路径（项目文件夹搬过、改过名）：以前传上去的会话里写的是旧路径，翻译时也要认。
+	OldRoots []string `json:"oldRoots,omitempty"`
 }
 
 // FileState 记录上次同步时本地文件和云端文件的样子，用来判断哪边变了。
@@ -34,8 +36,9 @@ type FileState struct {
 }
 
 type ProjectInfo struct {
-	Root    string `json:"root"`
-	Display string `json:"display,omitempty"`
+	Root     string   `json:"root"`
+	Display  string   `json:"display,omitempty"`
+	OldRoots []string `json:"oldRoots,omitempty"` // 以前的路径，见 Binding.OldRoots
 }
 
 // DeviceInfo 每台设备上传一份，告诉别的设备"我这里有哪些项目、在哪个路径"。
@@ -69,6 +72,9 @@ type State struct {
 	// CodexForks 两台设备各自续写了同一个 Codex 会话时，对方那份另存成的本机会话：
 	// "<对方设备ID>/<会话相对路径>" → 本机分叉文件的相对路径。对方之后再续写，就追加到这份分叉里。
 	CodexForks map[string]string `json:"codexForks,omitempty"`
+	// Moved 项目搬到新文件夹后留下的旧会话目录（~/.claude/projects 下的目录名，小写）→ 原来的项目路径。
+	// 原路径不存在期间不再自动发现它：否则旧目录会被当成新项目，把同一批会话再传一遍。
+	Moved map[string]string `json:"moved,omitempty"`
 }
 
 // 本轮明细里的变化种类。

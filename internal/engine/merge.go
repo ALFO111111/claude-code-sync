@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
 )
 
 // 会话文件（.jsonl）每行一条记录，带 uuid / parentUuid，本质是一棵只追加的树。
@@ -126,6 +126,7 @@ func lastLineComplete(data []byte) bool {
 // forkUUID 由旧会话 ID + 远端内容确定性地算出新会话 ID。
 // 这样"fork 推上去、主文件推失败"的重试会得到同一个 ID（幂等），
 // 不会每失败一次就多一份内容相同的重复会话。
+// 前缀里是改名前的旧名字：新旧版本、各台设备必须算出同一个 ID，不能跟着改名。
 func forkUUID(sessionID string, remote []byte) string {
 	sum := sha256.Sum256(append([]byte("github.com/ALFO111111/claude-code-sync/fork\x00"+sessionID+"\x00"), remote...))
 	return uuidFromBytes(sum[:16])

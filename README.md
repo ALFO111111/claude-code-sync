@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="build/appicon.png" width="96" alt="claude-code-sync" />
+<img src="build/appicon.png" width="96" alt="agent-sync" />
 
-# claude-code-sync
+# agent-sync
 
 **在多台电脑（Windows / macOS）之间同步 Claude Code 和 Codex 的会话记录、个人规则和技能。端到端加密，路径自动翻译，换台电脑 `claude --resume` 接着聊。**
 
-[![Release](https://img.shields.io/github/v/release/ALFO111111/claude-code-sync?include_prereleases)](https://github.com/ALFO111111/claude-code-sync/releases)
-[![CI](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ALFO111111/agent-sync?include_prereleases)](https://github.com/ALFO111111/agent-sync/releases)
+[![CI](https://github.com/ALFO111111/agent-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/agent-sync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20macOS%2013%2B-0078D6)
 
@@ -16,7 +16,9 @@
 </div>
 
 > [!NOTE]
-> 这是社区开发的**非官方**工具，与 Anthropic 没有任何关系。“Claude” 是 Anthropic 的商标。
+> 这是社区开发的**非官方**工具，与 Anthropic、OpenAI 没有任何关系。“Claude” 是 Anthropic 的商标，“Codex” 是 OpenAI 的商标。
+>
+> 0.4.0 起由 **claude-code-sync** 改名为 **agent-sync**（不只同步 Claude Code 了）。旧版本在“设置 → 关于”里点更新就能直接升级，数据、口令、云端内容都不用动，见[从旧版本升级](#rename)。
 
 <p align="center"><img src="docs/images/home.png" width="760" alt="首页：同步状态、本轮明细、设备、云端空间" /></p>
 
@@ -35,7 +37,7 @@ Claude Code 的会话记录存在本机的 `~/.claude/projects/` 里。家里一
 
 直接拷文件也不行：两台电脑上同一个项目的路径往往不一样（`D:\work\app` 和 `E:\code\app`），而会话里到处都写着绝对路径，拷过去之后 `--resume` 对不上号。
 
-claude-code-sync 专门解决这个问题：
+agent-sync 专门解决这个问题：
 
 - **会话同步**：`~/.claude/projects` 下的会话、子代理记录、项目记忆（MEMORY.md），外加输入历史（按 ↑ 翻到的那些）
 - **Claude Code 个人配置同步**：全局规则 `CLAUDE.md`、计划 `plans/`、技能 `skills/`、子代理 `agents/`、自定义命令 `commands/`、任务 `tasks/`、用户级 MCP 服务器，以及 settings.json 里的几个安全字段（语言、自动记忆、署名）。模型、API Key、hooks、权限、MCP 里的密钥和环境变量**都不上传**。设置页可以逐类开关
@@ -63,7 +65,7 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 
 ### Windows
 
-到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync.exe`，放到一个**固定的位置**，比如 `%LOCALAPPDATA%\Programs\claude-code-sync\`。自动同步会记住 exe 的路径；以后挪了位置也没关系，打开一次程序就会自动改过来。
+到 [Releases](https://github.com/ALFO111111/agent-sync/releases) 下载 `agent-sync.exe`，放到一个**固定的位置**，比如 `%LOCALAPPDATA%\Programs\agent-sync\`。自动同步会记住 exe 的路径；以后挪了位置也没关系，打开一次程序就会自动改过来。
 
 > [!IMPORTANT]
 > exe 没有做代码签名（个人开源项目，签名证书的费用承担不起）。第一次双击时 Windows 可能弹出“Windows 已保护你的电脑”，点 **更多信息 → 仍要运行** 即可。这只是 Windows 对未购买签名证书的软件的通用提示，不代表软件有问题。
@@ -71,7 +73,7 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 
 ### macOS
 
-到 [Releases](https://github.com/ALFO111111/claude-code-sync/releases) 下载 `claude-code-sync-<版本>-macos-arm64.dmg`，双击打开，把 `claude-code-sync.app` 拖到旁边的“应用程序”（Applications）图标上，然后在“访达”侧边栏推出这个 DMG。
+到 [Releases](https://github.com/ALFO111111/agent-sync/releases) 下载 `agent-sync-<版本>-macos-arm64.dmg`，双击打开，把 `agent-sync.app` 拖到旁边的“应用程序”（Applications）图标上，然后在“访达”侧边栏推出这个 DMG。
 
 > [!IMPORTANT]
 > App 没有经过 Apple 公证（只有 ad-hoc 自签名，原因同上），第一次打开会被 Gatekeeper 拦下。任选一种方式放行（只需要第一次）：
@@ -79,19 +81,19 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 > - macOS 13 / 14：在“访达”里**右键** App → **打开**，再在弹窗里点“打开”
 > - 或者在终端运行：
 >   ```bash
->   xattr -dr com.apple.quarantine /Applications/claude-code-sync.app
+>   xattr -dr com.apple.quarantine /Applications/agent-sync.app
 >   ```
 >
 > 同样可以用 `SHA256SUMS.txt` 核对 dmg。
 
 **和 Windows 版的区别**：
 
-- Mac 版**没有菜单栏图标**（托盘库和 Wails 在 macOS 上冲突），关闭窗口就是退出程序。后台同步不受影响：登录时会自动启动一个没有窗口的后台进程（`claude-code-sync daemon`）负责实时同步，见下文的[同步触发](#triggers)。
+- Mac 版**没有菜单栏图标**（托盘库和 Wails 在 macOS 上冲突），关闭窗口就是退出程序。后台同步不受影响：登录时会自动启动一个没有窗口的后台进程（`agent-sync daemon`）负责实时同步，见下文的[同步触发](#triggers)。
 - 命令行要用 App 里面的可执行文件，例如：
   ```bash
-  /Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync sync
+  /Applications/agent-sync.app/Contents/MacOS/agent-sync sync
   ```
-  嫌长的话可以加个别名：`alias claude-code-sync=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`
+  嫌长的话可以加个别名：`alias agent-sync=/Applications/agent-sync.app/Contents/MacOS/agent-sync`
 
 ### 更新
 
@@ -100,6 +102,16 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 - Windows 替换的是 exe 本身，放在需要管理员权限的目录（如 `C:\Program Files`）里没法自动更新，所以推荐放在 `%LOCALAPPDATA%\Programs\`。
 - Mac 替换的是“应用程序”里的整个 App，后台进程也会一起换成新版本。
 - 国内连 GitHub 不稳定：程序会用系统代理（Clash 等开了“系统代理”就行）。实在连不上就到 Releases 手动下载。
+
+<a id="rename"></a>
+### 从旧版本（claude-code-sync）升级
+
+0.3.x 及以前叫 claude-code-sync。在旧版本里点“更新”（或运行 `claude-code-sync update`）就能升到 agent-sync，不用重新初始化：
+
+- 程序还在原来的位置、用原来的文件名（比如 `claude-code-sync.exe`、`/Applications/claude-code-sync.app`），只是里面换成了新版本。想换成新名字的话，退出程序后按上面的方式下载新版本放好，再打开一次就行，自动同步会自动改到新位置。
+- 数据目录**继续用原来的 `~/.claude-code-sync`**，不搬家；新装的电脑才用 `~/.agent-sync`。
+- 云端数据格式、口令都没变，新旧版本可以混着用，各台电脑不用同时升级。
+- 自动同步（定时任务、开机自启、Mac 的后台进程）会换成新名字，旧名字的那些自动删掉；Claude Code hooks 会改成指向新程序。
 
 ## 5 分钟上手
 
@@ -113,7 +125,7 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 > ```
 
 1. **准备一个对象存储 bucket 和一对访问密钥**：按下面的[云端存储开通教程](#cloud-storage-setup)来，大约 3 分钟。
-2. **第一台电脑**：打开程序（Windows 双击 `claude-code-sync.exe`，Mac 打开 `claude-code-sync.app`），向导一共 4 步：设备名 → 选服务商 → 填 bucket 和密钥（可以点“测试连接”）→ 设同步口令。点“完成”后会自动开启同步，并立即同步一次。
+2. **第一台电脑**：打开程序（Windows 双击 `agent-sync.exe`，Mac 打开 `agent-sync.app`），向导一共 4 步：设备名 → 选服务商 → 填 bucket 和密钥（可以点“测试连接”）→ 设同步口令。点“完成”后会自动开启同步，并立即同步一次。
 3. **第二台电脑**：同样下载、双击，填**同一个 bucket**、输入**同一个口令**。完成后会把第一台电脑的会话拉下来。
 4. **对上项目**：
    - git 项目（有远程仓库地址）会自动对上，不用管
@@ -228,7 +240,7 @@ D:\work\app                       v1/history.jsonl                           翻
   | 其他文件只有另一台改了 | 下载，替换前本机的旧版本进备份 |
   | Claude Code 自己清理掉的旧会话 | 不会被重新拉回来 |
 
-  备份在 `~/.claude-code-sync/backup/`，保留 14 天。程序的“备份”页可以查看、和本机现在的版本逐行对比、一键恢复（恢复前的版本也会先备份，可以再换回来）。
+  备份在 `~/.agent-sync/backup/`，保留 14 天。程序的“备份”页可以查看、和本机现在的版本逐行对比、一键恢复（恢复前的版本也会先备份，可以再换回来）。
 
 - **个人配置（规则、技能、MCP 等）的合并**：记住“上次两边一致时的样子”，做三方合并。两台电脑改了不同的行 / 不同的字段 → 自动合并；改到同一处 → 进“冲突”页，本机文件保持原样能用，等你选“保留本机 / 用另一台的 / 两份都留 / 手工合并”。**删除不会传播**：一台电脑上删掉的文件，不会去删另一台的，也不会在本机被拉回来。
 - **和 CC Switch 一起用**：CC Switch 负责供应商地址、Key、模型；如果它的自动同步开着，Claude 的全局规则、技能、MCP 可能被两边重复同步，这三类会先暂停，在设置页选一个负责（CC Switch 没开自动同步就不会打扰你）。这个负责人选择只影响 Claude，不会暂停或接管 Codex。
@@ -237,8 +249,8 @@ D:\work\app                       v1/history.jsonl                           翻
 
 - **四层触发**：
   1. Claude Code hooks（`SessionStart` / `Stop`）是主力，Windows 和 Mac 一样
-  2. 盯文件变化，一改就同步：Windows 上是开机自启、在托盘常驻的程序；Mac 上是登录时由 launchd 启动的无窗口后台进程 `claude-code-sync daemon`（LaunchAgent `com.alfo111111.claude-code-sync.daemon`）。设置页的“开机自启”开关控制它们
-  3. 每小时全量兜底一次：Windows 用定时任务；Mac 用 LaunchAgent `com.alfo111111.claude-code-sync.sync`（登录时也跑一次）。Mac 上的两个 LaunchAgent 都在 `~/Library/LaunchAgents`，只属于当前用户，不需要管理员权限
+  2. 盯文件变化，一改就同步：Windows 上是开机自启、在托盘常驻的程序；Mac 上是登录时由 launchd 启动的无窗口后台进程 `agent-sync daemon`（LaunchAgent `com.alfo111111.agent-sync.daemon`）。设置页的“开机自启”开关控制它们
+  3. 每小时全量兜底一次：Windows 用定时任务；Mac 用 LaunchAgent `com.alfo111111.agent-sync.sync`（登录时也跑一次）。Mac 上的两个 LaunchAgent 都在 `~/Library/LaunchAgents`，只属于当前用户，不需要管理员权限
   4. 随时手动点“立即同步”
 
 <a id="codex-scope"></a>
@@ -273,28 +285,28 @@ D:\work\app                       v1/history.jsonl                           翻
 
 ## 命令行
 
-同一个程序，带参数就是命令行模式（Mac 上用 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`，或者按上文加个别名）：
+同一个程序，带参数就是命令行模式（Mac 上用 `/Applications/agent-sync.app/Contents/MacOS/agent-sync`，或者按上文加个别名）：
 
 ```powershell
-claude-code-sync init                       # 命令行版初始化（和图形向导一样）
-claude-code-sync sync                       # 双向同步一次
-claude-code-sync sync --dry                 # 只看会做什么，不改任何东西
-claude-code-sync status                     # 查看绑定情况和待认领项目
-claude-code-sync claim <项目ID> <本机路径>   # 认领其他电脑上的项目
-claude-code-sync ignore <项目ID>             # 忽略 / 停止同步一个项目（不删文件）
-claude-code-sync unignore <项目ID>           # 取消忽略
-claude-code-sync content                    # 查看哪些个人配置在同步
-claude-code-sync content disable skills     # 关掉一类 Claude 配置（不删文件）；enable 打开，旧写法保留
-claude-code-sync content disable codex sessions # 只关 Codex 会话；enable 打开，类别为 rules / skills / legacy-skills / sessions
-claude-code-sync content owner mcp sync     # CC Switch 也开着自动同步时，选谁负责 Claude 配置（sync / ccswitch）
-claude-code-sync conflicts                  # 列出待处理的冲突
-claude-code-sync resolve <冲突ID> local     # 解决冲突：local / remote / both，或 merged <文件>
-claude-code-sync restore-content plans a.md # 本机删掉的 Claude 配置文件，从云端拉回来（旧写法保留）
-claude-code-sync restore-content codex rules AGENTS.md # 拉回 Codex 全局规则；类别为 rules / skills / legacy-skills
-claude-code-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
-claude-code-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启；Mac 上是两个 LaunchAgent）
-claude-code-sync version
-claude-code-sync update                     # 检查更新，有新版本就下载安装（--dry 只检查）
+agent-sync init                       # 命令行版初始化（和图形向导一样）
+agent-sync sync                       # 双向同步一次
+agent-sync sync --dry                 # 只看会做什么，不改任何东西
+agent-sync status                     # 查看绑定情况和待认领项目
+agent-sync claim <项目ID> <本机路径>   # 认领其他电脑上的项目
+agent-sync ignore <项目ID>             # 忽略 / 停止同步一个项目（不删文件）
+agent-sync unignore <项目ID>           # 取消忽略
+agent-sync content                    # 查看哪些个人配置在同步
+agent-sync content disable skills     # 关掉一类 Claude 配置（不删文件）；enable 打开，旧写法保留
+agent-sync content disable codex sessions # 只关 Codex 会话；enable 打开，类别为 rules / skills / legacy-skills / sessions
+agent-sync content owner mcp sync     # CC Switch 也开着自动同步时，选谁负责 Claude 配置（sync / ccswitch）
+agent-sync conflicts                  # 列出待处理的冲突
+agent-sync resolve <冲突ID> local     # 解决冲突：local / remote / both，或 merged <文件>
+agent-sync restore-content plans a.md # 本机删掉的 Claude 配置文件，从云端拉回来（旧写法保留）
+agent-sync restore-content codex rules AGENTS.md # 拉回 Codex 全局规则；类别为 rules / skills / legacy-skills
+agent-sync passwd                     # 修改同步口令；别的电脑改过口令后，在本机输入新口令
+agent-sync uninstall                  # 删除自动同步（hooks + 定时任务 + 开机自启；Mac 上是两个 LaunchAgent）
+agent-sync version
+agent-sync update                     # 检查更新，有新版本就下载安装（--dry 只检查）
 ```
 
 ## 常见问题
@@ -308,7 +320,7 @@ claude-code-sync update                     # 检查更新，有新版本就下�
 <details>
 <summary><b>怎么修改同步口令？</b></summary>
 
-在“设置 → 同步口令”里点“修改口令”（或运行 `claude-code-sync passwd`）。程序会把云端的全部文件用新口令重新加密，文件多的话要几分钟；万一中途断了，用同样的口令再来一次就行。
+在“设置 → 同步口令”里点“修改口令”（或运行 `agent-sync passwd`）。程序会把云端的全部文件用新口令重新加密，文件多的话要几分钟；万一中途断了，用同样的口令再来一次就行。
 
 改完之后，其他电脑会暂停同步（不会用旧口令接着上传），打开程序首页会提示输入新口令，输入后继续。
 </details>
@@ -328,7 +340,7 @@ claude-code-sync update                     # 检查更新，有新版本就下�
 <details>
 <summary><b>我的数据存在哪里？AccessKey 安全吗？</b></summary>
 
-- 配置：`~/.claude-code-sync/config.json`（Windows 上是 `%USERPROFILE%\.claude-code-sync\config.json`）。AccessKey 以明文保存在这个文件里（在你的用户目录下，默认只有你的系统账户和管理员能读），所以请使用**只能访问这一个 bucket** 的子账号密钥。
+- 配置：`~/.agent-sync/config.json`（Windows 上是 `%USERPROFILE%\.agent-sync\config.json`；从 claude-code-sync 升级上来的电脑是 `.claude-code-sync` 目录）。AccessKey 以明文保存在这个文件里（在你的用户目录下，默认只有你的系统账户和管理员能读），所以请使用**只能访问这一个 bucket** 的子账号密钥。
 - 加密密钥：同目录的 `key` 文件（由口令推导而来）
 - 日志：同目录的 `sync.log`，也可以在程序的“日志”页查看
 - 云端只保存加密后的数据，服务商看不到会话内容。
@@ -345,16 +357,16 @@ claude-code-sync update                     # 检查更新，有新版本就下�
 
 **Windows**：
 
-1. 运行 `claude-code-sync uninstall`，删除 Claude Code hooks、Windows 定时任务和开机自启（会话、配置、云端数据都不动）
+1. 运行 `agent-sync uninstall`，删除 Claude Code hooks、Windows 定时任务和开机自启（会话、配置、云端数据都不动）
 2. 在托盘图标上右键 → 退出
-3. 删除 exe 和 `%USERPROFILE%\.claude-code-sync` 目录
+3. 删除 exe 和 `%USERPROFILE%\.agent-sync` 目录（从旧版本升级上来的电脑是 `.claude-code-sync`）
 4. 云端数据：在服务商控制台删除 bucket 里的 `v1/` 目录
 
 **macOS**：
 
-1. 运行 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync uninstall`，删除 Claude Code hooks 和 `~/Library/LaunchAgents` 里的两个 LaunchAgent（`com.alfo111111.claude-code-sync.sync`、`com.alfo111111.claude-code-sync.daemon`），后台进程随之停止（会话、配置、云端数据都不动）
-2. 关闭 App 窗口，把 `claude-code-sync.app` 拖到废纸篓
-3. 删除 `~/.claude-code-sync` 目录
+1. 运行 `/Applications/agent-sync.app/Contents/MacOS/agent-sync uninstall`，删除 Claude Code hooks 和 `~/Library/LaunchAgents` 里的两个 LaunchAgent（`com.alfo111111.agent-sync.sync`、`com.alfo111111.agent-sync.daemon`），后台进程随之停止（会话、配置、云端数据都不动）
+2. 关闭 App 窗口，把 `agent-sync.app` 拖到废纸篓
+3. 删除 `~/.agent-sync` 目录（从旧版本升级上来的电脑是 `~/.claude-code-sync`）
 4. 云端数据：同上
 </details>
 

@@ -98,7 +98,7 @@ if ($added.Count -gt 0) {
 }
 
 if ($bad) {
-    Write-Host "结论：有问题！不要继续，保留备份，把上面的输出和 ~/.claude-code-sync/sync.log 发给开发者。" -ForegroundColor Red
+    Write-Host "结论：有问题！不要继续，保留备份，把上面的输出和 ~/.agent-sync/sync.log 发给开发者。" -ForegroundColor Red
     exit 1
 }
 Write-Host "结论：没有任何文件或对话记录丢失 ✓" -ForegroundColor Green

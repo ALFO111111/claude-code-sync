@@ -12,11 +12,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // 输入历史 ~/.claude/history.jsonl 的同步（Claude Code 命令行里按 ↑ 翻到的就是它）。

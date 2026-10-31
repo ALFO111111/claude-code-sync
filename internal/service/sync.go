@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // SyncRequest 一次同步的参数。Claim/Ignore 非空时顺带认领/忽略一个其他设备的项目。
@@ -49,7 +49,7 @@ func HookSync(ctx context.Context, cwd string) string {
 	if err := e.Sync(ctx, engine.Options{OnlyCwd: cwd, WaitLock: 5 * time.Second}); err != nil {
 		if errors.Is(err, engine.ErrKeyChanged) {
 			// 这句会出现在 AI 的上下文里，它会转告用户
-			return i18n.T("[claude-code-sync] 会话同步已暂停：同步口令在其他设备上改过了，请打开 claude-code-sync 输入新口令。")
+			return i18n.T("[agent-sync] 会话同步已暂停：同步口令在其他设备上改过了，请打开 agent-sync 输入新口令。")
 		}
 		return ""
 	}
@@ -64,6 +64,6 @@ func HookSync(ctx context.Context, cwd string) string {
 	if len(foreign) == 0 {
 		return ""
 	}
-	return i18n.T("[claude-code-sync] 此项目的会话已从其他设备同步。记录中的路径 %s 即本机的 %s，请按本机路径理解。",
+	return i18n.T("[agent-sync] 此项目的会话已从其他设备同步。记录中的路径 %s 即本机的 %s，请按本机路径理解。",
 		strings.Join(foreign, i18n.T("、")), b.Root)
 }

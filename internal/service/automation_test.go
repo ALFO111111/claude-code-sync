@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-const testHookCmd = `"C:\tools\claude-code-sync.exe" hook-event`
+const testHookCmd = `"C:\tools\agent-sync.exe" hook-event`
 
 func writeSettings(t *testing.T, dir, content string) {
 	t.Helper()
@@ -58,7 +58,7 @@ func TestEnsureHooksMergesAndIdempotent(t *testing.T) {
 // exe 换了位置：旧路径的 hook 被改成新路径，不会留两份。
 func TestEnsureHooksUpdatesMovedExe(t *testing.T) {
 	dir := t.TempDir()
-	if err := ensureHooks(dir, `"D:\old\claude-code-sync.exe" hook-event`); err != nil {
+	if err := ensureHooks(dir, `"D:\old\agent-sync.exe" hook-event`); err != nil {
 		t.Fatal(err)
 	}
 	if ok, _ := hooksConfigured(dir, testHookCmd); ok {
@@ -116,7 +116,7 @@ func TestRemoveHooksKeepsOthers(t *testing.T) {
 
 // 沙箱模式（测试都在沙箱里）绝不能往真实环境装 hooks / 定时任务。
 func TestEnsureAutoSyncSkippedInSandbox(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if err := EnsureAutoSync(); err != nil {
 		t.Errorf("沙箱模式应直接跳过，得到 %v", err)
 	}

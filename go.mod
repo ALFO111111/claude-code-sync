@@ -1,4 +1,4 @@
-module github.com/ALFO111111/claude-code-sync
+module github.com/ALFO111111/agent-sync
 
 go 1.27.2
 

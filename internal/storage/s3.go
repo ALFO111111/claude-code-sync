@@ -21,7 +21,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // ResolvedEndpoint 实际连接的地址：填了 Endpoint 用它，否则按服务商+地域生成（R2、MinIO、其他必须手填）。

@@ -13,14 +13,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ALFO111111/claude-code-sync/internal/ccswitch"
-	"github.com/ALFO111111/claude-code-sync/internal/claudeconfig"
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/ccswitch"
+	"github.com/ALFO111111/agent-sync/internal/claudeconfig"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 const profileFilePrefix = "tools/claude/files/"

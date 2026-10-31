@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 // newTestApp 在临时目录里搭一台"设备"（见 testutil.NewDevice）并打开它的引擎。

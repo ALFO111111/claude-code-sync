@@ -1,5 +1,5 @@
 {
-  "name": "claude-code-sync-frontend",
+  "name": "agent-sync-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",

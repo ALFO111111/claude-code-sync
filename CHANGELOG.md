@@ -7,6 +7,20 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
+### 变更 / Changed
+
+- 改名：claude-code-sync → **agent-sync**（现在不只同步 Claude Code，还有 Codex）。仓库地址、程序文件名（`agent-sync.exe`、`agent-sync.app`）、定时任务、开机自启、Mac 的 LaunchAgent 都换成新名字
+  Renamed: claude-code-sync → **agent-sync** (it syncs Codex too now, not just Claude Code). The repository, file names (`agent-sync.exe`, `agent-sync.app`), scheduled task, autostart entry and Mac LaunchAgents use the new name
+- 从旧版本直接点“更新”就能升级：数据目录继续用原来的 `~/.claude-code-sync`（新装的电脑用 `~/.agent-sync`）；云端数据格式和口令不变，新旧版本可以混用；旧名字的定时任务、开机自启、后台进程在新的装好后自动删除；Release 里同时保留旧文件名的安装包给旧版本的自动更新用
+  Old versions upgrade in place with "Update": the data folder stays at `~/.claude-code-sync` (fresh installs use `~/.agent-sync`); the cloud format and passphrase are unchanged, so old and new versions work together; the old-named scheduled task, autostart entry and background process are removed once the new ones are in place; releases also carry the installers under their old file names for the old versions' updater
+
+### 修复 / Fixed
+
+- 项目文件夹改名或搬家后，在“项目绑定”里把它认领到新位置：以前的会话会拉到新文件夹并按新路径翻译，不再因为旧的同步记录被当成“本机删了”而拉不下来；留下的旧会话目录不会被当成新项目再传一遍；其他设备（包括之后新加入的）也能认出旧会话里的旧路径
+  After renaming or moving a project folder, claim it at the new location on the Projects page: the earlier sessions are pulled into the new folder with paths translated, instead of being treated as "deleted locally" because of the old sync records; the old session folder left behind is not uploaded again as a new project; other devices (including ones that join later) also recognise the old paths in earlier sessions
+
 ## [0.3.3] - 2026-10-31
 
 ### 新增 / Added

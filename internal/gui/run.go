@@ -16,10 +16,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
-	"github.com/ALFO111111/claude-code-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/service"
 )
 
 // BackgroundArg 开机自启时的命令行参数（见 platform.AutostartCommand）。
@@ -48,7 +48,7 @@ func Run(assets fs.FS, background bool, version string) error {
 		appMenu.Append(menu.WindowMenu())
 	}
 	return wails.Run(&options.App{
-		Title:       "claude-code-sync",
+		Title:       "agent-sync",
 		Width:       1120,
 		Height:      720,
 		MinWidth:    900,
@@ -60,7 +60,7 @@ func Run(assets fs.FS, background bool, version string) error {
 		},
 		BackgroundColour: bg,
 		Windows:          &windows.Options{Theme: windowsTheme(service.GetTheme().Setting)},
-		Mac:              &mac.Options{About: &mac.AboutInfo{Title: "claude-code-sync", Message: i18n.T("在多台电脑之间同步 Claude Code 和 Codex")}},
+		Mac:              &mac.Options{About: &mac.AboutInfo{Title: "agent-sync", Message: i18n.T("在多台电脑之间同步 Claude Code 和 Codex")}},
 		// 只允许开一个：开机自启已经在托盘里跑着时再双击 exe，就把那个窗口叫出来，不再开第二个
 		SingleInstanceLock: &options.SingleInstanceLock{
 			UniqueId: instanceID(),
@@ -82,10 +82,10 @@ func Run(assets fs.FS, background bool, version string) error {
 	})
 }
 
-// instanceID 单实例锁的名字。按数据目录区分：沙箱调试（CLAUDE_CODE_SYNC_HOME）的实例和平时用的互不影响。
+// instanceID 单实例锁的名字。按数据目录区分：沙箱调试（AGENT_SYNC_HOME）的实例和平时用的互不影响。
 func instanceID() string {
 	h := sha256.Sum256([]byte(config.Dir()))
-	return "claude-code-sync-" + hex.EncodeToString(h[:8])
+	return "agent-sync-" + hex.EncodeToString(h[:8])
 }
 
 // windowsTheme 标题栏颜色跟界面主题走。

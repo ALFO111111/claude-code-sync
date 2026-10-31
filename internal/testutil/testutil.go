@@ -1,6 +1,6 @@
 // Package testutil 测试辅助：在临时目录里搭一台"设备"。只给 _test.go 用。
 //
-// 每台设备有独立的数据目录（通过 CLAUDE_CODE_SYNC_HOME 指过去）、独立的用户目录，
+// 每台设备有独立的数据目录（通过 AGENT_SYNC_HOME 指过去）、独立的用户目录，
 // 云端用 local 存储（临时目录）代替 OSS，全程不碰真实数据。
 package testutil
 
@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/project"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // Passphrase 测试设备统一用的口令。
@@ -28,7 +28,7 @@ func NewDevice(t testing.TB, deviceID string) *config.Config {
 	if err := os.MkdirAll(filepath.Join(home, ".claude", "projects"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", filepath.Join(root, "ccs"))
+	t.Setenv("AGENT_SYNC_HOME", filepath.Join(root, "ccs"))
 	cfg := &config.Config{
 		DeviceID:   deviceID,
 		DeviceName: deviceID,

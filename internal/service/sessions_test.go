@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 会话查看器：jsonl 解析成用户/AI 消息序列，工具调用折叠为摘要，tool_result 等噪音行跳过。

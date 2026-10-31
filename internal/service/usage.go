@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/engine"
 )
 
 // CloudUsage 云端占了多少空间（列一遍云端文件，不下载内容）。

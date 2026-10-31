@@ -66,8 +66,10 @@ jobs:
         run: |
           $v = '${{ steps.ver.outputs.version }}'
           New-Item -ItemType Directory dist | Out-Null
-          Copy-Item build/bin/claude-code-sync.exe dist/claude-code-sync.exe
-          Compress-Archive -Path build/bin/claude-code-sync.exe, LICENSE, README.md, README_EN.md -DestinationPath "dist/claude-code-sync-$v-windows-amd64.zip"
+          Copy-Item build/bin/agent-sync.exe dist/agent-sync.exe
+          # 改名前的版本（0.3.x）检查更新时找的是旧文件名，再放一份同样的文件给它们用
+          Copy-Item build/bin/agent-sync.exe dist/claude-code-sync.exe
+          Compress-Archive -Path build/bin/agent-sync.exe, LICENSE, README.md, README_EN.md -DestinationPath "dist/agent-sync-$v-windows-amd64.zip"
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
@@ -75,7 +77,12 @@ jobs:
         run: |
           v='${{ steps.ver.outputs.version }}'
           mkdir dist
-          scripts/package-dmg.sh build/bin/claude-code-sync.app "dist/claude-code-sync-$v-macos-arm64.dmg"
+          # 改名前的版本（0.3.x）自动更新时把新 App 复制到旧位置，然后启动 Contents/MacOS/claude-code-sync：
+          # 留一个指向新程序的链接，它才能启动成功（之后新程序会把 hooks、后台进程都改成新路径）
+          ln -s agent-sync build/bin/agent-sync.app/Contents/MacOS/claude-code-sync
+          scripts/package-dmg.sh build/bin/agent-sync.app "dist/agent-sync-$v-macos-arm64.dmg"
+          # 旧版本找的是旧文件名，再放一份同样的文件给它们用
+          cp "dist/agent-sync-$v-macos-arm64.dmg" "dist/claude-code-sync-$v-macos-arm64.dmg"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -116,7 +123,9 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
+            dist/agent-sync.exe
+            dist/agent-sync-${{ steps.ver.outputs.version }}-windows-amd64.zip
+            dist/agent-sync-${{ steps.ver.outputs.version }}-macos-arm64.dmg
             dist/claude-code-sync.exe
-            dist/claude-code-sync-${{ steps.ver.outputs.version }}-windows-amd64.zip
             dist/claude-code-sync-${{ steps.ver.outputs.version }}-macos-arm64.dmg
             dist/SHA256SUMS.txt

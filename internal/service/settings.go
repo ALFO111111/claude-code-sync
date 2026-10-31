@@ -5,9 +5,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // Settings 可在界面修改的配置。AccessKeySecret 永远不回传给界面（只告诉它"有没有"），

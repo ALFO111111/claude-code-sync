@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/project"
 )
 
 // Usage 云端占用（按对象存储里的实际大小算：已压缩、已加密）。

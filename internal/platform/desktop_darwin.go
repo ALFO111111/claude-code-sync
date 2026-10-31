@@ -27,6 +27,9 @@ func setAutostart(exe string) error {
 
 func removeAutostart() error { return removeAgent(daemonLabel) }
 
+// removeLegacyAutostart 停掉改名前的后台进程。新名字的已经在跑了才调，所以中间不会断。
+func removeLegacyAutostart() error { return removeLegacyAgent(legacyDaemonLabel) }
+
 func restartDaemon() {
 	if _, ok := readAgent(daemonLabel); ok {
 		launchctl("kickstart", "-k", guiDomain()+"/"+daemonLabel)

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // installSchedule 用 schtasks 而不是 PowerShell 的 Register-ScheduledTask：公司机器常限制任务目录权限，
@@ -56,11 +56,15 @@ func scheduledInfo() (exe string, intervalMin int, ok bool) {
 }
 
 // removeSchedule 不靠报错文案判断"任务不存在"（中英文系统文案不同）：静默删除后逐个查一次，查不到就是目标状态已达成。
-func removeSchedule() error {
-	for _, name := range taskNames() {
+func removeSchedule() error { return removeTasks(taskNames()) }
+
+func removeLegacySchedule() error { return removeTasks(legacyTaskNames) }
+
+func removeTasks(names []string) error {
+	for _, name := range names {
 		schtasks("/Delete", "/TN", name, "/F").Run() // 不存在会报错，忽略
 	}
-	for _, name := range taskNames() {
+	for _, name := range names {
 		if schtasks("/Query", "/TN", name).Run() == nil {
 			return fmt.Errorf(i18n.T("删除定时任务 %s 失败：删除后仍然存在"), name)
 		}

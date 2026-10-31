@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 备份页：同步时被替换掉的内容（以及会话分叉）的列表、查看、恢复。备份本身由 engine 在同步时写。

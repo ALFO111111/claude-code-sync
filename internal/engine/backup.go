@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/claudeconfig"
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/claudeconfig"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 备份：同步过程中被替换掉的内容先存一份，保留 BackupKeepDays 天（界面"备份"页可以查看、恢复）。

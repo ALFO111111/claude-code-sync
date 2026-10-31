@@ -18,12 +18,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // Codex 会话同步：$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<时间>-<会话ID>.jsonl。
@@ -206,8 +206,10 @@ func (e *Engine) codexTranslator(device, cwd string) (*translator, error) {
 	if cwd != "" {
 		bestPID, bestRoot := "", ""
 		for pid, p := range d.Projects {
-			if foreignWithin(p.Root, cwd) && len(p.Root) > len(bestRoot) {
-				bestPID, bestRoot = pid, p.Root
+			for _, r := range append([]string{p.Root}, p.OldRoots...) { // 对方搬过文件夹的话，旧会话里是旧路径
+				if foreignWithin(r, cwd) && len(r) > len(bestRoot) {
+					bestPID, bestRoot = pid, r
+				}
 			}
 		}
 		b := e.st.Bindings[bestPID]
@@ -224,6 +226,7 @@ func (e *Engine) codexTranslator(device, cwd string) (*translator, error) {
 
 // codexForkID 分叉会话的新 ID：由"原 ID + 对方设备"决定（对方以后再续写，还对应同一份分叉）。
 // 保留原 ID 前 48 位的时间部分并标成 v7，排序时还落在原会话附近。
+// 前缀里是改名前的旧名字：新旧版本、各台设备必须算出同一个 ID，不能跟着改名。
 func codexForkID(id, device string) string {
 	sum := sha256.Sum256([]byte("github.com/ALFO111111/claude-code-sync/codex-fork\x00" + id + "\x00" + device))
 	b := sum[:16]

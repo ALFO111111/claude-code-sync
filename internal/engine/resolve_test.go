@@ -19,7 +19,7 @@ func makeProfileConflict(t *testing.T) (*device, *device, Conflict) {
 	writeProfileFile(t, b, "plans/conflict.md", "B\n")
 	a.sync(t, Options{})
 	b.sync(t, Options{})
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", b.home)
+	t.Setenv("AGENT_SYNC_HOME", b.home)
 	list, err := ListConflicts()
 	if err != nil || len(list) != 1 {
 		t.Fatalf("准备冲突失败：%+v %v", list, err)
@@ -89,7 +89,7 @@ func TestRestoreDeletedContentItem(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.sync(t, Options{})
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	if err := RestoreContentItem(context.Background(), "plans", "deleted.md"); err != nil {
 		t.Fatal(err)
 	}

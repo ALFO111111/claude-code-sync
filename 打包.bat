@@ -1,16 +1,16 @@
 @echo off
 rem ============================================================
-rem  claude-code-sync 一键打包
+rem  agent-sync 一键打包
 rem  双击运行：自动关掉正在运行的程序 -> wails build -> 提示结果
 rem ============================================================
 setlocal
 cd /d "%~dp0"
 
 echo [1/3] 检查程序是否在运行...
-tasklist /FI "IMAGENAME eq claude-code-sync.exe" 2>nul | find /I "claude-code-sync.exe" >nul
+tasklist /FI "IMAGENAME eq agent-sync.exe" 2>nul | find /I "agent-sync.exe" >nul
 if not errorlevel 1 (
     echo       程序正在运行，先关闭（不影响数据，下次打开会继续）
-    taskkill /F /IM claude-code-sync.exe >nul 2>&1
+    taskkill /F /IM agent-sync.exe >nul 2>&1
     rem 等文件句柄释放
     ping -n 3 127.0.0.1 >nul
 ) else (
@@ -63,7 +63,7 @@ git checkout -- frontend/package.json.md5 >nul 2>nul
 
 echo.
 echo ============================================================
-echo  打包成功: build\bin\claude-code-sync.exe
+echo  打包成功: build\bin\agent-sync.exe
 echo  双击那个 exe 就能重新打开程序
 echo ============================================================
 pause

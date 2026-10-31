@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 设备信息交换：每台设备往云端 devices/<ID>.json 上报"我有哪些项目、在哪个路径"，
@@ -60,7 +60,7 @@ const heartbeatInterval = time.Hour
 func (e *Engine) publishDevice(ctx context.Context) error {
 	info := state.DeviceInfo{DeviceID: e.cfg.DeviceID, Name: e.cfg.DeviceName, Home: e.cfg.Home, Projects: map[string]state.ProjectInfo{}}
 	for pid, b := range e.st.Bindings {
-		info.Projects[pid] = state.ProjectInfo{Root: b.Root, Display: b.Display}
+		info.Projects[pid] = state.ProjectInfo{Root: b.Root, Display: b.Display, OldRoots: b.OldRoots}
 	}
 	data, _ := json.Marshal(info)
 	h := crypt.SHA256Hex(data)
@@ -98,12 +98,16 @@ func (e *Engine) remotePIDs() map[string][]remoteProject {
 	return out
 }
 
+// 包括各设备（含本机）这个项目以前的路径：项目文件夹搬过的话，以前传上去的会话里写的还是旧路径。
 func (e *Engine) ForeignRoots(pid string) []string {
 	var roots []string
 	for _, d := range e.devices {
 		if p, ok := d.Projects[pid]; ok {
-			roots = append(roots, p.Root)
+			roots = append(append(roots, p.Root), p.OldRoots...)
 		}
+	}
+	if b := e.st.Bindings[pid]; b != nil {
+		roots = append(roots, b.OldRoots...)
 	}
 	return roots
 }

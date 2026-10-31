@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 const codexTestID = "01a1598e-6ac0-7100-8829-e5df37b63797"
@@ -197,7 +197,7 @@ func TestCodexSessionDivergedKeepsBoth(t *testing.T) {
 
 // st 读这台设备落盘的状态。
 func (d *device) st() *state.State {
-	os.Setenv("CLAUDE_CODE_SYNC_HOME", d.home)
+	os.Setenv("AGENT_SYNC_HOME", d.home)
 	st, _ := state.Load()
 	return st
 }
@@ -259,7 +259,7 @@ func TestCodexSessionDeleteNotRestoredAndSwitch(t *testing.T) {
 	}
 
 	// 关掉 Codex 会话同步：本机新会话不上传
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	a.cfg.SetContentEnabledFor(config.ToolCodex, config.ContentSessions, false)
 	config.Save(a.cfg)
 	writeRollout(t, a, "01a1598e-0000-7000-8000-0000000000aa", a.cfg.Home, "关掉后写的")
@@ -312,7 +312,7 @@ func TestCodexSessionWaitsForProjectBinding(t *testing.T) {
 func TestCodexSessionDryAndUnsafeKeys(t *testing.T) {
 	a := newDevice(t, "devA", nil)
 	writeRollout(t, a, codexTestID, a.cfg.Home, "1")
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	e, err := New(true)
 	if err != nil {
 		t.Fatal(err)

@@ -9,13 +9,13 @@ import (
 
 	"github.com/getlantern/systray"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/icon"
-	"github.com/ALFO111111/claude-code-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/icon"
+	"github.com/ALFO111111/agent-sync/internal/service"
 )
 
 const (
-	trayTitle    = "claude-code-sync"
+	trayTitle    = "agent-sync"
 	spinFrames   = 8 // 同步中动画：箭头图形转 180° 就和原来一样，所以半圈分 8 帧循环
 	spinInterval = 120 * time.Millisecond
 )
@@ -65,7 +65,7 @@ func (t *tray) start(app *App) {
 		t.menu = []trayItem{
 			{mSync, func() string { return i18n.T("立即同步") }, func() string { return i18n.T("同步所有项目") }},
 			{mOpen, func() string { return i18n.T("打开主窗口") }, func() string { return "" }},
-			{mQuit, func() string { return i18n.T("退出") }, func() string { return i18n.T("退出 claude-code-sync") }},
+			{mQuit, func() string { return i18n.T("退出") }, func() string { return i18n.T("退出 agent-sync") }},
 		}
 		t.mu.Unlock()
 		t.relabel()

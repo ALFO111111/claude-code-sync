@@ -11,7 +11,8 @@ import (
 
 const (
 	runKey        = `Software\Microsoft\Windows\CurrentVersion\Run`
-	runValue      = "claude-code-sync"
+	runValue      = "agent-sync"
+	legacyRun     = "claude-code-sync" // 改名前登记的启动项
 	personalize   = `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`
 	lightThemeVal = "AppsUseLightTheme"
 )
@@ -37,13 +38,17 @@ func setAutostart(exe string) error {
 	return k.SetStringValue(runValue, autostartCommand(exe))
 }
 
-func removeAutostart() error {
+func removeAutostart() error { return deleteRunValue(runValue) }
+
+func removeLegacyAutostart() error { return deleteRunValue(legacyRun) }
+
+func deleteRunValue(name string) error {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
 	if err != nil {
 		return nil
 	}
 	defer k.Close()
-	if err := k.DeleteValue(runValue); err != nil && !errors.Is(err, registry.ErrNotExist) {
+	if err := k.DeleteValue(name); err != nil && !errors.Is(err, registry.ErrNotExist) {
 		return err
 	}
 	return nil

@@ -45,6 +45,6 @@ export function applyProvider(st, value) {
 
 // README 里各服务商的开通教程（锚点在 README 里用 <a id="cloud-storage-setup"> 固定住，不随标题文字变）
 export const storageGuideURL = (locale) =>
-  'https://github.com/ALFO111111/claude-code-sync/blob/HEAD/' + // HEAD = 默认分支，不管叫 main 还是 master
+  'https://github.com/ALFO111111/agent-sync/blob/HEAD/' + // HEAD = 默认分支，不管叫 main 还是 master
 
   (locale === 'zh-CN' ? 'README.md' : 'README_EN.md') + '#cloud-storage-setup'

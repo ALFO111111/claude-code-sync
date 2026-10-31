@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/config"
 )
 
 func writeJSON(t *testing.T, path string, value any) {
@@ -151,7 +151,7 @@ func TestStructuredBackupRestoreKeepsUnmanagedFields(t *testing.T) {
 	ea = a.sync(t, Options{})
 	ea.overwriteRemote(t, profileSettingsKey, `{"version":1,"settings":{"language":"fr"}}`)
 	a.sync(t, Options{})
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", a.home)
+	t.Setenv("AGENT_SYNC_HOME", a.home)
 	list, err := ListBackups()
 	if err != nil {
 		t.Fatal(err)

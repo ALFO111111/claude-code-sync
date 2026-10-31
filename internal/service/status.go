@@ -4,11 +4,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/ccswitch"
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/ccswitch"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // Status 本机概况（GUI 首页、向导判断是否已初始化）。
@@ -91,7 +91,7 @@ func LoadStatus() *Status {
 		sort.Slice(s.Devices, func(i, j int) bool { return s.Devices[i].Name < s.Devices[j].Name })
 	}
 	if s.Sandboxed {
-		s.AutoSyncIssue = i18n.T("沙箱模式（设置了 CLAUDE_CODE_SYNC_HOME），不安装自动同步，只能手动同步")
+		s.AutoSyncIssue = i18n.T("沙箱模式（设置了 AGENT_SYNC_HOME），不安装自动同步，只能手动同步")
 		return s
 	}
 	hooks, schedule := autoSyncStatus(cfg)

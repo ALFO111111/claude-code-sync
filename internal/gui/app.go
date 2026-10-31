@@ -10,16 +10,16 @@ import (
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
-	"github.com/ALFO111111/claude-code-sync/internal/service"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
-	"github.com/ALFO111111/claude-code-sync/internal/update"
-	"github.com/ALFO111111/claude-code-sync/internal/watch"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/update"
+	"github.com/ALFO111111/agent-sync/internal/watch"
 )
 
 // App 是暴露给前端（Vue）的绑定对象，所有导出方法都能在 JS 里直接调（frontend/wailsjs/go/gui/App 自动生成）。

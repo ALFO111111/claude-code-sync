@@ -11,7 +11,7 @@
 			"LegalCopyright": "{{.Info.Copyright}}",
 			"ProductName": "{{.Info.ProductName}}",
 			"InternalName": "{{.Info.ProductName}}",
-			"OriginalFilename": "claude-code-sync.exe",
+			"OriginalFilename": "agent-sync.exe",
 			"Comments": "{{.Info.Comments}}"
 		}
 	}

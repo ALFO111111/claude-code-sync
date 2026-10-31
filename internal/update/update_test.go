@@ -39,10 +39,10 @@ func TestNewer(t *testing.T) {
 }
 
 func TestAssetName(t *testing.T) {
-	if got := assetName("windows", "amd64", "0.4.0"); got != "claude-code-sync.exe" {
+	if got := assetName("windows", "amd64", "0.4.0"); got != "agent-sync.exe" {
 		t.Errorf("windows: %q", got)
 	}
-	if got := assetName("darwin", "arm64", "0.4.0"); got != "claude-code-sync-0.4.0-macos-arm64.dmg" {
+	if got := assetName("darwin", "arm64", "0.4.0"); got != "agent-sync-0.4.0-macos-arm64.dmg" {
 		t.Errorf("mac: %q", got)
 	}
 	if got := assetName("darwin", "amd64", "0.4.0"); got != "" {
@@ -60,8 +60,8 @@ func TestTrimNotes(t *testing.T) {
 
 func TestFindSum(t *testing.T) {
 	h := strings.Repeat("a", 64)
-	sums := strings.Repeat("b", 64) + "  claude-code-sync-0.4.0-macos-arm64.dmg\n" + h + " *claude-code-sync.exe\n"
-	if got := findSum(sums, "claude-code-sync.exe"); got != h {
+	sums := strings.Repeat("b", 64) + "  agent-sync-0.4.0-macos-arm64.dmg\n" + h + " *agent-sync.exe\n"
+	if got := findSum(sums, "agent-sync.exe"); got != h {
 		t.Errorf("得到 %q", got)
 	}
 	if got := findSum(sums, "nope"); got != "" {
@@ -98,7 +98,7 @@ func fakeGitHub(t *testing.T, latest string, payload []byte, sumOverride string)
 	t.Helper()
 	name := assetName(runtime.GOOS, runtime.GOARCH, latest)
 	if name == "" {
-		name = "claude-code-sync.exe" // 没有安装包的系统上也让 Check 走一遍
+		name = "agent-sync.exe" // 没有安装包的系统上也让 Check 走一遍
 	}
 	sum := sha256.Sum256(payload)
 	sumHex := hex.EncodeToString(sum[:])

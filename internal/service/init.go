@@ -23,14 +23,16 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // InitParams 初始化所需的全部参数（CLI 提问 / GUI 向导表单都汇总成它）。
@@ -144,10 +146,17 @@ func DefaultDeviceName() string {
 }
 
 // ExePath 本程序的路径（hooks 和定时任务要回调它）。
+// macOS 上从改名前的版本更新过来时，是经 App 里的兼容链接 Contents/MacOS/claude-code-sync 启动的，
+// 这里换成真实文件，hooks 和后台进程就登记新名字，不再依赖那个链接。
 func ExePath() string {
 	p, err := os.Executable()
 	if err != nil {
 		return config.AppName
+	}
+	if runtime.GOOS == "darwin" {
+		if real, err := filepath.EvalSymlinks(p); err == nil {
+			p = real
+		}
 	}
 	return p
 }

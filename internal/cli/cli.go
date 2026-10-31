@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/service"
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 const appName = config.AppName
@@ -315,7 +315,7 @@ var cliProviders = []cliProvider{
 }
 
 func cmdInit(ctx context.Context) error {
-	fmt.Println(i18n.T("=== claude-code-sync 初始化 ==="))
+	fmt.Println(i18n.T("=== agent-sync 初始化 ==="))
 	fmt.Println()
 
 	p := service.InitParams{}
@@ -386,7 +386,7 @@ func cmdInit(ctx context.Context) error {
 
 	switch err := service.EnsureAutoSync(); {
 	case config.Sandboxed():
-		fmt.Println(i18n.T("沙箱模式（设置了 CLAUDE_CODE_SYNC_HOME）：不安装自动同步，请手动运行 sync"))
+		fmt.Println(i18n.T("沙箱模式（设置了 AGENT_SYNC_HOME）：不安装自动同步，请手动运行 sync"))
 	case err != nil:
 		fmt.Println(i18n.T("自动同步安装失败（可以先手动 sync，稍后打开图形界面会再试一次）:"), err)
 	default:

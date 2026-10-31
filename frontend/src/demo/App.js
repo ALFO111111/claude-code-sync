@@ -143,7 +143,7 @@ export const ResumeCommand = (pid, rel) => wait({ dir: 'D:\\code\\web-shop', com
 export const OpenInClaude = () => wait(null)
 export const CopyText = () => wait(null)
 
-export const ListBackups = () => wait({ items: BACKUPS, dir: 'C:\\Users\\alex\\.claude-code-sync\\backup', total: 2510, keepDays: 14 })
+export const ListBackups = () => wait({ items: BACKUPS, dir: 'C:\\Users\\alex\\.agent-sync\\backup', total: 2510, keepDays: 14 })
 export const ReadBackup = () => wait({ backup: BACKUP_TEXT, current: CURRENT_TEXT, currentExists: true, same: false, binary: false, tooLarge: false })
 export const RestoreBackup = () => wait(null, 600)
 export const OpenBackupFolder = () => wait(null)
@@ -185,7 +185,7 @@ export const SetTheme = (s) => wait({ setting: s, dark: s === 'dark' }, 0)
 export const GetAutostart = () => wait({ enabled: true, available: true })
 export const SetAutostart = (on) => wait({ enabled: on, available: true })
 
-export const ReadLog = () => wait({ path: 'C:\\Users\\alex\\.claude-code-sync\\sync.log', text: LOG })
+export const ReadLog = () => wait({ path: 'C:\\Users\\alex\\.agent-sync\\sync.log', text: LOG })
 export const ClearLog = () => wait(null)
 export const OpenLogFolder = () => wait(null)
 
@@ -196,7 +196,7 @@ export const Initialize = () => wait('created', 600)
 const UPDATE = q.get('update') === '1'
 const UPDATE_INFO = {
   current: '0.3.2', latest: UPDATE ? '0.4.0' : '0.3.2', available: UPDATE, dev: false,
-  url: 'https://github.com/ALFO111111/claude-code-sync/releases', published: '2026-11-08T08:00:00Z', asset: 'claude-code-sync.exe',
+  url: 'https://github.com/ALFO111111/agent-sync/releases', published: '2026-11-08T08:00:00Z', asset: 'agent-sync.exe',
   notes: '### 新增 / Added\n\n- 检查更新：设置页“关于”里一键更新\n  Check for updates: one-click update in Settings → About\n- 侧边栏有新版本提示\n  The sidebar shows when a new version is out\n\n### 修复 / Fixed\n\n- 残留的同步锁马上接管\n  A leftover sync lock is taken over immediately',
 }
 export const GetUpdateState = () => wait({ current: '0.3.2', auto: true, skipped: '', info: UPDATE ? UPDATE_INFO : null }, 0)

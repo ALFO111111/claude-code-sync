@@ -15,12 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // WaitPIDEnv 新版本启动时带着旧进程的进程号：等它退出了再打开窗口，免得被单实例锁当成"第二个"直接退出。
-const WaitPIDEnv = "CLAUDE_CODE_SYNC_WAIT_PID"
+const WaitPIDEnv = "AGENT_SYNC_WAIT_PID"
+
+// legacyWaitPIDEnv 改名前的版本（claude-code-sync）更新到新版本时带的是这个名字。
+const legacyWaitPIDEnv = "CLAUDE_CODE_SYNC_WAIT_PID"
 
 // ErrNoAsset 这个系统没有安装包（比如 Intel Mac），只能去发布页手动下载。
 var ErrNoAsset = i18n.Err("这个系统没有可以自动安装的版本，请到发布页手动下载")
@@ -57,7 +60,7 @@ func get(ctx context.Context, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "claude-code-sync")
+	req.Header.Set("User-Agent", "agent-sync")
 	resp, err := httpClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("下载失败: %w"), err)
@@ -160,7 +163,7 @@ func DownloadDir() (string, error) {
 		return "", err
 	}
 	dir := downloadDir(exe)
-	probe := filepath.Join(dir, ".claude-code-sync-update-probe")
+	probe := filepath.Join(dir, ".agent-sync-update-probe")
 	f, err := os.Create(probe)
 	if err != nil {
 		return "", fmt.Errorf(i18n.T("没有权限写 %s，没法自动更新，请到发布页手动下载"), dir)
@@ -249,9 +252,13 @@ func Relaunch(exe string) error {
 func WaitPrevious() {
 	v := os.Getenv(WaitPIDEnv)
 	if v == "" {
+		v = os.Getenv(legacyWaitPIDEnv)
+	}
+	if v == "" {
 		return
 	}
 	os.Unsetenv(WaitPIDEnv) // 别再传给这个进程启动的子进程
+	os.Unsetenv(legacyWaitPIDEnv)
 	pid, err := strconv.Atoi(v)
 	if err != nil {
 		return

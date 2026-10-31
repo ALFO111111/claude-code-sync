@@ -21,4 +21,11 @@ func TestRemoveScheduleIdempotent(t *testing.T) {
 	if err := RemoveSchedule(); err != nil {
 		t.Fatalf("重复删除不应报错: %v", err)
 	}
+
+	oldLegacy := legacyTaskNames
+	legacyTaskNames = []string{"CCS-Test-NoSuchLegacy-000"}
+	defer func() { legacyTaskNames = oldLegacy }()
+	if err := RemoveLegacySchedule(); err != nil {
+		t.Fatalf("改名前的任务不存在时删除不应报错: %v", err)
+	}
 }

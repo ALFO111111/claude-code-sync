@@ -15,22 +15,26 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/logging"
 )
 
 // macOS 上的定时同步和开机自启都用 launchd 的 LaunchAgent（~/Library/LaunchAgents/*.plist，当前用户，不需要管理员权限）：
 //
-//	com.alfo111111.claude-code-sync.sync     每小时 + 登录时跑一次 `<exe> sync -q`（兜底）
-//	com.alfo111111.claude-code-sync.daemon   登录时启动 `<exe> daemon`：没有窗口，盯着文件变化随时同步
+//	com.alfo111111.agent-sync.sync     每小时 + 登录时跑一次 `<exe> sync -q`（兜底）
+//	com.alfo111111.agent-sync.daemon   登录时启动 `<exe> daemon`：没有窗口，盯着文件变化随时同步
 //
 // Mac 版没有菜单栏图标（托盘库和 Wails 在 macOS 上会抢同一个应用主循环），所以"后台常驻"由 daemon 负责，
 // 窗口就是普通窗口：关掉就退出，要看状态时再打开 App。
-const launchdPrefix = "com.alfo111111.claude-code-sync"
+const launchdPrefix = "com.alfo111111.agent-sync"
 
 var (
 	syncLabel   = launchdPrefix + ".sync"
 	daemonLabel = launchdPrefix + ".daemon"
+
+	// 改名前（claude-code-sync）装的两个 LaunchAgent
+	legacySyncLabel   = "com.alfo111111.claude-code-sync.sync"
+	legacyDaemonLabel = "com.alfo111111.claude-code-sync.daemon"
 )
 
 type launchAgent struct {
@@ -146,3 +150,13 @@ func scheduledInfo() (exe string, intervalMin int, ok bool) {
 }
 
 func removeSchedule() error { return removeAgent(syncLabel) }
+
+// removeLegacySchedule 没有旧 plist 就什么都不做（不去 launchctl 白跑一趟）。
+func removeLegacySchedule() error { return removeLegacyAgent(legacySyncLabel) }
+
+func removeLegacyAgent(label string) error {
+	if _, err := os.Stat(agentPath(label)); err != nil {
+		return nil
+	}
+	return removeAgent(label)
+}

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // LanguageInfo 界面语言。Setting 是用户的选择（空 = 跟随系统），Effective 是实际生效的语言。

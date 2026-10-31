@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
-	"github.com/ALFO111111/claude-code-sync/internal/update"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/update"
 )
 
 // 检查更新：GUI 启动后自动查一次、之后每天一次；设置页"关于"里也能手动查、一键更新。

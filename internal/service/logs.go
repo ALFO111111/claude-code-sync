@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/logging"
 )
 
 type LogView struct {

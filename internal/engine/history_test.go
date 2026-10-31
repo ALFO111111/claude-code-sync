@@ -8,14 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
-// device 一台测试设备：切换到它（CLAUDE_CODE_SYNC_HOME 指过去）再打开引擎。
+// device 一台测试设备：切换到它（AGENT_SYNC_HOME 指过去）再打开引擎。
 type device struct {
 	cfg  *config.Config
-	home string // CLAUDE_CODE_SYNC_HOME
+	home string // AGENT_SYNC_HOME
 }
 
 func newDevice(t *testing.T, id string, cloudFrom *device) *device {
@@ -32,7 +32,7 @@ func newDevice(t *testing.T, id string, cloudFrom *device) *device {
 
 func (d *device) sync(t *testing.T, opts Options) *Engine {
 	t.Helper()
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", d.home)
+	t.Setenv("AGENT_SYNC_HOME", d.home)
 	e, err := New(true)
 	if err != nil {
 		t.Fatal(err)

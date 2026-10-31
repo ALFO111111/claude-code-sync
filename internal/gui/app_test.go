@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/service"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 // GetStatus 带上 GUI 自己知道的"是否在同步"。

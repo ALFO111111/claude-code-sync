@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // Repo 发布新版本的 GitHub 仓库。
-const Repo = "ALFO111111/claude-code-sync"
+const Repo = "ALFO111111/agent-sync"
 
 // apiBase GitHub API 地址（测试换成本地假服务器）。
 var apiBase = "https://api.github.com"
@@ -62,7 +62,7 @@ func Check(ctx context.Context, current string) (*Info, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "claude-code-sync/"+current)
+	req.Header.Set("User-Agent", "agent-sync/"+current)
 	resp, err := httpClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf(i18n.T("连不上 GitHub: %w"), err)
@@ -97,9 +97,9 @@ func Check(ctx context.Context, current string) (*Info, error) {
 func assetName(goos, goarch, version string) string {
 	switch {
 	case goos == "windows" && goarch == "amd64":
-		return "claude-code-sync.exe"
+		return "agent-sync.exe"
 	case goos == "darwin" && goarch == "arm64":
-		return "claude-code-sync-" + version + "-macos-arm64.dmg"
+		return "agent-sync-" + version + "-macos-arm64.dmg"
 	}
 	return ""
 }

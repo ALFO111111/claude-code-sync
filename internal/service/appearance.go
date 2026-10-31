@@ -3,9 +3,9 @@ package service
 import (
 	"errors"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/platform"
 )
 
 // 主题和开机自启：设置页上"改了马上生效"的开关（和界面语言一样，不用点保存）。

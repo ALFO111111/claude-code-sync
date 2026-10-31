@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
-	"github.com/ALFO111111/claude-code-sync/internal/state"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 自动同步是程序自带的能力，不让用户手动开关：
@@ -34,7 +34,7 @@ func HookCommand() string { return `"` + ExePath() + `" hook-event` }
 func isOurHook(cmd string) bool { return strings.HasSuffix(strings.TrimSpace(cmd), `" hook-event`) }
 
 // EnsureAutoSync 确保 hooks 和定时任务都已安装并指向当前 exe。
-// 沙箱模式（设置了 CLAUDE_CODE_SYNC_HOME）什么都不做。失败会写进 sync.log。
+// 沙箱模式（设置了 AGENT_SYNC_HOME）什么都不做。失败会写进 sync.log。
 func EnsureAutoSync() error {
 	if config.Sandboxed() {
 		return nil
@@ -58,6 +58,9 @@ func EnsureAutoSync() error {
 	}
 	if err := syncAutostart(cfg); err != nil {
 		errs = append(errs, err)
+	}
+	if len(errs) == 0 {
+		removeLegacyAutoSync()
 	}
 	err = errors.Join(errs...)
 	if err != nil {
@@ -103,7 +106,16 @@ func RemoveAutoSync() error {
 	if config.Sandboxed() {
 		return unhook
 	}
-	return errors.Join(unhook, platform.RemoveSchedule(), platform.RemoveAutostart())
+	return errors.Join(unhook, platform.RemoveSchedule(), platform.RemoveAutostart(),
+		platform.RemoveLegacySchedule(), platform.RemoveLegacyAutostart())
+}
+
+// removeLegacyAutoSync 改名前（claude-code-sync）装的定时任务和开机自启：新名字的都装好了才删，
+// 免得新的没装上、旧的又删了，自动同步就断了。删不掉只记日志，下次打开界面再试。
+func removeLegacyAutoSync() {
+	if err := errors.Join(platform.RemoveLegacySchedule(), platform.RemoveLegacyAutostart()); err != nil {
+		logging.New(true).Printf("删除改名前的定时任务/开机自启失败（不影响同步，下次再试）: %v", err)
+	}
 }
 
 // withSettingsLock 改写 settings.json 时拿同步锁：同步也会改 settings.json 里的安全字段（语言等），

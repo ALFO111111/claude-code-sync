@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
 )
 
 type localStorage struct{ root string }

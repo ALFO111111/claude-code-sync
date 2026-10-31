@@ -17,7 +17,7 @@
 | 两边各自聊了不同的内容 | 本地那份不动，**另存一个新会话** | 不会：两份都保留 |
 | MEMORY.md 两边都改了 | 两边的行合在一起 | 不会：取并集 |
 
-- 其他文件（非会话）两边都改了：**本机优先**，云端那份放进 `~/.claude-code-sync/backup/`。
+- 其他文件（非会话）两边都改了：**本机优先**，云端那份放进 `~/.agent-sync/backup/`。
 - Claude Code 自己清理掉的旧会话，不会被拉回来。
 - `~/.claude/settings.json` 只会被加两条 hooks（`SessionStart`、`Stop`），你原有的配置一个字都不动。
 
@@ -41,7 +41,7 @@ robocopy "$env:USERPROFILE\.claude" $BK /E /R:1 /W:1 /NFL /NDL
 "备份在: $BK"
 ```
 
-**万一要恢复**（先关掉 Claude Code，并在托盘里退出 claude-code-sync）：
+**万一要恢复**（先关掉 Claude Code，并在托盘里退出 agent-sync）：
 
 ```powershell
 robocopy "D:\ccs-backup\claude-xxxx" "$env:USERPROFILE\.claude" /MIR
@@ -58,9 +58,9 @@ $S = "D:\ccs-sandbox"
 robocopy "$env:USERPROFILE\.claude" "$S\claude" /E /R:1 /W:1 /NFL /NDL      # 复制一份
 .\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\A-before.csv"
 
-$env:CLAUDE_CODE_SYNC_HOME = "$S\app"     # 本工具的数据放沙箱
+$env:AGENT_SYNC_HOME = "$S\app"     # 本工具的数据放沙箱
 $env:CLAUDE_CONFIG_DIR     = "$S\claude"  # 会话目录指向副本
-.\claude-code-sync.exe                     # 只有从这个窗口启动的才是沙箱
+.\agent-sync.exe                     # 只有从这个窗口启动的才是沙箱
 ```
 
 1. 走完向导（存储填正式的 bucket 就行，彩排完会清空）。完成后首页显示"同步完成"。
@@ -86,9 +86,9 @@ robocopy "$env:USERPROFILE\.claude" "$S\claude" /E /R:1 /W:1 /NFL /NDL
 robocopy "$S\claude\projects" "$S\B-orig-projects" /E /R:1 /W:1 /NFL /NDL  # 再留一份原样，用来逐条核对
 .\scripts\snapshot.ps1 -Dir "$S\claude\projects" -Out "$S\B-before.csv"
 
-$env:CLAUDE_CODE_SYNC_HOME = "$S\app"
+$env:AGENT_SYNC_HOME = "$S\app"
 $env:CLAUDE_CONFIG_DIR     = "$S\claude"
-.\claude-code-sync.exe
+.\agent-sync.exe
 ```
 
 走完向导（同一个口令）→ 等首页"同步完成" → 到"项目绑定"页看看，有没有需要认领的项目（普通文件夹项目要手动认领，git 项目会自动对上）→ 认领完再点一次"立即同步" → 托盘退出。
@@ -138,7 +138,7 @@ claude --resume
    预期：删除 0、修改 0、新增 0。
 6. 看一眼自动同步装上了没有：
    - `~/.claude/settings.json` 里多了两条带 `hook-event` 的命令
-   - "任务计划程序"里有一个 `ClaudeCodeSync` 任务
+   - "任务计划程序"里有一个 `AgentSync` 任务
 
 ## 7. 阶段 D：真实环境，电脑 B
 
@@ -161,7 +161,7 @@ claude --resume
 1. **下载**：在 A 上新建 `~/.claude/plans/test-a.md`，A 点"立即同步"，B 点"立即同步" → B 上出现同名文件、内容一致。
 2. **自动合并**：两台都同步好之后，A 改 `test-a.md` 第一行、B 改最后一行，各自同步两轮 → 两台都同时有两处修改。
 3. **冲突**：A、B 都改 `test-a.md` 的同一行成不同内容，各自同步 → 后同步的那台侧边栏"冲突"出现 1，本机文件内容没变；在冲突页选"手工合并"保存 → 两台最终一致，"备份"页有被替换掉的那份。
-4. **删除不传播**：A 删掉 `test-a.md` 并同步 → B 上的文件还在；A 再同步几轮也不会把它拉回来；`claude-code-sync restore-content plans test-a.md` 能手动拉回。
+4. **删除不传播**：A 删掉 `test-a.md` 并同步 → B 上的文件还在；A 再同步几轮也不会把它拉回来；`agent-sync restore-content plans test-a.md` 能手动拉回。
 5. **settings 安全字段**：A 把 `settings.json` 的 `language` 改掉 → B 同步后只有 `language` 变了；B 的 `model`、`env`、`hooks`、`permissions` 都原样（用对比工具看一眼整份文件）。
 6. **MCP**：A 加一个用户级 MCP（带 env 密钥）→ B 同步后出现同名服务器，但**没有** A 的 env；B 自己补上 env 后再同步，A 的 env 也不受影响。
 7. **CC Switch**：如果 CC Switch 的 WebDAV/S3 自动同步开着，设置页"同步内容"里规则、技能、MCP 会显示"由本工具同步 / 交给 CC Switch"按钮，选之前这三类不会同步；CC Switch 自动同步关着则不出现任何提示。
@@ -175,7 +175,7 @@ claude --resume
    ```powershell
    $RealHome = $env:USERPROFILE
    $S = "D:\ccs-codex-sandbox"
-   $env:CLAUDE_CODE_SYNC_HOME = "$S\app"
+   $env:AGENT_SYNC_HOME = "$S\app"
    $env:CLAUDE_CONFIG_DIR     = "$S\claude"
    $env:CODEX_HOME            = "$S\home\.codex"
    $env:USERPROFILE           = "$S\home"  # ~/.agents/skills 和 CC Switch 检测也进沙箱
@@ -205,13 +205,13 @@ claude --resume
    '项目级文件仍归 Git' | Set-Content "$S\project\skills\demo\SKILL.md" -Encoding utf8
    ```
 
-   A 运行 `.\claude-code-sync.exe` 走完向导并等首次同步完成，然后托盘退出；B 同样初始化（同一独立前缀、同一测试口令）并再点一次“立即同步”。预期：
+   A 运行 `.\agent-sync.exe` 走完向导并等首次同步完成，然后托盘退出；B 同样初始化（同一独立前缀、同一测试口令）并再点一次“立即同步”。预期：
    - B 的 `$CODEX_HOME` 下有内容一致的 `AGENTS.md`、`AGENTS.override.md`、`skills/old/SKILL.md`，`~/.agents/skills/demo/SKILL.md` 也已下载；这里的 `~` 都是沙箱目录。
    - B 没有 A 创建的 `sessions\notes.jsonl`、history/session_index、SQLite/WAL、config.toml、auth、`skills\.system` 或项目级测试文件。
    - 云端 Codex 对象只有 `tools/codex/files/rules/AGENTS.md`、`tools/codex/files/rules/AGENTS.override.md`、`tools/codex/files/skills/demo/SKILL.md`、`tools/codex/files/legacy-skills/old/SKILL.md`（加上你选择的独立前缀）；下载后能看到 `CCS1` 密文头。
    - 设置页里 Claude 的规则、技能、MCP 可以因伪造的 CC Switch 状态等待负责人选择，但 Codex 的 rules、skills 仍正常同步，没有“交给 CC Switch”的要求。
 
-3. **GUI 文件监听**：A 从沙箱窗口运行 `.\claude-code-sync.exe` 打开 GUI，分别修改 `AGENTS.md` 和技能文件，不手动点同步；等首页显示自动同步完成后，B 运行 `.\claude-code-sync.exe sync`。预期 B 得到两处修改。测完 A 托盘退出。（在 Mac 上做这一步时，窗口开着就在监听，测完直接关窗。）
+3. **GUI 文件监听**：A 从沙箱窗口运行 `.\agent-sync.exe` 打开 GUI，分别修改 `AGENTS.md` 和技能文件，不手动点同步；等首页显示自动同步完成后，B 运行 `.\agent-sync.exe sync`。预期 B 得到两处修改。测完 A 托盘退出。（在 Mac 上做这一步时，窗口开着就在监听，测完直接关窗。）
 
 4. **三方文本合并**：两端先同步到一致。A 改 `AGENTS.md` 第一行，B 改最后一行，各自保存；A、B、A、B 依次运行 `sync`。预期两台都同时保留两处修改，没有冲突。
 
@@ -220,7 +220,7 @@ claude --resume
 6. **删除不传播与手动恢复**：A 删除 `~/.agents/skills/demo/SKILL.md` 并同步，B 再同步。预期 B 的文件仍在；A 连续同步几轮也不会自动拉回。A 运行下面的命令后，文件和内容应恢复：
 
    ```powershell
-   .\claude-code-sync.exe restore-content codex skills demo/SKILL.md
+   .\agent-sync.exe restore-content codex skills demo/SKILL.md
    ```
 
 7. **独立类别开关**：B 运行 `content disable codex skills`；A 修改技能文件和 `AGENTS.md` 并同步，B 再同步。预期 B 的规则更新、技能不变；B 运行 `content enable codex skills` 后再同步，技能才更新。再运行旧写法 `content disable skills`，确认它只关闭 Claude skills，不改变 Codex skills 的开关。
@@ -261,12 +261,12 @@ claude --resume
 
 ## 7.8 阶段 H：macOS
 
-前提：一台 macOS 13 及以上、Apple 芯片的 Mac。`scripts\` 里的 PowerShell 脚本 Mac 上默认没有，下面用 `cp`、`diff` 代替。下文 `$APP` 指 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`，可以先 `APP=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
+前提：一台 macOS 13 及以上、Apple 芯片的 Mac。`scripts\` 里的 PowerShell 脚本 Mac 上默认没有，下面用 `cp`、`diff` 代替。下文 `$APP` 指 `/Applications/agent-sync.app/Contents/MacOS/agent-sync`，可以先 `APP=/Applications/agent-sync.app/Contents/MacOS/agent-sync`。
 
-1. **安装与 Gatekeeper**：从 Releases 下载 `claude-code-sync-<版本>-macos-arm64.dmg`，用 `shasum -a 256` 和 `SHA256SUMS.txt` 核对，双击打开后把 App 拖到“应用程序”图标上。预期：
+1. **安装与 Gatekeeper**：从 Releases 下载 `agent-sync-<版本>-macos-arm64.dmg`，用 `shasum -a 256` 和 `SHA256SUMS.txt` 核对，双击打开后把 App 拖到“应用程序”图标上。预期：
    - DMG 窗口里有 App 和“应用程序”快捷方式两个图标。
    - 直接双击会被 Gatekeeper 拦下；macOS 15 及以上在“系统设置 → 隐私与安全性”点“仍要打开”后能启动（macOS 13/14 用右键 → 打开），之后双击不再拦。
-   - 换一台（或删掉重装）验证另一种方式：`xattr -dr com.apple.quarantine /Applications/claude-code-sync.app` 后直接双击能打开。
+   - 换一台（或删掉重装）验证另一种方式：`xattr -dr com.apple.quarantine /Applications/agent-sync.app` 后直接双击能打开。
    - `lipo -archs "$APP"` 输出 `arm64`。
 
 2. **命令行**：`"$APP" version` 显示版本号；`"$APP" status`、`"$APP" sync --dry` 能正常输出（还没初始化时提示先初始化）。
@@ -277,7 +277,7 @@ claude --resume
    S=/tmp/ccs-sandbox
    cp -Rp ~/.claude "$S/claude"
    cp -Rp "$S/claude/projects" "$S/orig-projects"      # 留一份原样用来核对
-   export CLAUDE_CODE_SYNC_HOME="$S/app" CLAUDE_CONFIG_DIR="$S/claude"
+   export AGENT_SYNC_HOME="$S/app" CLAUDE_CONFIG_DIR="$S/claude"
    "$APP"                                              # 不带参数 → 图形界面；只有从这个终端启动的才是沙箱
    ```
 
@@ -287,16 +287,16 @@ claude --resume
    diff -rq "$S/orig-projects" "$S/claude/projects" | grep "^Only in $S/orig-projects"   # 必须没有输出
    ```
 
-   `ls ~/Library/LaunchAgents | grep claude-code-sync` 应该没有输出（沙箱模式不装自动同步）。
+   `ls ~/Library/LaunchAgents | grep agent-sync` 应该没有输出（沙箱模式不装自动同步）。
 
 4. **真实环境：两个 LaunchAgent**：先 `cp -Rp ~/.claude ~/ccs-backup-claude`（用 Codex 的话 `~/.codex` 也备份），再从“应用程序”正常打开 App 走向导。预期：
-   - `ls ~/Library/LaunchAgents` 有 `com.alfo111111.claude-code-sync.sync.plist` 和 `com.alfo111111.claude-code-sync.daemon.plist`，plist 里的程序路径是 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`。
-   - `launchctl print gui/$(id -u)/com.alfo111111.claude-code-sync.daemon` 显示在运行；`pgrep -fl "claude-code-sync daemon"` 能看到后台进程。
+   - `ls ~/Library/LaunchAgents` 有 `com.alfo111111.agent-sync.sync.plist` 和 `com.alfo111111.agent-sync.daemon.plist`，plist 里的程序路径是 `/Applications/agent-sync.app/Contents/MacOS/agent-sync`。
+   - `launchctl print gui/$(id -u)/com.alfo111111.agent-sync.daemon` 显示在运行；`pgrep -fl "agent-sync daemon"` 能看到后台进程。
    - `~/.claude/settings.json` 里多了两条带 `hook-event` 的 hooks。
    - 设置页关掉“开机自启”：`.daemon.plist` 消失、后台进程退出，`.sync.plist` 还在；再打开，两者都回来。
    - 注销再登录（或重启）后，不打开 App，`pgrep` 也能看到 daemon。
 
-5. **关窗即退出**：屏幕顶部菜单栏**没有**本工具的图标；关掉 App 窗口后 `pgrep -fl claude-code-sync` 只剩 daemon。此时在 Claude Code 里聊一句，几秒后 `~/.claude-code-sync/sync.log` 有新的同步记录（hooks 和 daemon 在工作）。
+5. **关窗即退出**：屏幕顶部菜单栏**没有**本工具的图标；关掉 App 窗口后 `pgrep -fl agent-sync` 只剩 daemon。此时在 Claude Code 里聊一句，几秒后 `~/.agent-sync/sync.log` 有新的同步记录（hooks 和 daemon 在工作）。
 
 6. **Windows ↔ Mac 路径翻译**：Windows 电脑 A 和 Mac B 用同一个 bucket、同一个口令，同一个 git 仓库分别克隆在 `D:\code\demo` 和 `~/code/demo`。
    - **Claude 会话**：A 上在仓库里聊一个会话，让它读写 `src` 下的某个文件；两边同步后，B 在 `~/code/demo` 里 `claude --resume` 能看到并接着聊。用文本编辑器打开 B 上的会话 jsonl，`cwd`、`file_path` 等字段是 `/Users/<你>/code/demo/src/...`，分隔符全是 `/`，没有残留的 `\`；聊天正文里提到的路径原样保留。
@@ -305,7 +305,7 @@ claude --resume
    - **MCP**：A 加一个用户级 MCP，参数里用用户目录下的路径（如 `C:\Users\<你>\tools\server.js`）→ B 同步后参数变成 `/Users/<你>/tools/server.js`。A 再加一个**新的** MCP 服务器，参数指向任何项目和用户目录之外的路径（如 `E:\other\tool.exe`）→ 只要有一个路径转换不了，**这整个服务器**都不上传：B 上不出现它，A 上也不会被删；已经同步过的其他服务器不受影响。
    - **Codex 会话**：按阶段 G 第 2 步在 A 上聊一个 Codex 会话，B 同步后第一行的 `cwd` 是 `/Users/<你>/code/demo`；反过来 B 上续聊，A 上追加的行里路径是 Windows 写法。
 
-7. **卸载**：`"$APP" uninstall`。预期两个 plist 都被删除，`pgrep -fl "claude-code-sync daemon"` 没有输出，`settings.json` 里的 hooks 被去掉，会话和配置都还在。注意：再打开 App 会重新装上。
+7. **卸载**：`"$APP" uninstall`。预期两个 plist 都被删除，`pgrep -fl "agent-sync daemon"` 没有输出，`settings.json` 里的 hooks 被去掉，会话和配置都还在。注意：再打开 App 会重新装上。
 
 ## 8. 第一周的日常观察
 
@@ -315,7 +315,7 @@ claude --resume
 
 ## 9. 出问题怎么办
 
-1. **急停**：托盘退出，然后运行 `.\claude-code-sync.exe uninstall`。它会删掉 hooks 和定时任务，之后不会再自动同步。Mac 上关掉窗口后运行 `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync uninstall`，会删掉 hooks 和两个 LaunchAgent，后台进程随之停止。注意：再打开图形界面会重新装上，排查清楚之前先别打开。
-2. **看现场**：`~/.claude-code-sync/sync.log` 是同步日志；`~/.claude-code-sync/backup/` 是被覆盖掉的云端版本。
+1. **急停**：托盘退出，然后运行 `.\agent-sync.exe uninstall`。它会删掉 hooks 和定时任务，之后不会再自动同步。Mac 上关掉窗口后运行 `/Applications/agent-sync.app/Contents/MacOS/agent-sync uninstall`，会删掉 hooks 和两个 LaunchAgent，后台进程随之停止。注意：再打开图形界面会重新装上，排查清楚之前先别打开。
+2. **看现场**：`~/.agent-sync/sync.log` 是同步日志；`~/.agent-sync/backup/` 是被覆盖掉的云端版本。
 3. **恢复**：按第 2 节用 `robocopy ... /MIR` 从备份恢复。
 4. 把 `compare.ps1` 的输出和 `sync.log` 发给我。

@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/storage"
+	"github.com/ALFO111111/agent-sync/internal/storage"
 )
 
 // 旧版（阿里云 OSS 专用 SDK）写的 config.json，读进来自动变成 S3 兼容配置，指向同一个 bucket。
 func TestLoadMigratesOldOSSConfig(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", dir)
+	t.Setenv("AGENT_SYNC_HOME", dir)
 	old := `{
   "deviceId": "abc",
   "deviceName": "pc",
@@ -29,6 +29,43 @@ func TestLoadMigratesOldOSSConfig(t *testing.T) {
 	if s.Type != storage.TypeS3 || s.Provider != storage.ProviderAliyun || s.Bucket != "my-bucket" ||
 		s.Prefix != "v1/" || s.ResolvedEndpoint() != "https://s3.oss-cn-shanghai.aliyuncs.com" {
 		t.Errorf("迁移结果不对: %+v，endpoint %s", s, s.ResolvedEndpoint())
+	}
+}
+
+// 改名前装过的电脑继续用 ~/.claude-code-sync；新电脑用 ~/.agent-sync；两个都有时看哪个有 config.json。
+func TestDirKeepsLegacyDataDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("AGENT_SYNC_HOME", "")
+	t.Setenv("CLAUDE_CODE_SYNC_HOME", "")
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	dir, legacy := filepath.Join(home, ".agent-sync"), filepath.Join(home, ".claude-code-sync")
+
+	if got := Dir(); got != dir {
+		t.Fatalf("新电脑应该用 %s，得到 %s", dir, got)
+	}
+	if err := os.Mkdir(legacy, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := Dir(); got != legacy {
+		t.Fatalf("改名前装过的电脑应继续用 %s，得到 %s", legacy, got)
+	}
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := Dir(); got != legacy {
+		t.Fatalf("新目录里没有 config.json 时应继续用旧目录，得到 %s", got)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := Dir(); got != dir {
+		t.Fatalf("新目录已经初始化过就用新目录，得到 %s", got)
+	}
+
+	t.Setenv("CLAUDE_CODE_SYNC_HOME", filepath.Join(home, "old-env"))
+	if got := Dir(); got != filepath.Join(home, "old-env") || !Sandboxed() {
+		t.Fatalf("旧的 CLAUDE_CODE_SYNC_HOME 也应生效，得到 %s", got)
 	}
 }
 

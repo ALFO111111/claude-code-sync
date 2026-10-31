@@ -23,6 +23,9 @@ func SetAutostart(exe string) error { return setAutostart(exe) }
 // RemoveAutostart 取消开机自启；本来就没有也算成功。
 func RemoveAutostart() error { return removeAutostart() }
 
+// RemoveLegacyAutostart 取消改名前登记的开机自启（Windows 注册表启动项 / macOS 后台进程）；本来就没有也算成功。
+func RemoveLegacyAutostart() error { return removeLegacyAutostart() }
+
 // OpenFolder 用资源管理器 / 访达打开文件夹。
 func OpenFolder(path string) error { return openFolder(path) }
 

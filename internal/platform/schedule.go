@@ -10,10 +10,13 @@ import (
 )
 
 // TaskName 定时任务名。var 而非 const：测试里换成不存在的任务名来验证幂等删除。
-var TaskName = "ClaudeCodeSync"
+var TaskName = "AgentSync"
 
 // taskNames 本工具创建的所有定时任务：主任务（每小时）+ 登录时跑一次。
 func taskNames() []string { return []string{TaskName, TaskName + "-Logon"} }
+
+// legacyTaskNames 改名前（claude-code-sync）装的定时任务。var：测试里换成不存在的名字。
+var legacyTaskNames = []string{"ClaudeCodeSync", "ClaudeCodeSync-Logon"}
 
 // HideWindow 让子进程不弹黑窗口（Windows 定时任务/钩子里需要）。
 func HideWindow(cmd *exec.Cmd) {
@@ -35,6 +38,9 @@ func ScheduledInfo() (exe string, intervalMin int, ok bool) { return scheduledIn
 
 // RemoveSchedule 删除定时任务；任务本来就不存在也算成功。
 func RemoveSchedule() error { return removeSchedule() }
+
+// RemoveLegacySchedule 删除改名前装的定时任务（新名字的装好以后再调，免得中间一个都没有）；本来就没有也算成功。
+func RemoveLegacySchedule() error { return removeLegacySchedule() }
 
 // parseISODurationMin 解析 PowerShell 吐出来的间隔（"PT10M"、"PT1H"、"PT1H30M"），解析不了返回 0。
 func parseISODurationMin(s string) int {

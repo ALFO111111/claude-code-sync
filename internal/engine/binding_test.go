@@ -1,14 +1,15 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/project"
-	"github.com/ALFO111111/claude-code-sync/internal/testutil"
+	"github.com/ALFO111111/agent-sync/internal/project"
+	"github.com/ALFO111111/agent-sync/internal/testutil"
 )
 
 // 停止同步一个已绑定的项目：绑定和文件状态清掉，本机、云端文件都不动，下一轮也不会被自动绑回去；
@@ -109,4 +110,83 @@ func sameDir(a, b string) bool {
 	fa, errA := os.Stat(a)
 	fb, errB := os.Stat(b)
 	return errA == nil && errB == nil && os.SameFile(fa, fb)
+}
+
+// 项目文件夹改了名（比如 claude-code-sync → agent-sync，git 远程地址也改了）：认领到新路径后，
+// 云端会话拉到新的会话目录、路径按新位置翻译；旧会话目录不会被当成新项目再传一遍；
+// 之后新加入的设备也能把旧会话里的旧路径翻译过去；老路径重新出现时不会把搬走的项目抢回去。
+func TestClaimMovedProject(t *testing.T) {
+	for _, git := range []bool{true, false} {
+		t.Run(map[bool]string{true: "git", false: "local"}[git], func(t *testing.T) { testClaimMovedProject(t, git) })
+	}
+}
+
+func testClaimMovedProject(t *testing.T, git bool) {
+	a := newDevice(t, "devA", nil)
+	oldRoot, oldDir := testutil.AddProject(t, a.cfg, "old-name")
+	if err := os.MkdirAll(oldRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if git {
+		gitRepo(t, oldRoot, "git@github.com:me/old-name.git")
+	}
+	testutil.WriteProjectFile(t, a.cfg, oldDir, "s1.jsonl", sessionLine(oldRoot, "u1"))
+	e := a.sync(t, Options{})
+	pid := e.theOnlyPID(t)
+	cloudBefore := countFiles(t, e)
+
+	newRoot := filepath.Join(a.cfg.Home, "new-name")
+	if err := os.Rename(oldRoot, newRoot); err != nil {
+		t.Fatal(err)
+	}
+	if git {
+		if out, err := exec.Command("git", "-C", newRoot, "remote", "set-url", "origin", "git@github.com:me/new-name.git").CombinedOutput(); err != nil {
+			t.Fatalf("git: %v %s", err, out)
+		}
+	}
+	e = a.sync(t, Options{Claim: &Claim{PID: pid, Root: newRoot}})
+	newDir := project.EncodeDir(newRoot)
+	if b := e.st.Bindings[pid]; len(e.st.Bindings) != 1 || b == nil || b.Root != newRoot || b.Dir != newDir {
+		t.Fatalf("应只剩一个绑定、指向新路径: %+v", e.st.Bindings)
+	}
+	if got := project.ReadCwd(filepath.Join(a.cfg.ProjectsDir(), newDir)); got != newRoot {
+		t.Fatalf("会话应拉到新目录并翻译成新路径，cwd = %q", got)
+	}
+	if n := countFiles(t, e); n != cloudBefore {
+		t.Fatalf("云端文件数从 %d 变成 %d：旧目录被重复上传了", cloudBefore, n)
+	}
+	testutil.WriteProjectFile(t, a.cfg, newDir, "s2.jsonl", sessionLine(newRoot, "u2"))
+	if e = a.sync(t, Options{}); len(e.st.Bindings) != 1 || countFiles(t, e) != cloudBefore+1 {
+		t.Fatalf("再同步一轮只应多传新会话，不应发现旧目录: %+v", e.st.Bindings)
+	}
+
+	// 新设备认领：A 搬家前传的会话里是 A 的旧路径，也要翻译成本机路径
+	c := newDevice(t, "devC", a)
+	rootC := filepath.Join(c.cfg.Home, "proj-c")
+	if err := os.MkdirAll(rootC, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	c.sync(t, Options{Claim: &Claim{PID: pid, Root: rootC}})
+	data, err := os.ReadFile(filepath.Join(c.cfg.ProjectsDir(), project.EncodeDir(rootC), "s1.jsonl"))
+	if err != nil || strings.Contains(string(data), "old-name") || !strings.Contains(string(data), "proj-c") {
+		t.Fatalf("新设备拿到的旧会话应翻译成本机路径: %v %s", err, data)
+	}
+
+	t.Setenv("AGENT_SYNC_HOME", a.home)
+	if err := os.MkdirAll(oldRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e = a.sync(t, Options{})
+	if b := e.st.Bindings[pid]; b == nil || b.Root != newRoot {
+		t.Fatalf("老路径重新出现后不应把搬走的项目抢回去: %+v", e.st.Bindings)
+	}
+}
+
+func countFiles(t *testing.T, e *Engine) int {
+	t.Helper()
+	objs, err := e.store.List(context.Background(), "files/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(objs)
 }

@@ -8,10 +8,10 @@ import (
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/service"
-	"github.com/ALFO111111/claude-code-sync/internal/update"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/service"
+	"github.com/ALFO111111/agent-sync/internal/update"
 )
 
 // 检查更新（参照 CC Switch）：启动后查一次、之后每天一次，有新版本推 "update" 事件，侧边栏"设置"上挂红点；

@@ -366,7 +366,7 @@ export default {
   },
 
   wizard: {
-    welcome: 'Welcome to claude-code-sync',
+    welcome: 'Welcome to agent-sync',
     step1: 'First, give this device a name. Your other devices will see it.',
     deviceName: 'Device name',
     step2: 'Where should the encrypted sessions be relayed? Pick an object storage provider:',

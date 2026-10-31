@@ -365,7 +365,7 @@ export default {
   },
 
   wizard: {
-    welcome: '欢迎使用 claude-code-sync',
+    welcome: '欢迎使用 agent-sync',
     step1: '先给这台设备起个名字，其他设备上会显示它。',
     deviceName: '设备名',
     step2: '会话记录加密后放在哪里中转？选一个对象存储服务商：',

@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/logging"
 )
 
 // 日志：读尾部带路径；清空不存在的日志不报错；超长时从整行开始截。
 func TestReadAndClearLog(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_SYNC_HOME", t.TempDir())
+	t.Setenv("AGENT_SYNC_HOME", t.TempDir())
 	if err := ClearLog(); err != nil {
 		t.Errorf("日志不存在时清空不应报错: %v", err)
 	}

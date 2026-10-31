@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="build/appicon.png" width="96" alt="claude-code-sync" />
+<img src="build/appicon.png" width="96" alt="agent-sync" />
 
-# claude-code-sync
+# agent-sync
 
 **Sync Claude Code and Codex sessions, personal rules and skills across machines (Windows / macOS). End-to-end encrypted, with paths translated automatically: switch computers and `claude --resume` right where you left off.**
 
-[![Release](https://img.shields.io/github/v/release/ALFO111111/claude-code-sync?include_prereleases)](https://github.com/ALFO111111/claude-code-sync/releases)
-[![CI](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/claude-code-sync/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ALFO111111/agent-sync?include_prereleases)](https://github.com/ALFO111111/agent-sync/releases)
+[![CI](https://github.com/ALFO111111/agent-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ALFO111111/agent-sync/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20%7C%20macOS%2013%2B-0078D6)
 
@@ -16,7 +16,9 @@
 </div>
 
 > [!NOTE]
-> This is an **unofficial** community tool and is not affiliated with Anthropic in any way. "Claude" is a trademark of Anthropic.
+> This is an **unofficial** community tool and is not affiliated with Anthropic or OpenAI in any way. "Claude" is a trademark of Anthropic, "Codex" is a trademark of OpenAI.
+>
+> Since 0.4.0 the project is called **agent-sync** (formerly **claude-code-sync**; it syncs more than Claude Code now). Old versions upgrade in place from Settings → About; data, passphrase and cloud content stay as they are. See [Upgrading from claude-code-sync](#rename).
 
 <p align="center"><img src="docs/images/home-en.png" width="760" alt="Home: sync status, change details, devices, cloud usage" /></p>
 
@@ -35,7 +37,7 @@ Claude Code keeps your sessions in `~/.claude/projects/` on the local machine. I
 
 Copying the files over doesn't work either: the same project usually lives at different paths on each machine (`D:\work\app` vs `E:\code\app`), and sessions are full of absolute paths, so `--resume` can't match them up.
 
-claude-code-sync solves exactly that:
+agent-sync solves exactly that:
 
 - **Session sync**: sessions, sub-agent transcripts and project memory (MEMORY.md) under `~/.claude/projects`, plus your input history (what ↑ brings back)
 - **Claude Code personal config sync**: global rules `CLAUDE.md`, `plans/`, `skills/`, `agents/`, `commands/`, `tasks/`, user-level MCP servers, and a few safe fields from settings.json (language, auto memory, co-author line). Models, API keys, hooks, permissions and MCP secrets/env vars are **never uploaded**. Each category can be turned off in Settings
@@ -63,7 +65,7 @@ Claude Code and Codex are supported on both, and Windows and Mac machines can sy
 
 ### Windows
 
-Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases) and put it in a **permanent location**, e.g. `%LOCALAPPDATA%\Programs\claude-code-sync\`. Automatic sync remembers where the exe is; if you move it later, just open the app once and the path is fixed for you.
+Grab `agent-sync.exe` from [Releases](https://github.com/ALFO111111/agent-sync/releases) and put it in a **permanent location**, e.g. `%LOCALAPPDATA%\Programs\agent-sync\`. Automatic sync remembers where the exe is; if you move it later, just open the app once and the path is fixed for you.
 
 > [!IMPORTANT]
 > The executables are not code-signed — this is a personal open-source project and a signing certificate costs more than it can afford. On the first launch Windows may show "Windows protected your PC"; click **More info → Run anyway**. This is Windows' generic warning for any unsigned software, not an indication of a problem.
@@ -71,7 +73,7 @@ Grab `claude-code-sync.exe` from [Releases](https://github.com/ALFO111111/claude
 
 ### macOS
 
-Download `claude-code-sync-<version>-macos-arm64.dmg` from [Releases](https://github.com/ALFO111111/claude-code-sync/releases), open it, drag `claude-code-sync.app` onto the Applications icon next to it, then eject the DMG from the Finder sidebar.
+Download `agent-sync-<version>-macos-arm64.dmg` from [Releases](https://github.com/ALFO111111/agent-sync/releases), open it, drag `agent-sync.app` onto the Applications icon next to it, then eject the DMG from the Finder sidebar.
 
 > [!IMPORTANT]
 > The app is not notarized by Apple (it only has an ad-hoc signature, for the same reason as above), so Gatekeeper blocks the first launch. Allow it once in any of these ways:
@@ -79,19 +81,19 @@ Download `claude-code-sync-<version>-macos-arm64.dmg` from [Releases](https://gi
 > - macOS 13 / 14: **right-click** the app in Finder → **Open**, then click "Open" in the dialog
 > - or run this in Terminal:
 >   ```bash
->   xattr -dr com.apple.quarantine /Applications/claude-code-sync.app
+>   xattr -dr com.apple.quarantine /Applications/agent-sync.app
 >   ```
 >
 > You can verify the dmg against `SHA256SUMS.txt` as well.
 
 **Differences from the Windows version**:
 
-- There is **no menu bar icon** on the Mac (the tray library and Wails conflict on macOS), so closing the window quits the app. Background sync keeps working: a windowless background process (`claude-code-sync daemon`) is started at login and syncs in real time; see [triggers](#triggers) below.
+- There is **no menu bar icon** on the Mac (the tray library and Wails conflict on macOS), so closing the window quits the app. Background sync keeps working: a windowless background process (`agent-sync daemon`) is started at login and syncs in real time; see [triggers](#triggers) below.
 - For the command line, use the executable inside the app, e.g.:
   ```bash
-  /Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync sync
+  /Applications/agent-sync.app/Contents/MacOS/agent-sync sync
   ```
-  If that's too long, add an alias: `alias claude-code-sync=/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`
+  If that's too long, add an alias: `alias agent-sync=/Applications/agent-sync.app/Contents/MacOS/agent-sync`
 
 ### Updating
 
@@ -100,6 +102,16 @@ The app checks GitHub for a new version when it opens (and once a day after that
 - On Windows the exe itself is replaced, so it can't update itself from a folder that needs admin rights (such as `C:\Program Files`); `%LOCALAPPDATA%\Programs\` is recommended.
 - On the Mac the whole app in Applications is replaced, and the background process is switched to the new version too.
 - GitHub can be hard to reach from some networks: the app uses the system proxy. If it still can't connect, download the new version from Releases.
+
+<a id="rename"></a>
+### Upgrading from claude-code-sync
+
+Versions 0.3.x and earlier were called claude-code-sync. Click "Update" in the old version (or run `claude-code-sync update`) to move to agent-sync; no need to set it up again:
+
+- The app stays where it was under its old file name (e.g. `claude-code-sync.exe`, `/Applications/claude-code-sync.app`), just with the new version inside. To switch to the new name, quit the app, download the new version as described above, put it in place and open it once; automatic sync follows it to the new location.
+- The data folder **stays at `~/.claude-code-sync`**; only fresh installs use `~/.agent-sync`.
+- The cloud data format and passphrase are unchanged. Old and new versions work together, so machines don't have to upgrade at the same time.
+- Automatic sync (scheduled task, autostart, the Mac background process) is re-registered under the new name and the old entries are removed; the Claude Code hooks are pointed at the new program.
 
 ## Get started in 5 minutes
 
@@ -113,7 +125,7 @@ The app checks GitHub for a new version when it opens (and once a day after that
 > ```
 
 1. **Get a bucket and an access key** by following the [cloud storage setup guide](#cloud-storage-setup) below (about 3 minutes).
-2. **First computer**: open the app (double-click `claude-code-sync.exe` on Windows, open `claude-code-sync.app` on the Mac). The wizard has 4 steps: device name → storage provider → bucket and keys (there's a "Test connection" button) → sync passphrase. After "Finish", automatic sync is enabled and a first sync runs right away.
+2. **First computer**: open the app (double-click `agent-sync.exe` on Windows, open `agent-sync.app` on the Mac). The wizard has 4 steps: device name → storage provider → bucket and keys (there's a "Test connection" button) → sync passphrase. After "Finish", automatic sync is enabled and a first sync runs right away.
 3. **Second computer**: download and run it the same way, using **the same bucket** and **the same passphrase**. The sessions from the first computer will be pulled down.
 4. **Match up projects**:
    - git projects (with a remote URL) match automatically
@@ -228,7 +240,7 @@ D:\work\app                       v1/history.jsonl                           tra
   | Any other file changed only on the other machine | Downloaded; the previous local version is backed up first |
   | Old sessions cleaned up by Claude Code itself | Never pulled back |
 
-  Backups live in `~/.claude-code-sync/backup/` for 14 days. The Backups page in the app lets you view them, compare them line by line with the current file, and restore with one click (the version being replaced is backed up too, so you can switch back).
+  Backups live in `~/.agent-sync/backup/` for 14 days. The Backups page in the app lets you view them, compare them line by line with the current file, and restore with one click (the version being replaced is backed up too, so you can switch back).
 
 - **Merging personal config (rules, skills, MCP, …)**: the last common version is remembered and a three-way merge is done. Different lines or fields changed on two machines → merged automatically; the same spot changed → it goes to the Conflicts page while your local file stays usable, and you choose keep mine / use theirs / keep both / merge manually. **Deletions never propagate**: deleting a file on one machine never deletes it on another, and it is not pulled back locally either.
 - **Working with CC Switch**: CC Switch owns provider URLs, keys and models. If its auto sync is on, Claude's global rules, skills and MCP could be synced twice, so these three are paused until you pick an owner in Settings (nothing is shown if CC Switch auto sync is off). This owner choice only affects Claude; it never pauses or takes over Codex.
@@ -237,8 +249,8 @@ D:\work\app                       v1/history.jsonl                           tra
 
 - **Four triggers**:
   1. Claude Code hooks (`SessionStart` / `Stop`) do most of the work, on Windows and Mac alike
-  2. File watching, syncing as soon as something changes: on Windows, the app starts at login and stays in the tray; on the Mac, launchd starts a windowless background process `claude-code-sync daemon` at login (LaunchAgent `com.alfo111111.claude-code-sync.daemon`). The "Start at login" switch in Settings controls both
-  3. A full sync every hour as a safety net: a scheduled task on Windows; the LaunchAgent `com.alfo111111.claude-code-sync.sync` on the Mac (which also runs once at login). Both Mac LaunchAgents live in `~/Library/LaunchAgents`, belong to the current user only and need no admin rights
+  2. File watching, syncing as soon as something changes: on Windows, the app starts at login and stays in the tray; on the Mac, launchd starts a windowless background process `agent-sync daemon` at login (LaunchAgent `com.alfo111111.agent-sync.daemon`). The "Start at login" switch in Settings controls both
+  3. A full sync every hour as a safety net: a scheduled task on Windows; the LaunchAgent `com.alfo111111.agent-sync.sync` on the Mac (which also runs once at login). Both Mac LaunchAgents live in `~/Library/LaunchAgents`, belong to the current user only and need no admin rights
   4. You can always click "Sync now"
 
 <a id="codex-scope"></a>
@@ -273,28 +285,28 @@ All four are on by default and can be turned off one by one in Settings or with 
 
 ## Command line
 
-The same program works as a CLI when given arguments (on the Mac use `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync`, or the alias above):
+The same program works as a CLI when given arguments (on the Mac use `/Applications/agent-sync.app/Contents/MacOS/agent-sync`, or the alias above):
 
 ```powershell
-claude-code-sync init                          # set up from the terminal (same as the wizard)
-claude-code-sync sync                          # two-way sync once
-claude-code-sync sync --dry                    # show what would happen, change nothing
-claude-code-sync status                        # bindings and projects waiting to be claimed
-claude-code-sync claim <project-id> <path>     # claim a project from another machine
-claude-code-sync ignore <project-id>           # ignore / stop syncing a project (no files deleted)
-claude-code-sync unignore <project-id>         # stop ignoring
-claude-code-sync content                       # which personal config is synced
-claude-code-sync content disable skills        # turn a Claude category off (no files deleted); enable turns it on; legacy form kept
-claude-code-sync content disable codex sessions # disable Codex sessions only; enable turns them on; categories: rules / skills / legacy-skills / sessions
-claude-code-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner for Claude config (sync / ccswitch)
-claude-code-sync conflicts                     # list unresolved conflicts
-claude-code-sync resolve <conflict-id> local   # resolve: local / remote / both, or merged <file>
-claude-code-sync restore-content plans a.md    # pull a locally deleted Claude config file back from the cloud; legacy form kept
-claude-code-sync restore-content codex rules AGENTS.md # restore Codex global rules; categories: rules / skills / legacy-skills
-claude-code-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
-claude-code-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login; the two LaunchAgents on the Mac)
-claude-code-sync version
-claude-code-sync update                     # check for updates and install a newer version (--dry: only check)
+agent-sync init                          # set up from the terminal (same as the wizard)
+agent-sync sync                          # two-way sync once
+agent-sync sync --dry                    # show what would happen, change nothing
+agent-sync status                        # bindings and projects waiting to be claimed
+agent-sync claim <project-id> <path>     # claim a project from another machine
+agent-sync ignore <project-id>           # ignore / stop syncing a project (no files deleted)
+agent-sync unignore <project-id>         # stop ignoring
+agent-sync content                       # which personal config is synced
+agent-sync content disable skills        # turn a Claude category off (no files deleted); enable turns it on; legacy form kept
+agent-sync content disable codex sessions # disable Codex sessions only; enable turns them on; categories: rules / skills / legacy-skills / sessions
+agent-sync content owner mcp sync        # with CC Switch auto sync on, choose the owner for Claude config (sync / ccswitch)
+agent-sync conflicts                     # list unresolved conflicts
+agent-sync resolve <conflict-id> local   # resolve: local / remote / both, or merged <file>
+agent-sync restore-content plans a.md    # pull a locally deleted Claude config file back from the cloud; legacy form kept
+agent-sync restore-content codex rules AGENTS.md # restore Codex global rules; categories: rules / skills / legacy-skills
+agent-sync passwd                        # change the sync passphrase; after another machine changed it, enter the new one here
+agent-sync uninstall                     # remove automatic sync (hooks + scheduled task + start-at-login; the two LaunchAgents on the Mac)
+agent-sync version
+agent-sync update                     # check for updates and install a newer version (--dry: only check)
 ```
 
 ## FAQ
@@ -308,7 +320,7 @@ Not only can they, they **must**. The computers never talk to each other directl
 <details>
 <summary><b>How do I change the sync passphrase?</b></summary>
 
-Go to Settings → Sync passphrase → "Change passphrase" (or run `claude-code-sync passwd`). Every file in the cloud is re-encrypted with the new passphrase, which takes a few minutes with many files; if it gets interrupted, just run it again with the same passphrases.
+Go to Settings → Sync passphrase → "Change passphrase" (or run `agent-sync passwd`). Every file in the cloud is re-encrypted with the new passphrase, which takes a few minutes with many files; if it gets interrupted, just run it again with the same passphrases.
 
 Afterwards your other machines pause syncing (they won't keep uploading with the old passphrase); the app's home page asks for the new passphrase, and syncing continues once it's entered.
 </details>
@@ -328,7 +340,7 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 <details>
 <summary><b>Where is my data? Is the access key safe?</b></summary>
 
-- Config: `~/.claude-code-sync/config.json` (`%USERPROFILE%\.claude-code-sync\config.json` on Windows). The access key is stored there in plain text (inside your user profile, readable only by your user account and administrators by default), so please use a key that can **only access this one bucket**.
+- Config: `~/.agent-sync/config.json` (`%USERPROFILE%\.agent-sync\config.json` on Windows; `.claude-code-sync` on machines upgraded from claude-code-sync). The access key is stored there in plain text (inside your user profile, readable only by your user account and administrators by default), so please use a key that can **only access this one bucket**.
 - Encryption key: the `key` file next to it (derived from your passphrase)
 - Log: `sync.log` in the same folder, also shown on the app's "Logs" page
 - The cloud only stores encrypted data; your provider can't read your sessions.
@@ -339,16 +351,16 @@ Yes. When CC Switch switches providers it may rewrite `~/.claude/settings.json` 
 
 **Windows**:
 
-1. Run `claude-code-sync uninstall` to remove the Claude Code hooks, the scheduled task and start-at-login (sessions, config and cloud data stay)
+1. Run `agent-sync uninstall` to remove the Claude Code hooks, the scheduled task and start-at-login (sessions, config and cloud data stay)
 2. Right-click the tray icon → Quit
-3. Delete the exe and the `%USERPROFILE%\.claude-code-sync` folder
+3. Delete the exe and the `%USERPROFILE%\.agent-sync` folder (`.claude-code-sync` on machines upgraded from the old version)
 4. Cloud data: delete the `v1/` folder in your bucket from the provider's console
 
 **macOS**:
 
-1. Run `/Applications/claude-code-sync.app/Contents/MacOS/claude-code-sync uninstall` to remove the Claude Code hooks and the two LaunchAgents in `~/Library/LaunchAgents` (`com.alfo111111.claude-code-sync.sync` and `com.alfo111111.claude-code-sync.daemon`); the background process stops with them (sessions, config and cloud data stay)
-2. Close the app window and move `claude-code-sync.app` to the Trash
-3. Delete the `~/.claude-code-sync` folder
+1. Run `/Applications/agent-sync.app/Contents/MacOS/agent-sync uninstall` to remove the Claude Code hooks and the two LaunchAgents in `~/Library/LaunchAgents` (`com.alfo111111.agent-sync.sync` and `com.alfo111111.agent-sync.daemon`); the background process stops with them (sessions, config and cloud data stay)
+2. Close the app window and move `agent-sync.app` to the Trash
+3. Delete the `~/.agent-sync` folder (`~/.claude-code-sync` on machines upgraded from the old version)
 4. Cloud data: same as above
 </details>
 

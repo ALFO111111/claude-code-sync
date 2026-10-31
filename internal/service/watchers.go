@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ALFO111111/claude-code-sync/internal/config"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
-	"github.com/ALFO111111/claude-code-sync/internal/watch"
+	"github.com/ALFO111111/agent-sync/internal/config"
+	"github.com/ALFO111111/agent-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/watch"
 )
 
 // NewWatchers 要盯的文件和目录（还没 Start）。图形界面常驻时（Windows 托盘）和 macOS 的后台进程 daemon 共用：
@@ -62,7 +62,7 @@ func NewWatchers(cfg *config.Config, onChange func()) []*watch.Watcher {
 	return ws
 }
 
-// RunDaemon 没有窗口的后台同步（macOS 登录时由 launchd 启动 `claude-code-sync daemon`）：
+// RunDaemon 没有窗口的后台同步（macOS 登录时由 launchd 启动 `agent-sync daemon`）：
 // 先全量同步一次，之后文件一变就同步；ctx 结束时退出。还没初始化时每分钟看一眼，初始化后自动开始。
 func RunDaemon(ctx context.Context) error {
 	var cfg *config.Config

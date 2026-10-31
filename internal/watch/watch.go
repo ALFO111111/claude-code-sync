@@ -18,8 +18,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
-	"github.com/ALFO111111/claude-code-sync/internal/logging"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/logging"
 )
 
 const (

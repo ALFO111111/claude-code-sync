@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 const Version = 1

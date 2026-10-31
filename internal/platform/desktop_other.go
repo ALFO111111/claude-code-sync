@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 var errUnsupported = errors.New("only Windows and macOS are supported for now")
@@ -22,6 +22,8 @@ func openTerminal(dir string, command []string) error       { return errUnsuppor
 func darkMode() bool                                        { return false }
 func scheduledInfo() (exe string, intervalMin int, ok bool) { return "", 0, false }
 func removeSchedule() error                                 { return nil }
+func removeLegacySchedule() error                           { return nil }
+func removeLegacyAutostart() error                          { return nil }
 
 func installSchedule(exe string) (bool, error) {
 	return false, fmt.Errorf(i18n.T("这个系统还不支持自动安装定时同步，请用 cron: */%d * * * * %s sync -q"), ScheduleIntervalMin, exe)

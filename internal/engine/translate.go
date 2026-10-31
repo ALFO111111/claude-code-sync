@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/fsutil"
+	"github.com/ALFO111111/agent-sync/internal/fsutil"
 )
 
 // 路径翻译：云端存的是原样内容，拉到本机时，把"其他设备上的项目根路径"换成"本机的项目根路径"。

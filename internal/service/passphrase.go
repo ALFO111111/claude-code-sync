@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ALFO111111/claude-code-sync/internal/crypt"
-	"github.com/ALFO111111/claude-code-sync/internal/engine"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/crypt"
+	"github.com/ALFO111111/agent-sync/internal/engine"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
 )
 
 // 同步口令：修改（所有设备一起换），以及别的设备改过之后本机换上新口令。

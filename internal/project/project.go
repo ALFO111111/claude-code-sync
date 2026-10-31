@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/platform"
+	"github.com/ALFO111111/agent-sync/internal/platform"
 )
 
 // HomePID 没打开项目（工作目录 = 用户目录）时的 pid。

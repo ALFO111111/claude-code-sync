@@ -1,4 +1,4 @@
-// claude-code-sync 把 Claude Code（以及 Codex）的会话和个人配置在多台电脑（Windows / macOS）之间同步。
+// agent-sync 把 Claude Code（以及 Codex）的会话和个人配置在多台电脑（Windows / macOS）之间同步。
 //
 // 单个 exe 两种模式：
 //
@@ -14,10 +14,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ALFO111111/claude-code-sync/internal/cli"
-	"github.com/ALFO111111/claude-code-sync/internal/gui"
-	"github.com/ALFO111111/claude-code-sync/internal/i18n"
-	"github.com/ALFO111111/claude-code-sync/internal/update"
+	"github.com/ALFO111111/agent-sync/internal/cli"
+	"github.com/ALFO111111/agent-sync/internal/gui"
+	"github.com/ALFO111111/agent-sync/internal/i18n"
+	"github.com/ALFO111111/agent-sync/internal/update"
 )
 
 // version 发布时可用 -ldflags "-X main.version=x.y.z" 覆盖。
