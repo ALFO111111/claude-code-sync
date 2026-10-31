@@ -322,3 +322,6 @@ a:hover { text-decoration: underline; }
   word-break: break-all;
   overflow-y: auto;
 }
+
+/* 侧边栏分组标题：当前工具 / 通用 */
+.nav-group { margin: 14px 12px 6px; font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }

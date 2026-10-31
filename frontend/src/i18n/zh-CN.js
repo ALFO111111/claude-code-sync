@@ -1,7 +1,16 @@
 // 简体中文。改动 key 时 en.js 要一起改（npm run check-i18n 会检查两边是否一致）。
 // vue-i18n 语法提醒：{name} 是参数；"A | B" 是单复数（中文不用写）；文字里不要出现 @ { } | 这几个字符。
 export default {
-  nav: { home: '首页', sessions: '会话', bindings: '项目绑定', backups: '备份', conflicts: '冲突', settings: '设置', logs: '日志' },
+  nav: { home: '首页', sessions: '会话', content: '同步内容', bindings: '项目绑定', backups: '备份', conflicts: '冲突', settings: '设置', logs: '日志', tool: '当前工具', general: '通用' },
+
+  tools: {
+    notInstalled: '本机未检测到',
+    sessions: '{n} 个会话',
+    contentOn: '同步内容 {on}/{total} 类',
+    open: '查看会话',
+    conflicts: '{n} 个冲突待处理',
+    notInstalledHint: '本机还没有 {dir}，装好 {name} 后会自动开始同步',
+  },
 
   common: {
     syncing: '同步中…',
@@ -84,6 +93,9 @@ export default {
   sessions: {
     projects: '项目',
     noBound: '还没有绑定项目',
+    noToolSessions: '本机已绑定的项目里还没有 {name} 的会话。',
+    searchAllTool: '搜索所有 {name} 会话…',
+    resumeHintTool: '在终端里打开 {name}，接着这个会话聊',
     title: '会话',
     pickProject: '先在左边选一个项目',
     pickProjectHint: '也可以在左上角搜索所有项目的聊天内容。',
@@ -192,6 +204,7 @@ export default {
 
   content: {
     title: '同步内容',
+    none: '这个工具暂时没有可以同步的内容。',
     intro: '除了会话和项目记忆，还可以同步这些。关掉只是不再同步，本机和云端的文件都不会删。一台电脑上删掉的文件也不会去删别的电脑上的。',
     ccWarn: 'CC Switch 开着自动同步，它也会同步全局规则、技能和 MCP。两边一起同步可能互相覆盖，请为下面标出的类别选一个负责的。',
     tool: { claude: 'Claude Code', codex: 'Codex' },

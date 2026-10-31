@@ -67,6 +67,7 @@ export const resources = {
   backups: resource(() => api.ListBackups()),
   conflicts: resource(() => api.ListConflicts()),
   content: resource(() => api.GetContent()),
+  tools: resource(() => api.ListTools()), // 支持的工具和本机概况（顶部工具切换、首页工具卡片）
 }
 
 let started = false

@@ -30,7 +30,8 @@ import (
 //	状态     GetStatus  GetUsage（云端用量）
 //	同步     SyncNow                                 + 事件 "sync"（SyncEvent）、"sync-progress"（SyncProgress）
 //	项目     ListProjects  ListProjectsCached  ListBound  ClaimProject  IgnoreProject  UnignoreProject  PickDirectory
-//	会话     ListSessions  ReadSession  SearchSessions  ResumeCommand  OpenInClaude  CopyText
+//	工具     ListTools（支持哪些 AI 工具、本机概况；界面顶部的工具切换按它生成）
+//	会话     ListToolProjects  ListSessions  ReadSession  SearchSessions  ResumeCommand  OpenSession  CopyText（都带 tool 参数）
 //	备份     ListBackups  ReadBackup  RestoreBackup  OpenBackupFolder
 //	冲突     ListConflicts  ReadConflict  ResolveConflict  RestoreContentItem
 //	同步内容 GetContent  SetContentEnabled  SetContentOwner（全局规则、技能、MCP 等哪些要同步；和 CC Switch 谁负责）
@@ -232,12 +233,20 @@ func (a *App) PickDirectory() (string, error) {
 
 // ---------- 会话 ----------
 
-func (a *App) ListSessions(pid string) ([]service.SessionInfo, error) {
-	return service.ListSessions(pid)
+// ListTools 支持的工具（Claude Code、Codex……）和它们在本机的概况。
+func (a *App) ListTools() ([]service.ToolInfo, error) { return service.ListTools() }
+
+// ListToolProjects 这个工具有会话的项目（会话页左边）。
+func (a *App) ListToolProjects(tool string) ([]service.ToolProject, error) {
+	return service.ListToolProjects(tool)
 }
 
-func (a *App) ReadSession(pid, rel string) ([]service.SessionMessage, error) {
-	return service.ReadSession(pid, rel)
+func (a *App) ListSessions(tool, pid string) ([]service.SessionInfo, error) {
+	return service.ListToolSessions(tool, pid)
+}
+
+func (a *App) ReadSession(tool, pid, rel string) ([]service.SessionMessage, error) {
+	return service.ReadToolSession(tool, pid, rel)
 }
 
 // ---------- 设置 ----------
@@ -325,14 +334,18 @@ func (a *App) GetUsage() (*engine.Usage, error) { return service.CloudUsage(cont
 
 // ---------- 会话（搜索、继续）----------
 
-func (a *App) SearchSessions(q string) ([]service.SearchHit, error) { return service.SearchSessions(q) }
-
-func (a *App) ResumeCommand(pid, rel string) (*service.ResumeInfo, error) {
-	return service.ResumeCommand(pid, rel)
+func (a *App) SearchSessions(tool, q string) ([]service.SearchHit, error) {
+	return service.SearchToolSessions(tool, q)
 }
 
-// OpenInClaude 开一个终端窗口，在项目目录里 claude --resume 这个会话。
-func (a *App) OpenInClaude(pid, rel string) error { return service.OpenInClaude(pid, rel) }
+func (a *App) ResumeCommand(tool, pid, rel string) (*service.ResumeInfo, error) {
+	return service.ToolResumeCommand(tool, pid, rel)
+}
+
+// OpenSession 开一个终端窗口，在项目目录里继续这个会话（claude --resume / codex resume）。
+func (a *App) OpenSession(tool, pid, rel string) error {
+	return service.OpenToolSession(tool, pid, rel)
+}
 
 // CopyText 复制到剪贴板。
 func (a *App) CopyText(text string) error {

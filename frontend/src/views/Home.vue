@@ -78,6 +78,21 @@
       </div>
     </div>
 
+    <!-- 每个工具一张卡片：同步了哪些、有多少会话；点卡片切到那个工具 -->
+    <div v-if="toolList.length" class="tool-cards">
+      <div v-for="x in toolList" :key="x.id" class="card tool-card clickable" :class="{ off: !x.installed }" @click="openTool(x)">
+        <div class="row">
+          <ToolIcon :tool="x" :size="30" :off="!x.installed" />
+          <div class="grow">
+            <div class="tool-name">{{ x.name }}</div>
+            <div class="muted small">{{ x.installed ? t('tools.sessions', { n: x.sessionCount }) : t('tools.notInstalled') }}</div>
+          </div>
+        </div>
+        <div class="muted small mt">{{ t('tools.contentOn', { on: x.contentOn, total: x.contentTotal }) }}</div>
+        <div v-if="toolConflicts(x.id)" class="err small">{{ t('tools.conflicts', { n: toolConflicts(x.id) }) }}</div>
+      </div>
+    </div>
+
     <div class="grid2">
       <div class="card" v-if="status">
         <h3>{{ t('home.myDevices') }}<Refreshing :on="statusRes.loading" /></h3>
@@ -143,6 +158,8 @@ import { syncState } from '@/stores/sync'
 import { go } from '@/stores/nav'
 import { resources } from '@/stores/data'
 import { fromNow, fmtSize, toolLabel, contentLabel } from '@/utils/format'
+import { tools, setTool } from '@/stores/tools'
+import ToolIcon from '@/components/ToolIcon.vue'
 import Notice from '@/components/Notice.vue'
 import NavIcon from '@/components/NavIcon.vue'
 import Skeleton from '@/components/Skeleton.vue'
@@ -232,9 +249,18 @@ const barWidth = (n) => (topProjects.value[0]?.bytes ? Math.max(2, (n / topProje
 watch(locale, refresh)
 
 // 每次进首页（包括第一次）：状态是本地读的，总是刷新；云端用量 5 分钟内不重复拉
+// 工具卡片
+const toolList = tools
+const toolConflicts = (id) => status.value?.toolConflicts?.[id] || 0
+function openTool(x) {
+  setTool(x.id)
+  go('sessions')
+}
+
 onActivated(() => {
   statusRes.load()
   usageRes.load()
+  resources.tools.refresh() // 会话数随时在变，本地读很快
   now.value = Date.now()
 })
 
@@ -245,6 +271,12 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <style scoped>
+.tool-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.tool-cards .card { margin-bottom: 0; }
+.tool-card .row { gap: 12px; }
+.tool-card:hover { border-color: var(--accent); }
+.tool-card.off { opacity: 0.7; }
+.tool-name { font-weight: 600; }
 .key-desc { margin: 0 0 10px; }
 .hero { align-items: flex-start; gap: 20px; }
 .last-sync { font-size: 18px; font-weight: 600; }

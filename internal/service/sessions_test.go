@@ -48,7 +48,7 @@ func TestListAndReadSessions(t *testing.T) {
 	_, pid := newDeviceWithSession(t, "devA",
 		`{"type":"user","timestamp":"2026-10-11T10:00:00Z","message":{"role":"user","content":"第一条消息内容"}}`+"\n")
 
-	list, err := ListSessions(pid)
+	list, err := ListToolSessions("claude", pid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,15 +66,15 @@ func TestListAndReadSessions(t *testing.T) {
 		t.Errorf("已同步的会话 Synced 应为 true")
 	}
 
-	msgs, err := ReadSession(pid, "a1.jsonl")
+	msgs, err := ReadToolSession("claude", pid, "a1.jsonl")
 	if err != nil || len(msgs) != 1 || msgs[0].Text != "第一条消息内容" {
 		t.Fatalf("ReadSession: %v %+v", err, msgs)
 	}
-	if _, err := ReadSession(pid, "../evil.jsonl"); err == nil {
+	if _, err := ReadToolSession("claude", pid, "../evil.jsonl"); err == nil {
 		t.Errorf("路径穿越应报错")
 	}
-	if _, err := ListSessions("git:nope"); err == nil {
-		t.Errorf("未绑定的项目应报错")
+	if list, err := ListToolSessions("claude", "git:nope"); err != nil || len(list) != 0 {
+		t.Errorf("未绑定的项目应没有会话: %v %+v", err, list)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestListSessionsEmpty(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(cfg.ProjectsDir(), st.Bindings[pid].Dir)); err != nil {
 		t.Fatal(err)
 	}
-	list, err := ListSessions(pid)
+	list, err := ListToolSessions("claude", pid)
 	if err != nil || list == nil || len(list) != 0 {
 		t.Fatalf("目录不存在应返回空列表: %v %#v", err, list)
 	}
@@ -132,17 +132,17 @@ func TestSearchSessions(t *testing.T) {
 	_, pid := newDeviceWithSession(t, "devA",
 		`{"type":"user","timestamp":"2026-10-11T10:00:00Z","message":{"role":"user","content":"帮我看看 Login 页面的报错"}}`+"\n"+
 			`{"type":"assistant","timestamp":"2026-10-11T10:00:05Z","message":{"role":"assistant","content":[{"type":"text","text":"login 的问题在这里"}]}}`+"\n")
-	hits, err := SearchSessions("LOGIN")
+	hits, err := SearchToolSessions("claude", "LOGIN")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(hits) != 1 || hits[0].PID != pid || hits[0].Count != 2 || !strings.Contains(hits[0].Snippet, "Login 页面") {
 		t.Fatalf("搜索结果不对: %+v", hits)
 	}
-	if hits, _ := SearchSessions("找不到的词"); len(hits) != 0 {
+	if hits, _ := SearchToolSessions("claude", "找不到的词"); len(hits) != 0 {
 		t.Errorf("没命中应返回空: %+v", hits)
 	}
-	if hits, _ := SearchSessions("帮"); len(hits) != 0 {
+	if hits, _ := SearchToolSessions("claude", "帮"); len(hits) != 0 {
 		t.Errorf("一个字不搜: %+v", hits)
 	}
 }
@@ -160,12 +160,16 @@ func TestSnippet(t *testing.T) {
 
 // 只有顶层会话（文件名是会话 ID）能在 Claude Code 里继续；命令在项目目录里执行。
 func TestResumeCommand(t *testing.T) {
-	_, pid := newDeviceWithSession(t, "devA", "")
-	if _, err := ResumeCommand(pid, "a1.jsonl"); err == nil {
+	cfg, pid := newDeviceWithSession(t, "devA", "")
+	if _, err := ToolResumeCommand("claude", pid, "a1.jsonl"); err == nil {
 		t.Error("文件名不是会话 ID 时不能继续")
 	}
 	id := "11111111-2222-4333-8444-555555555555"
-	r, err := ResumeCommand(pid, id+".jsonl")
+	st, _ := state.Load()
+	if err := os.WriteFile(filepath.Join(cfg.ProjectsDir(), st.Bindings[pid].Dir, id+".jsonl"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ToolResumeCommand("claude", pid, id+".jsonl")
 	if err != nil {
 		t.Fatal(err)
 	}

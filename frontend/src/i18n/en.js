@@ -2,7 +2,16 @@
 // vue-i18n syntax: {name} is a parameter; "A | B" picks singular/plural by count;
 // avoid the characters @ { } | in plain text.
 export default {
-  nav: { home: 'Home', sessions: 'Sessions', bindings: 'Projects', backups: 'Backups', conflicts: 'Conflicts', settings: 'Settings', logs: 'Logs' },
+  nav: { home: 'Home', sessions: 'Sessions', content: 'Synced content', bindings: 'Projects', backups: 'Backups', conflicts: 'Conflicts', settings: 'Settings', logs: 'Logs', tool: 'CURRENT TOOL', general: 'GENERAL' },
+
+  tools: {
+    notInstalled: 'not found on this machine',
+    sessions: '{n} sessions',
+    contentOn: 'Synced content {on}/{total}',
+    open: 'View sessions',
+    conflicts: '{n} conflicts to resolve',
+    notInstalledHint: '{dir} does not exist on this machine yet; sync starts automatically once {name} is installed',
+  },
 
   common: {
     syncing: 'Syncing…',
@@ -85,6 +94,9 @@ export default {
   sessions: {
     projects: 'Projects',
     noBound: 'No bound projects yet',
+    noToolSessions: 'No {name} sessions in the bound projects on this machine yet.',
+    searchAllTool: 'Search all {name} sessions…',
+    resumeHintTool: 'Open {name} in a terminal and continue this session',
     title: 'Sessions',
     pickProject: 'Pick a project on the left',
     pickProjectHint: 'Or search the chats of all projects in the box at the top left.',
@@ -193,6 +205,7 @@ export default {
 
   content: {
     title: 'What to sync',
+    none: 'Nothing else to sync for this tool yet.',
     intro: 'Besides sessions and project memory, these can be synced too. Turning one off only stops syncing; no local or cloud files are deleted. Deleting a file on one computer never deletes it on the others.',
     ccWarn: 'CC Switch auto sync is on and it also syncs global rules, skills and MCP. Syncing them from both tools may overwrite each other; pick one owner for the categories marked below.',
     tool: { claude: 'Claude Code', codex: 'Codex' },

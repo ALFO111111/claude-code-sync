@@ -3,22 +3,14 @@ package service
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 
-	"github.com/ALFO111111/agent-sync/internal/config"
 	"github.com/ALFO111111/agent-sync/internal/engine"
-	"github.com/ALFO111111/agent-sync/internal/i18n"
-	"github.com/ALFO111111/agent-sync/internal/platform"
-	"github.com/ALFO111111/agent-sync/internal/state"
 )
 
 // 会话浏览：会话列表 + 完整对话查看器的解析（GUI 会话页用）。只读本地文件，不连云端。
@@ -42,45 +34,6 @@ func fmtTime(t time.Time) string {
 		return ""
 	}
 	return t.Local().Format("2006-01-02 15:04")
-}
-
-// ListSessions 列出一个绑定项目的顶层会话（子目录里的子代理记录不算），新的排前面。
-func ListSessions(pid string) ([]SessionInfo, error) {
-	cfg, st, b, err := openBinding(pid)
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(cfg.ProjectsDir(), b.Dir)
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return []SessionInfo{}, nil // 刚绑定、本机还没聊过也没拉到东西
-	}
-	if err != nil {
-		return nil, err
-	}
-	out := []SessionInfo{}
-	for _, ent := range entries {
-		if ent.IsDir() || !strings.HasSuffix(ent.Name(), ".jsonl") {
-			continue
-		}
-		info, err := ent.Info()
-		if err != nil {
-			continue
-		}
-		s := SessionInfo{Name: ent.Name(), Rel: ent.Name(), Size: info.Size(), Mtime: fmtTime(info.ModTime())}
-		var ok bool
-		if s.Lines, s.Preview, s.Title, ok = cachedSummary(filepath.Join(dir, ent.Name()), info); !ok {
-			continue
-		}
-		if fs := st.Files[engine.FileKey(pid, s.Rel)]; fs != nil && !fs.Deleted {
-			s.Synced = true
-		}
-		id := strings.TrimSuffix(s.Name, ".jsonl")
-		s.ForkOf, s.Resume = st.Forks[id], isSessionID(id)
-		out = append(out, s)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Mtime > out[j].Mtime })
-	return out, nil
 }
 
 // summaryCache 会话列表的摘要缓存：路径 → 上次读到时的大小、修改时间和摘要。
@@ -247,39 +200,6 @@ func truncate(s string, n int) string {
 	return s
 }
 
-// ReadSession 读一个会话文件并解析成消息（给查看器）。rel 是相对项目目录的路径，禁止跳出目录。
-func ReadSession(pid, rel string) ([]SessionMessage, error) {
-	if strings.Contains(rel, "..") || strings.HasPrefix(rel, "/") || strings.ContainsRune(rel, '\\') {
-		return nil, errors.New(i18n.T("非法路径"))
-	}
-	cfg, _, b, err := openBinding(pid)
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(filepath.Join(cfg.ProjectsDir(), b.Dir, filepath.FromSlash(rel)))
-	if err != nil {
-		return nil, err
-	}
-	return parseSession(data), nil
-}
-
-// openBinding 按 pid 找到本机绑定。
-func openBinding(pid string) (*config.Config, *state.State, *state.Binding, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	st, err := state.Load()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	b := st.Bindings[pid]
-	if b == nil {
-		return nil, nil, nil, fmt.Errorf(i18n.T("项目未绑定: %s"), pid)
-	}
-	return cfg, st, b, nil
-}
-
 // isSessionID 顶层会话的文件名就是会话 ID（标准 UUID），Claude Code 的 --resume 认它。
 func isSessionID(id string) bool { return len(id) == 36 && strings.Count(id, "-") == 4 }
 
@@ -299,73 +219,6 @@ type SearchHit struct {
 // maxSearchHits 搜索最多返回多少个会话。
 const maxSearchHits = 100
 
-// SearchSessions 在本机所有已绑定项目的会话里搜消息内容（不分大小写），最近的会话排前面。
-// 先在原始文件里粗筛（不包含关键词的文件不解析），再逐条消息精确匹配。
-func SearchSessions(q string) ([]SearchHit, error) {
-	q = strings.TrimSpace(q)
-	out := []SearchHit{}
-	if len([]rune(q)) < 2 {
-		return out, nil // 一个字能命中几乎所有会话，没意义
-	}
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, err
-	}
-	st, err := state.Load()
-	if err != nil {
-		return nil, err
-	}
-	lq := strings.ToLower(q)
-	type cand struct {
-		hit   SearchHit
-		mtime time.Time
-	}
-	var cands []cand
-	for _, b := range st.Bindings {
-		dir := filepath.Join(cfg.ProjectsDir(), b.Dir)
-		entries, _ := os.ReadDir(dir)
-		for _, ent := range entries {
-			if ent.IsDir() || !strings.HasSuffix(ent.Name(), ".jsonl") {
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join(dir, ent.Name()))
-			if err != nil || !bytes.Contains(bytes.ToLower(data), []byte(lq)) {
-				continue
-			}
-			h := SearchHit{PID: b.PID, Project: b.Display, Rel: ent.Name()}
-			for _, m := range parseSession(data) {
-				if i := strings.Index(strings.ToLower(m.Text), lq); i >= 0 {
-					if h.Count++; h.Snippet == "" {
-						h.Snippet = snippet(m.Text, i, lq)
-					}
-				}
-			}
-			if h.Count == 0 {
-				continue
-			}
-			info, _ := ent.Info()
-			c := cand{hit: h}
-			if info != nil {
-				c.mtime = info.ModTime()
-				c.hit.Mtime = fmtTime(c.mtime)
-				_, preview, title, _ := cachedSummary(filepath.Join(dir, ent.Name()), info)
-				if c.hit.Title = title; title == "" {
-					c.hit.Title = preview
-				}
-			}
-			cands = append(cands, c)
-		}
-	}
-	sort.Slice(cands, func(i, j int) bool { return cands[i].mtime.After(cands[j].mtime) })
-	for i, c := range cands {
-		if i == maxSearchHits {
-			break
-		}
-		out = append(out, c.hit)
-	}
-	return out, nil
-}
-
 // snippet 命中处前后的一段文字，换行压成空格。i 是命中在小写文本里的字节下标，q 是小写关键词。
 // strings.ToLower 逐个字符转换、不增减字符数，所以按字符数换算回原文的位置是准的。
 func snippet(text string, i int, q string) string {
@@ -382,35 +235,10 @@ func snippet(text string, i int, q string) string {
 	return strings.ReplaceAll(s, "\n", " ")
 }
 
-// ---------- 在 Claude Code 里继续 ----------
+// ---------- 继续会话 ----------
 
-// ResumeInfo 继续一个会话要做的事：在项目目录里运行 claude --resume <会话 ID>。
+// ResumeInfo 继续一个会话要做的事：在项目目录里运行 claude --resume / codex resume <会话 ID>。
 type ResumeInfo struct {
 	Dir     string `json:"dir"`
 	Command string `json:"command"` // 可以直接粘贴到终端（PowerShell、Git Bash 都认）
-}
-
-// ResumeCommand 继续某个会话的命令。
-func ResumeCommand(pid, rel string) (*ResumeInfo, error) {
-	_, _, b, err := openBinding(pid)
-	if err != nil {
-		return nil, err
-	}
-	id := strings.TrimSuffix(rel, ".jsonl")
-	if strings.Contains(rel, "/") || !isSessionID(id) {
-		return nil, errors.New(i18n.T("只有顶层会话能继续"))
-	}
-	return &ResumeInfo{Dir: b.Root, Command: `cd "` + b.Root + `"; claude --resume ` + id}, nil
-}
-
-// OpenInClaude 开一个终端窗口，在项目目录里继续这个会话。
-func OpenInClaude(pid, rel string) error {
-	r, err := ResumeCommand(pid, rel)
-	if err != nil {
-		return err
-	}
-	if fi, err := os.Stat(r.Dir); err != nil || !fi.IsDir() {
-		return fmt.Errorf(i18n.T("项目目录不存在: %s"), r.Dir)
-	}
-	return platform.OpenTerminal(r.Dir, "claude", "--resume", strings.TrimSuffix(rel, ".jsonl"))
 }

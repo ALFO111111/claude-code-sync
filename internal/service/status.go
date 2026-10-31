@@ -23,13 +23,14 @@ type Status struct {
 	Stats       state.SyncStats `json:"stats"`      // 上次同步的统计
 	Syncing     bool            `json:"syncing"`    // 由 GUI 层填（只有它知道自己有没有在跑）
 	// 自动同步（hooks + 定时任务）是否就绪。界面只在没就绪时提示，平时不展示。
-	AutoSync       bool         `json:"autoSync"`
-	AutoSyncIssue  string       `json:"autoSyncIssue,omitempty"` // 没就绪的原因
-	Sandboxed      bool         `json:"sandboxed"`               // 沙箱模式（不装自动同步）
-	KeyMismatch    bool         `json:"keyMismatch"`             // 别的设备改了同步口令，本机要输入新口令
-	Changes        []ChangeItem `json:"changes"`                 // 上次同步改动了哪些文件
-	Conflicts      int          `json:"conflicts"`               // 待人工解决的冲突数
-	PendingContent []string     `json:"pendingContent"`          // 需要选择本工具还是 CC Switch 的类别
+	AutoSync       bool           `json:"autoSync"`
+	AutoSyncIssue  string         `json:"autoSyncIssue,omitempty"` // 没就绪的原因
+	Sandboxed      bool           `json:"sandboxed"`               // 沙箱模式（不装自动同步）
+	KeyMismatch    bool           `json:"keyMismatch"`             // 别的设备改了同步口令，本机要输入新口令
+	Changes        []ChangeItem   `json:"changes"`                 // 上次同步改动了哪些文件
+	Conflicts      int            `json:"conflicts"`               // 待人工解决的冲突数
+	ToolConflicts  map[string]int `json:"toolConflicts"`           // 每个工具的冲突数（侧边栏数字跟着当前工具）
+	PendingContent []string       `json:"pendingContent"`          // 需要选择本工具还是 CC Switch 的类别
 }
 
 // ChangeItem 本轮明细里的一条（见 state.Change）。
@@ -67,8 +68,16 @@ func LoadStatus() *Status {
 	s.Devices = []DeviceSummary{}
 	s.Changes = []ChangeItem{}
 	s.PendingContent = []string{}
+	s.ToolConflicts = map[string]int{}
 	if conflicts, err := engine.ListConflicts(); err == nil {
 		s.Conflicts = len(conflicts)
+		for _, c := range conflicts {
+			tool := c.Tool
+			if tool == "" {
+				tool = config.ToolClaude
+			}
+			s.ToolConflicts[tool]++
+		}
 	}
 	ccEnabled := ccswitch.DetectAt(cfg.Home) == ccswitch.Enabled
 	for _, category := range config.ContentCategories {

@@ -635,3 +635,17 @@ func writeNewFile(abs string, data []byte) error {
 	}
 	return werr
 }
+
+// ---------- 给会话浏览用（service 包） ----------
+
+// CodexSessionKey 本机上传的 Codex 会话在云端（和同步状态里）的键。
+func CodexSessionKey(deviceID, rel string) string { return codexSessionPrefix + deviceID + "/" + rel }
+
+// CodexRelOK 是不是一个 Codex 会话文件的相对路径（/ 分隔）。
+func CodexRelOK(rel string) bool { return codexRelOK(rel) }
+
+// ReadCodexMeta 会话文件第一行里的会话 ID 和工作目录；读不出来返回空。
+func ReadCodexMeta(path string) (id, cwd string) {
+	m := readCodexMetaFile(path)
+	return m.ID, m.Cwd
+}

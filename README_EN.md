@@ -47,7 +47,8 @@ agent-sync solves exactly that:
 - **End-to-end encryption**: everything is encrypted with your passphrase before upload (Argon2id + AES-256-GCM); the cloud only sees ciphertext
 - **No data loss**: sessions are only ever appended to, never overwritten wholesale; if the same session was continued on two machines, both versions are kept (one is saved as a new session); any other file is backed up before it is replaced, and the Backups page lets you compare and restore with one click
 - **Fully automatic**: starts at login and runs in the background (in the tray on Windows, as a windowless background process on the Mac), syncing as soon as files change; syncs the current project whenever a Claude Code conversation starts or a reply finishes; plus a full sync every hour as a safety net
-- **Session browser**: sessions listed by title for every project, search across all projects, and continue any session with `claude --resume` in a terminal with one click
+- **One tool at a time**: switch between Claude Code and Codex at the top of the sidebar; sessions, synced content, conflicts and backups show only that tool; the home page has a card per tool
+- **Session browser**: Claude Code and Codex sessions listed by project and title, search across all projects, and continue any session with `claude --resume` / `codex resume` in a terminal with one click
 - **Change the passphrase any time**: every cloud file is re-encrypted with the new passphrase; other machines continue once you enter it there
 - **Bring your own storage**: any S3-compatible object storage: Cloudflare R2, AWS S3, Alibaba Cloud OSS, Tencent Cloud COS, MinIO (self-hosted / NAS), …
 - **GUI + CLI**: a single portable exe on Windows, a DMG on the Mac (drag to Applications); the interface is available in English and Simplified Chinese

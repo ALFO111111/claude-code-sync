@@ -89,7 +89,7 @@ const wait = (v, ms = 120) => new Promise((r) => setTimeout(() => r(v), ms))
 export const GetStatus = () => wait({
   initialized: true, deviceName: 'office-pc', deviceId: '3f9a1c2b7d4e5f60', lastSync: fmt(NOW - 3 * min), lastSyncAt: NOW - 3 * min,
   projects: 4, syncing: false, autoSync: true, sandboxed: false, keyMismatch: q.get('key') === '1',
-  conflicts: CONFLICTS.length, pendingContent: CC ? ['rules', 'skills', 'mcp'] : [],
+  conflicts: CONFLICTS.length, toolConflicts: { claude: CONFLICTS.filter((c) => (c.tool || 'claude') === 'claude').length, codex: CONFLICTS.filter((c) => c.tool === 'codex').length }, pendingContent: CC ? ['rules', 'skills', 'mcp'] : [],
   stats: { pushed: 2, pulled: 3, merged: 1, forked: 0, errors: 0, history: 6 },
   devices: [
     { id: 'a81c4e2f90b3d7e1', name: 'home-laptop', projects: 5, lastSeen: NOW - 20 * min },
@@ -130,17 +130,27 @@ export const IgnoreProject = () => wait(null)
 export const UnignoreProject = () => wait(null)
 export const PickDirectory = () => wait('')
 
+// URL 带 &tools=more：多放几个以后可能接入的工具，看工具多了侧边栏怎么显示
+const MORE_TOOLS = new URLSearchParams(location.search).get('tools') === 'more'
+  ? ['pi', 'hermes', 'openclaw'].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), installed: id === 'pi', dir: '~/.' + id, sessions: true, sessionCount: id === 'pi' ? 3 : 0, contentOn: 0, contentTotal: 0, resumeCmd: id }))
+  : []
+export const ListTools = () => wait([
+  { id: 'claude', name: 'Claude Code', installed: true, dir: 'C:\Users\alex\.claude', sessions: true, sessionCount: 42, contentOn: 8, contentTotal: 8, resumeCmd: 'claude' },
+  { id: 'codex', name: 'Codex', installed: true, dir: 'C:\Users\alex\.codex', sessions: true, sessionCount: 9, contentOn: 4, contentTotal: 4, resumeCmd: 'codex' },
+  ...MORE_TOOLS,
+])
+export const ListToolProjects = (tool) => wait((tool === 'codex' ? PROJECTS.slice(0, 2) : PROJECTS).map((p, i) => ({ ...p, sessions: tool === 'codex' ? 4 + i : 12 - i * 3 })))
 export const ListSessions = () => wait(SESSIONS.map((s) => ({
   name: s.name, rel: s.name, size: s.size, lines: s.lines, mtime: fmt(NOW - s.ago), preview: s.title, title: s.title,
   synced: !s.pending, forkOf: s.forkOf || '', resume: true,
 })))
 export const ReadSession = () => wait(MESSAGES)
-export const SearchSessions = (kw) => wait([
+export const SearchSessions = (tool, kw) => wait([
   { pid: PROJECTS[0].pid, project: 'web-shop', rel: SESSIONS[0].name, title: SESSIONS[0].title, mtime: fmt(NOW - 25 * min), count: 3, snippet: L(`结算页要支持优惠券：输入券码、校验、显示减了多少钱（${kw}）`, `The checkout page needs coupon support (${kw})`) },
   { pid: PROJECTS[1].pid, project: 'api-server', rel: '1d2e3f4a-6b7c-4d8e-9f0a-5b6c7d8e9f0a.jsonl', title: L('优惠券校验接口', 'Coupon verification endpoint'), mtime: fmt(NOW - 2 * day), count: 1, snippet: `/api/coupons/verify … ${kw}` },
 ], 300)
-export const ResumeCommand = (pid, rel) => wait({ dir: 'D:\\code\\web-shop', command: `cd "D:\\code\\web-shop"; claude --resume ${rel.replace('.jsonl', '')}` })
-export const OpenInClaude = () => wait(null)
+export const ResumeCommand = (tool, pid, rel) => wait({ dir: 'D:\\code\\web-shop', command: `cd "D:\\code\\web-shop"; ${tool === 'codex' ? 'codex resume' : 'claude --resume'} ${rel.replace('.jsonl', '')}` })
+export const OpenSession = () => wait(null)
 export const CopyText = () => wait(null)
 
 export const ListBackups = () => wait({ items: BACKUPS, dir: 'C:\\Users\\alex\\.agent-sync\\backup', total: 2510, keepDays: 14 })

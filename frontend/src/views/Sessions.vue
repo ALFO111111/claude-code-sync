@@ -3,11 +3,11 @@
     <div class="card side">
       <div class="search-all">
         <NavIcon name="search" :size="15" class="icon" />
-        <input v-model="globalQ" :placeholder="t('sessions.searchAll')" @keyup.enter="searchAll" />
+        <input v-model="globalQ" :placeholder="t('sessions.searchAllTool', { name: tool.name })" @keyup.enter="searchAll" />
       </div>
-      <h3>{{ t('sessions.projects') }}</h3>
-      <Skeleton v-if="!boundRes.data" :lines="4" />
-      <div v-else-if="!projects.length" class="muted">{{ t('sessions.noBound') }}</div>
+      <h3 class="row tool-title"><ToolIcon :tool="tool" :size="16" />{{ t('sessions.projects') }}</h3>
+      <Skeleton v-if="!projLoaded" :lines="4" />
+      <div v-else-if="!projects.length" class="muted small">{{ t('sessions.noToolSessions', { name: tool.name }) }}</div>
       <div
         v-for="p in projects" :key="p.pid"
         class="nav-item" :class="{ active: mode !== 'search' && curPid === p.pid }"
@@ -15,7 +15,7 @@
       >
         <div class="grow">
           <div class="ellipsis">{{ p.display || p.root }}</div>
-          <div class="muted small">{{ kindLabel(p.kind) }}</div>
+          <div class="muted small">{{ kindLabel(p.kind) }} · {{ t('tools.sessions', { n: p.sessions }) }}</div>
         </div>
       </div>
     </div>
@@ -70,7 +70,7 @@
               <td>{{ s.lines }}</td>
               <td class="muted nowrap">{{ fmtSize(s.size) }}</td>
               <td class="ops" @click.stop>
-                <button v-if="s.resume" class="sm" :title="t('sessions.resumeHint')" @click="resume(s.rel)"><NavIcon name="play" :size="12" /> {{ t('sessions.resume') }}</button>
+                <button v-if="s.resume" class="sm" :title="t('sessions.resumeHintTool', { name: tool.name })" @click="resume(s.rel)"><NavIcon name="play" :size="12" /> {{ t('sessions.resume') }}</button>
                 <button v-if="s.resume" class="sm ghost" :title="t('sessions.copyCmd')" @click="copyCmd(s.rel)"><NavIcon name="copy" :size="13" /></button>
               </td>
             </tr>
@@ -87,7 +87,7 @@
           <button @click="closeViewer">{{ t('common.back') }}</button>
           <div class="grow ellipsis"><b>{{ viewerTitle }}</b></div>
           <template v-if="viewerResume">
-            <button class="sm primary" :title="t('sessions.resumeHint')" @click="resume(viewerRel)"><NavIcon name="play" :size="12" /> {{ t('sessions.resume') }}</button>
+            <button class="sm primary" :title="t('sessions.resumeHintTool', { name: tool.name })" @click="resume(viewerRel)"><NavIcon name="play" :size="12" /> {{ t('sessions.resume') }}</button>
             <button class="sm" @click="copyCmd(viewerRel)"><NavIcon name="copy" :size="13" /> {{ t('sessions.copyCmd') }}</button>
           </template>
         </div>
@@ -124,7 +124,8 @@ import { ref, computed, watch, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { takeParams } from '@/stores/nav'
-import { resources } from '@/stores/data'
+import { currentTool } from '@/stores/tools'
+import ToolIcon from '@/components/ToolIcon.vue'
 import { fmtSize, kindLabel, highlight } from '@/utils/format'
 import { useNotice } from '@/composables/useNotice'
 import Notice from '@/components/Notice.vue'
@@ -134,8 +135,20 @@ import Refreshing from '@/components/Refreshing.vue'
 
 const { t } = useI18n()
 const { notice, ok, fail, clear } = useNotice()
-const boundRes = resources.bound
-const projects = computed(() => boundRes.data || [])
+const tool = currentTool
+// 每个工具的项目列表记一份（切回来先显示上次的）
+const projByTool = ref({})
+const projects = computed(() => projByTool.value[tool.value.id] || [])
+const projLoaded = computed(() => !!projByTool.value[tool.value.id])
+async function loadProjects() {
+  const id = tool.value.id
+  try {
+    projByTool.value = { ...projByTool.value, [id]: await api.ListToolProjects(id) }
+  } catch (e) {
+    projByTool.value = { ...projByTool.value, [id]: [] }
+    fail(String(e))
+  }
+}
 const curPid = ref('')
 const curRoot = ref('')
 const sessions = ref([])
@@ -149,7 +162,7 @@ const viewerResume = ref(false)
 const search = ref('')
 
 // 每个项目的会话列表记一份：切回看过的项目时先显示上次的，后台再刷新（不会先闪一下"没有会话"）
-const listCache = new Map()
+const listCache = new Map() // 键：工具/项目
 const listLoading = ref(false)
 
 // 加载失败时不能还显示着上一个项目的会话：没缓存就先清空
@@ -157,7 +170,7 @@ async function select(p) {
   curPid.value = p.pid
   curRoot.value = p.root
   viewer.value = null
-  sessions.value = listCache.get(p.pid) || []
+  sessions.value = listCache.get(tool.value.id + '/' + p.pid) || []
   loadErr.value = ''
   mode.value = 'list'
   clear()
@@ -167,12 +180,13 @@ async function select(p) {
 // reloadList 刷新当前项目的会话列表（不清空，刷新期间照样显示旧的）
 async function reloadList() {
   const pid = curPid.value
+  const id = tool.value.id
   if (!pid) return
   listLoading.value = true
   try {
-    const list = await api.ListSessions(pid)
-    listCache.set(pid, list)
-    if (curPid.value === pid) sessions.value = list
+    const list = await api.ListSessions(id, pid)
+    listCache.set(id + '/' + pid, list)
+    if (curPid.value === pid && tool.value.id === id) sessions.value = list
   } catch (e) {
     if (curPid.value === pid) loadErr.value = String(e)
   } finally {
@@ -183,7 +197,7 @@ async function reloadList() {
 async function openRel(rel, title, resumable, q = '') {
   loadErr.value = ''
   try {
-    viewer.value = await api.ReadSession(curPid.value, rel)
+    viewer.value = await api.ReadSession(tool.value.id, curPid.value, rel)
     viewerRel.value = rel
     viewerTitle.value = title || rel
     viewerResume.value = resumable
@@ -204,7 +218,7 @@ function closeViewer() {
 async function resume(rel) {
   clear()
   try {
-    await api.OpenInClaude(curPid.value, rel)
+    await api.OpenSession(tool.value.id, curPid.value, rel)
     ok(t('sessions.resumeOpened'))
   } catch (e) {
     fail(t('sessions.resumeFailed', { err: String(e) }))
@@ -213,7 +227,7 @@ async function resume(rel) {
 async function copyCmd(rel) {
   clear()
   try {
-    const r = await api.ResumeCommand(curPid.value, rel)
+    const r = await api.ResumeCommand(tool.value.id, curPid.value, rel)
     await api.CopyText(r.command)
     ok(t('sessions.copied', { cmd: r.command }))
   } catch (e) {
@@ -238,7 +252,7 @@ async function searchAll() {
   viewer.value = null
   searching.value = true
   try {
-    hits.value = await api.SearchSessions(q)
+    hits.value = await api.SearchSessions(tool.value.id, q)
   } catch (e) {
     hits.value = []
     fail(String(e))
@@ -253,8 +267,9 @@ async function openHit(h) {
     curRoot.value = p.root
   }
   mode.value = 'none' // 返回时回到这个项目的列表
-  await openRel(h.rel, h.title, /^[0-9a-f-]{36}\.jsonl$/i.test(h.rel), lastQ.value)
-  sessions.value = await api.ListSessions(h.pid).catch(() => [])
+  sessions.value = await api.ListSessions(tool.value.id, h.pid).catch(() => [])
+  const s = sessions.value.find((x) => x.rel === h.rel)
+  await openRel(h.rel, h.title, !!s?.resume, lastQ.value)
 }
 
 // 长会话一次渲染几千条会卡：先显示 PAGE 条，往下点"再显示"
@@ -271,12 +286,24 @@ const filteredMsgs = computed(() => {
 const shownMsgs = computed(() => filteredMsgs.value.slice(0, limit.value))
 
 // 每次进这页：项目列表（只读本机，很快）和当前项目的会话列表都在后台刷新，期间照样显示上次的
+// 切换工具：回到"选项目"，换成那个工具的项目列表
+watch(() => tool.value.id, () => {
+  curPid.value = ''
+  viewer.value = null
+  sessions.value = []
+  mode.value = 'none'
+  hits.value = []
+  clear()
+  loadProjects()
+})
+
 onActivated(async () => {
-  await boundRes.refresh()
+  await loadProjects()
   if (mode.value !== 'search' && !viewer.value) reloadList()
   // 从别的页面跳过来（备份页"查看会话"）：直接打开那个会话
   const p = takeParams()
   if (p?.pid) {
+    if (p.tool && p.tool !== tool.value.id) return // 不是当前工具的会话（不应发生：备份页只列当前工具的）
     const proj = projects.value.find((x) => x.pid === p.pid)
     if (proj) {
       await select(proj)
@@ -304,6 +331,7 @@ onActivated(async () => {
 .hit:hover { border-color: var(--accent); }
 .hit-count { margin-bottom: 8px; }
 .root { font-weight: 400; }
+.tool-title { gap: 6px; }
 .tool { display: inline; }
 .tool-brief { padding: 4px 2px; }
 .more { text-align: center; margin: 12px 0; }

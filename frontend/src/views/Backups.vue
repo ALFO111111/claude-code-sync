@@ -5,7 +5,7 @@
       <div class="row top">
         <div class="shield"><NavIcon name="backups" :size="26" /></div>
         <div class="grow">
-          <h3>{{ t('backups.title') }}<Refreshing :on="res.loading && !!data" /></h3>
+          <h3 class="row tool-title"><ToolIcon :tool="tool" :size="18" />{{ tool.name }} · {{ t('backups.title') }}<Refreshing :on="res.loading && !!data" /></h3>
           <div class="note flush">{{ t('backups.intro', { days: data?.keepDays || 14 }) }}</div>
         </div>
       </div>
@@ -106,6 +106,8 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { go } from '@/stores/nav'
 import { resources } from '@/stores/data'
+import { currentTool, toolOf } from '@/stores/tools'
+import ToolIcon from '@/components/ToolIcon.vue'
 import { fmtSize, toolLabel, contentLabel } from '@/utils/format'
 import { lineDiff, collapse } from '@/utils/diff'
 import { useNotice } from '@/composables/useNotice'
@@ -121,6 +123,10 @@ const res = resources.backups
 const data = computed(() => res.data)
 const loadErr = computed(() => (res.data ? '' : res.error))
 const filter = ref('all')
+// 只列当前工具的备份（顶部工具切换）：项目里的会话等文件没有 tool 字段，都是 Claude 的
+const tool = currentTool
+const toolItems = computed(() => (data.value?.items || []).filter((i) => toolOf(i) === tool.value.id))
+watch(() => tool.value.id, () => { filter.value = 'all' })
 const busy = ref(false)
 
 const KIND_ICON = { remote: 'conflict', local: 'download', restore: 'restore', fork: 'fork' }
@@ -130,7 +136,7 @@ const refresh = () => res.refresh()
 
 // 只显示有内容的筛选项，免得一排"0"
 const filters = computed(() => {
-  const items = data.value?.items || []
+  const items = toolItems.value
   const out = [{ key: 'all', count: items.length }]
   for (const k of KINDS) {
     const n = items.filter((i) => i.kind === k).length
@@ -141,7 +147,7 @@ const filters = computed(() => {
 
 // 按天分组：今天 / 昨天 / 具体日期
 const groups = computed(() => {
-  const items = (data.value?.items || []).filter((i) => filter.value === 'all' || i.kind === filter.value)
+  const items = toolItems.value.filter((i) => filter.value === 'all' || i.kind === filter.value)
   const out = []
   for (const it of items) {
     const d = new Date(it.time)
@@ -228,6 +234,7 @@ onActivated(() => res.refresh())
 </script>
 
 <style scoped>
+.tool-title { gap: 8px; }
 .intro .top { align-items: flex-start; gap: 14px; }
 .shield { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .intro h3 { margin-bottom: 4px; }

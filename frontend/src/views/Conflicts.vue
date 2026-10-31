@@ -4,7 +4,7 @@
       <div class="row top">
         <div class="badge-icon"><NavIcon name="conflicts" :size="26" /></div>
         <div class="grow">
-          <h3>{{ t('conflicts.title') }}<Refreshing :on="res.loading && !!list" /></h3>
+          <h3 class="row tool-title"><ToolIcon :tool="tool" :size="18" />{{ tool.name }} · {{ t('conflicts.title') }}<Refreshing :on="res.loading && !!list" /></h3>
           <div class="note flush">{{ t('conflicts.intro') }}</div>
         </div>
       </div>
@@ -87,6 +87,8 @@ import { ref, computed, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/api'
 import { resources } from '@/stores/data'
+import { currentTool, toolOf } from '@/stores/tools'
+import ToolIcon from '@/components/ToolIcon.vue'
 import { lineDiff, collapse } from '@/utils/diff'
 import { toolLabel, contentLabel } from '@/utils/format'
 import { useNotice } from '@/composables/useNotice'
@@ -98,7 +100,9 @@ import Refreshing from '@/components/Refreshing.vue'
 const { t } = useI18n()
 const { notice, ok, fail, clear } = useNotice()
 const res = resources.conflicts
-const list = computed(() => res.data)
+// 只列当前工具的冲突（顶部工具切换）
+const tool = currentTool
+const list = computed(() => res.data && res.data.filter((it) => toolOf(it) === tool.value.id))
 const loadErr = computed(() => (res.data ? '' : res.error))
 const busy = ref(false)
 
@@ -166,6 +170,7 @@ onActivated(() => res.refresh())
 .flush { margin: 0; }
 .tabs { margin: 8px 0; }
 .list { padding: 4px 16px; }
+.tool-title { gap: 8px; }
 .item + .item { border-top: 1px solid var(--border); }
 .line { padding: 10px 0; }
 .what { line-height: 1.5; }
