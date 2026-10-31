@@ -106,7 +106,7 @@ Claude Code 和 Codex 在两个系统上都支持，Windows 和 Mac 之间可以
 <a id="rename"></a>
 ### 从旧版本（claude-code-sync）升级
 
-0.3.x 及以前叫 claude-code-sync。在旧版本里点“更新”（或运行 `claude-code-sync update`）就能升到 agent-sync，不用重新初始化：
+0.3.x 及以前叫 claude-code-sync。在旧版本里点“更新”（或运行 `claude-code-sync update`）就能升到 agent-sync，不用重新初始化。如果提示“没有可以自动安装的版本”（0.4.1 之后的发布不再带旧文件名），到 Releases 下载新版本放好、打开一次即可，效果一样：
 
 - 程序还在原来的位置、用原来的文件名（比如 `claude-code-sync.exe`、`/Applications/claude-code-sync.app`），只是里面换成了新版本。想换成新名字的话，退出程序后按上面的方式下载新版本放好，再打开一次就行，自动同步会自动改到新位置。
 - 数据目录**继续用原来的 `~/.claude-code-sync`**，不搬家；新装的电脑才用 `~/.agent-sync`。

@@ -106,7 +106,7 @@ The app checks GitHub for a new version when it opens (and once a day after that
 <a id="rename"></a>
 ### Upgrading from claude-code-sync
 
-Versions 0.3.x and earlier were called claude-code-sync. Click "Update" in the old version (or run `claude-code-sync update`) to move to agent-sync; no need to set it up again:
+Versions 0.3.x and earlier were called claude-code-sync. Click "Update" in the old version (or run `claude-code-sync update`) to move to agent-sync; no need to set it up again. If it says there is no version it can install automatically (releases after 0.4.1 no longer carry the old file names), download the new version from Releases, put it in place and open it once; the result is the same:
 
 - The app stays where it was under its old file name (e.g. `claude-code-sync.exe`, `/Applications/claude-code-sync.app`), just with the new version inside. To switch to the new name, quit the app, download the new version as described above, put it in place and open it once; automatic sync follows it to the new location.
 - The data folder **stays at `~/.claude-code-sync`**; only fresh installs use `~/.agent-sync`.

@@ -7,6 +7,11 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### 变更 / Changed
+
+- Release 只放 `agent-sync.exe`、`agent-sync-<版本>-macos-arm64.dmg` 和 `SHA256SUMS.txt`，不再提供 Windows zip 和给 claude-code-sync 旧版本自动更新用的旧文件名副本（0.3.x 请手动下载新版本）
+  Releases only carry `agent-sync.exe`, `agent-sync-<version>-macos-arm64.dmg` and `SHA256SUMS.txt`; the Windows zip and the old-name copies for claude-code-sync auto-update are gone (0.3.x users download the new version manually)
+
 ## [0.4.1] - 2026-11-01
 
 ### 修复 / Fixed
