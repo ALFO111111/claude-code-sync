@@ -1,9 +1,10 @@
 <template>
-  <span class="tool-icon" :class="{ off }" :style="{ background: look.color, width: px, height: px, fontSize: fs }">{{ look.mark }}</span>
+  <img v-if="look.icon" class="tool-img" :class="{ off }" :src="look.icon" alt="" :style="{ width: px, height: px }" />
+  <span v-else class="tool-icon" :class="{ off }" :style="{ background: look.color, width: px, height: px, fontSize: fs }">{{ look.mark }}</span>
 </template>
 
 <script setup>
-// 工具的小图标：一个带颜色的圆角方块，里面一两个字符（颜色、字符见 stores/tools.js 的 toolLook）。
+// 工具的小图标：有官方图标就显示它；没有的显示一个带颜色的圆角方块，里面一两个字符（见 stores/tools.js 的 toolLook）。
 import { computed } from 'vue'
 import { toolLook } from '@/stores/tools'
 
@@ -30,5 +31,6 @@ const fs = computed(() => Math.round(props.size * (look.value.mark.length > 1 ? 
   letter-spacing: -0.5px;
   line-height: 1;
 }
-.tool-icon.off { filter: grayscale(1); opacity: 0.5; }
+.tool-img { flex: none; display: block; object-fit: contain; }
+.off { filter: grayscale(1); opacity: 0.5; }
 </style>

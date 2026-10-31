@@ -2,6 +2,8 @@
 // 会话、同步内容、冲突、备份这几页只显示当前工具的东西。工具列表来自后端 ListTools，不在前端写死。
 import { reactive, computed } from 'vue'
 import { resources } from '@/stores/data'
+import claudeIcon from '@/assets/tools/claude.svg'
+import codexIcon from '@/assets/tools/codex.svg'
 
 const KEY = 'agent-sync.tool'
 
@@ -33,10 +35,11 @@ export function setTool(id) {
 // toolOf 后端记录里的 tool 字段：旧记录没有这个字段，都是 Claude
 export const toolOf = (it) => it?.tool || 'claude'
 
-// 每个工具的图标：颜色 + 一两个字符（不用官方标志）。没登记的工具按名字自动配色、取首字母。
+// 每个工具的图标：有官方图标的用它（assets/tools，来源见那里的 README）；
+// 没登记的工具按名字自动配色、取首字母。
 const LOOKS = {
-  claude: { color: '#D97757', mark: 'C', short: 'Claude' },
-  codex: { color: '#3B3B3F', mark: '>_', short: 'Codex' },
+  claude: { icon: claudeIcon, color: '#D97757', mark: 'C', short: 'Claude' },
+  codex: { icon: codexIcon, color: '#3B3B3F', mark: '>_', short: 'Codex' },
 }
 const PALETTE = ['#5B8DEF', '#3FA66A', '#B068D8', '#D9A33B', '#4AA3B5', '#D9607A']
 

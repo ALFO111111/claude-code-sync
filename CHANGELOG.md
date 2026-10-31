@@ -7,12 +7,16 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-01
+
 ### 新增 / Added
 
 - 界面按工具分开：侧边栏顶部切换 Claude Code / Codex（工具多了自动变成下拉），会话、同步内容、冲突、备份只显示当前工具的；“同步内容”从设置页挪成单独一页；首页每个工具一张卡片（会话数、同步了几类、冲突）。工具清单由后端提供，以后接入新工具界面不用改
   The UI is split by tool: switch between Claude Code and Codex at the top of the sidebar (a dropdown once there are more tools); sessions, synced content, conflicts and backups show only the current tool; "Synced content" moved out of Settings into its own page; the home page has a card per tool (sessions, synced categories, conflicts). The tool list comes from the backend, so adding a tool needs no UI changes
 - 会话页能看 Codex 会话：按工作目录归到项目，显示标题和第一句话，查看对话、搜索、一键 `codex resume` 继续
   The Sessions page shows Codex sessions too: grouped by project from their working directory, with title and first message, a viewer, search and one-click `codex resume`
+- 工具图标用 Claude Code、Codex 自己的图标（来自 MIT 许可的 LobeHub Icons）；以后接入的工具没有图标时自动配色、取首字母
+  Tools are shown with their own Claude Code and Codex icons (from LobeHub Icons, MIT); tools added later without an icon get a colored initial
 - 左上角名字改成 agent-sync
   The sidebar shows the new name agent-sync
 
