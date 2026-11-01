@@ -4,6 +4,7 @@ package gui
 
 import (
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -51,38 +52,43 @@ func newTray() *tray {
 
 // start 在后台跑 systray 消息循环。
 func (t *tray) start(app *App) {
-	go systray.Run(func() {
-		t.mu.Lock()
-		t.ready = true
-		t.mu.Unlock()
-		t.showStatus(service.LoadStatus())
+	go func() {
+		// Windows 的隐藏窗口和消息循环必须在同一线程；systray 的 init 只锁主线程。
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		systray.Run(func() {
+			t.mu.Lock()
+			t.ready = true
+			t.mu.Unlock()
+			t.showStatus(service.LoadStatus())
 
-		mSync := systray.AddMenuItem("", "")
-		mOpen := systray.AddMenuItem("", "")
-		systray.AddSeparator()
-		mQuit := systray.AddMenuItem("", "")
-		t.mu.Lock()
-		t.menu = []trayItem{
-			{mSync, func() string { return i18n.T("立即同步") }, func() string { return i18n.T("同步所有项目") }},
-			{mOpen, func() string { return i18n.T("打开主窗口") }, func() string { return "" }},
-			{mQuit, func() string { return i18n.T("退出") }, func() string { return i18n.T("退出 agent-sync") }},
-		}
-		t.mu.Unlock()
-		t.relabel()
-		go func() {
-			for {
-				select {
-				case <-mSync.ClickedCh:
-					app.SyncNow()
-				case <-mOpen.ClickedCh:
-					app.showWindow()
-				case <-mQuit.ClickedCh:
-					app.quit()
-					return
-				}
+			mSync := systray.AddMenuItem("", "")
+			mOpen := systray.AddMenuItem("", "")
+			systray.AddSeparator()
+			mQuit := systray.AddMenuItem("", "")
+			t.mu.Lock()
+			t.menu = []trayItem{
+				{mSync, func() string { return i18n.T("立即同步") }, func() string { return i18n.T("同步所有项目") }},
+				{mOpen, func() string { return i18n.T("打开主窗口") }, func() string { return "" }},
+				{mQuit, func() string { return i18n.T("退出") }, func() string { return i18n.T("退出 agent-sync") }},
 			}
-		}()
-	}, func() {})
+			t.mu.Unlock()
+			t.relabel()
+			go func() {
+				for {
+					select {
+					case <-mSync.ClickedCh:
+						app.SyncNow()
+					case <-mOpen.ClickedCh:
+						app.showWindow()
+					case <-mQuit.ClickedCh:
+						app.quit()
+						return
+					}
+				}
+			}()
+		}, func() {})
+	}()
 }
 
 // showStatus 按本机状态显示图标和提示（启动时用：上次同步有失败就挂红点）。

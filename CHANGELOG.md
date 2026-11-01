@@ -7,6 +7,13 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-01
+
+### 修复 / Fixed
+
+- Windows 托盘图标还在但点击没有反应：把托盘窗口和鼠标消息处理固定在同一个系统线程，避免后台线程切换后左、右键菜单不弹出、无法从托盘打开主窗口。同步逻辑和数据格式不变
+  Fixed an unresponsive Windows tray icon: the tray window and its message loop now stay on the same OS thread, preventing thread migration from breaking left/right-click menus and access to the main window. Sync logic and data formats are unchanged
+
 ## [0.5.0] - 2026-11-01
 
 ### 新增 / Added
